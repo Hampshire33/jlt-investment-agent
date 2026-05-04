@@ -55,7 +55,7 @@
       background: #eef1f5;
     }
 
-    .decision-buy {
+    .decision-strong {
       color: green;
       font-weight: bold;
     }
@@ -85,6 +85,21 @@
       font-weight: bold;
     }
 
+    .score-strong {
+      color: green;
+      font-weight: bold;
+    }
+
+    .score-medium {
+      color: orange;
+      font-weight: bold;
+    }
+
+    .score-weak {
+      color: red;
+      font-weight: bold;
+    }
+
     .error {
       color: red;
       font-weight: bold;
@@ -104,32 +119,36 @@
   <div class="subtitle">Live dashboard for JLT property investment screening</div>
 
   <div class="card">
-    <h2>Latest Observation</h2>
+    <h2>Latest Best Candidate</h2>
     <div id="status" class="status">Loading live data from Supabase...</div>
     <p id="latest-summary">Loading...</p>
     <div class="small-note">
-      Dashboard shows only the latest full n8n run using run_id.
+      Dashboard shows only the latest full n8n run using run_id, ranked by final quality-adjusted score.
     </div>
   </div>
 
   <div class="card">
-    <h2>Property Observations</h2>
+    <h2>Quality-Adjusted Ranking</h2>
     <table>
       <thead>
         <tr>
+          <th>Rank</th>
           <th>Date</th>
           <th>Tower</th>
           <th>Unit</th>
           <th>Price AED</th>
           <th>Net Yield %</th>
+          <th>Quality</th>
+          <th>Yield Score</th>
+          <th>Final Score</th>
           <th>6.5% Target Price</th>
           <th>Gap to 6.5%</th>
-          <th>Decision</th>
+          <th>Final Decision</th>
         </tr>
       </thead>
       <tbody id="observations-table">
         <tr>
-          <td colspan="8">Loading...</td>
+          <td colspan="12">Loading...</td>
         </tr>
       </tbody>
     </table>
@@ -148,26 +167,6 @@
       };
     }
 
-    function formatDecision(decision) {
-      if (!decision) return "";
-
-      const lower = decision.toLowerCase();
-
-      if (lower.includes("buy")) {
-        return `<span class="decision-buy">${decision}</span>`;
-      }
-
-      if (lower.includes("watch")) {
-        return `<span class="decision-watch">${decision}</span>`;
-      }
-
-      if (lower.includes("avoid")) {
-        return `<span class="decision-avoid">${decision}</span>`;
-      }
-
-      return decision;
-    }
-
     function formatDate(dateString) {
       if (!dateString) return "";
       return new Date(dateString).toLocaleString();
@@ -176,6 +175,41 @@
     function formatNumber(value) {
       if (value === null || value === undefined || value === "") return "";
       return Number(value).toLocaleString();
+    }
+
+    function formatScore(value) {
+      if (value === null || value === undefined || value === "") return "";
+
+      const score = Number(value);
+      let cssClass = "score-weak";
+
+      if (score >= 8.5) {
+        cssClass = "score-strong";
+      } else if (score >= 7.0) {
+        cssClass = "score-medium";
+      }
+
+      return `<span class="${cssClass}">${score.toFixed(2)}</span>`;
+    }
+
+    function formatFinalDecision(decision) {
+      if (!decision) return "";
+
+      const lower = decision.toLowerCase();
+
+      if (lower.includes("strong")) {
+        return `<span class="decision-strong">${decision}</span>`;
+      }
+
+      if (lower.includes("watch") || lower.includes("buy")) {
+        return `<span class="decision-watch">${decision}</span>`;
+      }
+
+      if (lower.includes("avoid")) {
+        return `<span class="decision-avoid">${decision}</span>`;
+      }
+
+      return decision;
     }
 
     function formatGap(valueAed, valuePercent) {
@@ -225,9 +259,9 @@
     async function fetchObservationsByRunId(runId) {
       const url =
         `${SUPABASE_URL}/rest/v1/${TABLE_NAME}` +
-        `?select=created_at,run_id,tower,unit_type,asking_price_aed,net_yield_percent,target_price_6_5_net_yield,discount_to_6_5_target_aed,discount_to_6_5_target_percent,decision,summary` +
+        `?select=created_at,run_id,tower,unit_type,asking_price_aed,net_yield_percent,target_price_6_5_net_yield,discount_to_6_5_target_aed,discount_to_6_5_target_percent,quality_score,yield_score,final_score,final_decision,summary` +
         `&run_id=eq.${encodeURIComponent(runId)}` +
-        `&order=net_yield_percent.desc`;
+        `&order=final_score.desc`;
 
       const response = await fetch(url, {
         method: "GET",
@@ -260,7 +294,7 @@
       if (!data || data.length === 0) {
         status.textContent = "Connected to Supabase, but no latest run rows found.";
         latestSummary.textContent = "No property observations available.";
-        tableBody.innerHTML = `<tr><td colspan="8">No data available</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="12">No data available</td></tr>`;
         return;
       }
 
@@ -272,17 +306,21 @@
 
       tableBody.innerHTML = "";
 
-      data.forEach(row => {
+      data.forEach((row, index) => {
         tableBody.innerHTML += `
           <tr>
+            <td>${index + 1}</td>
             <td>${formatDate(row.created_at)}</td>
             <td>${row.tower || ""}</td>
             <td>${row.unit_type || ""}</td>
             <td>${formatNumber(row.asking_price_aed)}</td>
             <td>${row.net_yield_percent ?? ""}</td>
+            <td>${row.quality_score ?? ""}</td>
+            <td>${formatScore(row.yield_score)}</td>
+            <td>${formatScore(row.final_score)}</td>
             <td>${formatNumber(row.target_price_6_5_net_yield)}</td>
             <td>${formatGap(row.discount_to_6_5_target_aed, row.discount_to_6_5_target_percent)}</td>
-            <td>${formatDecision(row.decision)}</td>
+            <td>${formatFinalDecision(row.final_decision)}</td>
           </tr>
         `;
       });
@@ -299,7 +337,7 @@
         document.getElementById("latest-summary").textContent = error.message;
 
         document.getElementById("observations-table").innerHTML =
-          `<tr><td colspan="8">${error.message}</td></tr>`;
+          `<tr><td colspan="12">${error.message}</td></tr>`;
 
         console.error(error);
       }
