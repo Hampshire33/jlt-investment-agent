@@ -144,6 +144,24 @@
       font-size: 14px;
     }
 
+    .danger-box {
+      background: #ffecec;
+      border-left: 5px solid #d9534f;
+      padding: 12px;
+      margin-top: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .ok-box {
+      background: #eef9ee;
+      border-left: 5px solid #3caa3c;
+      padding: 12px;
+      margin-top: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
     .source-link {
       color: #0645ad;
       text-decoration: none;
@@ -166,6 +184,11 @@
     .tag-low {
       background: #ffe0e0;
       color: #990000;
+    }
+
+    .tag-low-medium {
+      background: #fff0cc;
+      color: #8a5a00;
     }
 
     .tag-medium {
@@ -206,6 +229,12 @@
     .context-text {
       line-height: 1.5;
       white-space: pre-wrap;
+    }
+
+    .section-separator {
+      height: 1px;
+      background: #e0e3e8;
+      margin: 18px 0;
     }
   </style>
 </head>
@@ -259,19 +288,39 @@
   </div>
 
   <div class="card">
-    <h2>Dynamic Market Context</h2>
+    <h2>Decision Reliability</h2>
 
     <div class="metric-grid">
       <div class="metric-box">
-        <div class="metric-label">Confidence Level</div>
+        <div class="metric-label">Macro Confidence</div>
         <div id="confidence-level" class="metric-value">Loading...</div>
       </div>
 
       <div class="metric-box">
-        <div class="metric-label">Data Quality</div>
+        <div class="metric-label">Macro Data Quality</div>
         <div id="data-quality-score" class="metric-value">Loading...</div>
       </div>
 
+      <div class="metric-box">
+        <div class="metric-label">Property Source Quality</div>
+        <div id="property-source-quality" class="metric-value">Loading...</div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Property Source Confidence</div>
+        <div id="property-source-confidence" class="metric-value">Loading...</div>
+      </div>
+    </div>
+
+    <div id="decision-reliability-warning" class="warning-box">
+      Loading reliability note...
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Dynamic Market Context</h2>
+
+    <div class="metric-grid">
       <div class="metric-box">
         <div class="metric-label">Financial Stability Score</div>
         <div id="financial-stability-score" class="metric-value">Loading...</div>
@@ -293,9 +342,45 @@
     <p id="risk-summary" class="context-text">Loading...</p>
 
     <div class="warning-box">
-      <strong>Data Status:</strong>
-      <div id="data-status" class="context-text">Loading...</div>
+      <strong>Macro Data Status:</strong>
+      <div id="macro-data-status-box" class="context-text">Loading...</div>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>Property & Rental Source Context</h2>
+
+    <div class="metric-grid">
+      <div class="metric-box">
+        <div class="metric-label">Source Type</div>
+        <div id="property-source-type" class="metric-value">Loading...</div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Tower Scope</div>
+        <div id="tower-scope" class="metric-value">Loading...</div>
+      </div>
+    </div>
+
+    <h3>Transaction Source Status</h3>
+    <p id="transaction-source-status" class="context-text">Loading...</p>
+
+    <h3>Rental Source Status</h3>
+    <p id="rental-source-status" class="context-text">Loading...</p>
+
+    <h3>Listing Source Status</h3>
+    <p id="listing-source-status" class="context-text">Loading...</p>
+
+    <h3>Property Search Summary</h3>
+    <p id="property-search-summary" class="context-text">Loading...</p>
+
+    <h3>Property Source Notes</h3>
+    <p id="property-source-notes" class="context-text">Loading...</p>
+
+    <details>
+      <summary><strong>Returned Property Source URLs</strong></summary>
+      <p id="property-source-urls" class="context-text">Loading...</p>
+    </details>
   </div>
 
   <div class="card">
@@ -340,7 +425,7 @@
         <tr>
           <td>Listings</td>
           <td>Property portals / broker listings</td>
-          <td>Not yet live-connected</td>
+          <td id="listing-data-status">Loading...</td>
           <td><span class="tag tag-medium">MEDIUM</span></td>
           <td>Use only for negotiation context, not primary valuation.</td>
         </tr>
@@ -372,7 +457,7 @@
               DFMGI
             </a>
           </td>
-          <td>Manual note only</td>
+          <td>Manual note only / not always found in Perplexity macro run</td>
           <td><span class="tag tag-medium">MEDIUM</span></td>
           <td>Risk appetite / local sentiment overlay.</td>
         </tr>
@@ -404,6 +489,7 @@
 
     const PROPERTY_TABLE = "property_observations";
     const CONTEXT_TABLE = "agent_run_context";
+    const PROPERTY_SOURCE_TABLE = "property_source_context";
 
     function getSupabaseHeaders() {
       return {
@@ -496,7 +582,7 @@
     function formatQualityTag(value) {
       if (!value) return "";
 
-      const upper = value.toUpperCase();
+      const upper = String(value).toUpperCase();
 
       if (upper === "HIGH") {
         return `<span class="tag tag-high">${value}</span>`;
@@ -504,6 +590,10 @@
 
       if (upper === "MEDIUM") {
         return `<span class="tag tag-medium">${value}</span>`;
+      }
+
+      if (upper === "LOW-MEDIUM") {
+        return `<span class="tag tag-low-medium">${value}</span>`;
       }
 
       if (upper === "LOW") {
@@ -586,6 +676,32 @@
       return data[0];
     }
 
+    async function fetchPropertySourceByRunId(runId) {
+      const url =
+        `${SUPABASE_URL}/rest/v1/${PROPERTY_SOURCE_TABLE}` +
+        `?select=run_id,created_at,source_type,tower_scope,source_quality,confidence_level,property_search_summary,rental_search_summary,transaction_source_status,rental_source_status,listing_source_status,source_notes,source_urls` +
+        `&run_id=eq.${encodeURIComponent(runId)}` +
+        `&limit=1`;
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: getSupabaseHeaders()
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Supabase property source error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+
+      if (!data || data.length === 0) {
+        return null;
+      }
+
+      return data[0];
+    }
+
     async function fetchDashboardData() {
       const latestRunId = await fetchLatestRunId();
 
@@ -593,19 +709,22 @@
         return {
           runId: null,
           observations: [],
-          context: null
+          context: null,
+          propertySource: null
         };
       }
 
-      const [observations, context] = await Promise.all([
+      const [observations, context, propertySource] = await Promise.all([
         fetchObservationsByRunId(latestRunId),
-        fetchContextByRunId(latestRunId)
+        fetchContextByRunId(latestRunId),
+        fetchPropertySourceByRunId(latestRunId)
       ]);
 
       return {
         runId: latestRunId,
         observations,
-        context
+        context,
+        propertySource
       };
     }
 
@@ -641,7 +760,7 @@
       });
     }
 
-    function renderContext(context) {
+    function renderMacroContext(context) {
       const confidenceLevel = document.getElementById("confidence-level");
       const dataQualityScore = document.getElementById("data-quality-score");
       const financialStabilityScore = document.getElementById("financial-stability-score");
@@ -650,7 +769,7 @@
       const macroRegime = document.getElementById("macro-regime");
       const marketPulse = document.getElementById("market-pulse");
       const riskSummary = document.getElementById("risk-summary");
-      const dataStatus = document.getElementById("data-status");
+      const macroDataStatusBox = document.getElementById("macro-data-status-box");
       const sourceNotes = document.getElementById("source-notes");
       const scoringExplanation = document.getElementById("scoring-explanation");
 
@@ -673,7 +792,7 @@
         macroRegime.textContent = "No run context found for latest run_id.";
         marketPulse.textContent = "No dynamic market pulse available.";
         riskSummary.textContent = "No dynamic risk summary available.";
-        dataStatus.textContent = "Context row missing. Check n8n agent_run_context branch.";
+        macroDataStatusBox.textContent = "Context row missing. Check n8n agent_run_context branch.";
         sourceNotes.textContent = "No dynamic source notes available.";
         scoringExplanation.textContent = "No dynamic scoring explanation available.";
 
@@ -694,7 +813,7 @@
       marketPulse.textContent = context.market_pulse || "No market pulse available.";
       riskSummary.textContent = context.risk_summary || "No risk summary available.";
 
-      dataStatus.textContent =
+      macroDataStatusBox.textContent =
         `Property data: ${context.property_data_status || "N/A"}\n` +
         `Rental data: ${context.rental_data_status || "N/A"}\n` +
         `Macro data: ${context.macro_data_status || "N/A"}`;
@@ -721,6 +840,81 @@
       }
     }
 
+    function renderPropertySourceContext(propertySource) {
+      const propertySourceQuality = document.getElementById("property-source-quality");
+      const propertySourceConfidence = document.getElementById("property-source-confidence");
+      const propertySourceType = document.getElementById("property-source-type");
+      const towerScope = document.getElementById("tower-scope");
+
+      const transactionSourceStatus = document.getElementById("transaction-source-status");
+      const rentalSourceStatus = document.getElementById("rental-source-status");
+      const listingSourceStatus = document.getElementById("listing-source-status");
+
+      const propertySearchSummary = document.getElementById("property-search-summary");
+      const propertySourceNotes = document.getElementById("property-source-notes");
+      const propertySourceUrls = document.getElementById("property-source-urls");
+      const listingDataStatus = document.getElementById("listing-data-status");
+      const reliabilityWarning = document.getElementById("decision-reliability-warning");
+
+      if (!propertySource) {
+        propertySourceQuality.innerHTML = formatQualityTag("LOW");
+        propertySourceConfidence.innerHTML = formatQualityTag("LOW");
+        propertySourceType.textContent = "N/A";
+        towerScope.textContent = "N/A";
+
+        transactionSourceStatus.textContent = "No property source context found.";
+        rentalSourceStatus.textContent = "No property source context found.";
+        listingSourceStatus.textContent = "No property source context found.";
+
+        propertySearchSummary.textContent = "No property source summary available.";
+        propertySourceNotes.textContent = "No property source notes available.";
+        propertySourceUrls.textContent = "No property source URLs available.";
+        listingDataStatus.textContent = "Unknown";
+
+        reliabilityWarning.className = "danger-box";
+        reliabilityWarning.innerHTML =
+          "<strong>Decision reliability warning:</strong> Property source context is missing. Do not treat ranking as investment-ready.";
+        return;
+      }
+
+      propertySourceQuality.innerHTML = formatQualityTag(propertySource.source_quality || "LOW");
+      propertySourceConfidence.innerHTML = formatQualityTag(propertySource.confidence_level || "LOW");
+
+      propertySourceType.textContent = propertySource.source_type || "N/A";
+      towerScope.textContent = propertySource.tower_scope || "N/A";
+
+      transactionSourceStatus.textContent = propertySource.transaction_source_status || "N/A";
+      rentalSourceStatus.textContent = propertySource.rental_source_status || "N/A";
+      listingSourceStatus.textContent = propertySource.listing_source_status || "N/A";
+
+      propertySearchSummary.textContent = propertySource.property_search_summary || "No property search summary available.";
+      propertySourceNotes.textContent = propertySource.source_notes || "No property source notes available.";
+      propertySourceUrls.textContent = propertySource.source_urls || "No property source URLs available.";
+
+      listingDataStatus.textContent = propertySource.listing_source_status || "N/A";
+
+      const sourceQuality = String(propertySource.source_quality || "LOW").toUpperCase();
+      const transactionStatus = String(propertySource.transaction_source_status || "").toLowerCase();
+      const rentalStatus = String(propertySource.rental_source_status || "").toLowerCase();
+
+      const transactionMissing = transactionStatus.includes("not found");
+      const rentalMissing = rentalStatus.includes("not found");
+
+      if (sourceQuality === "HIGH" && !transactionMissing && !rentalMissing) {
+        reliabilityWarning.className = "ok-box";
+        reliabilityWarning.innerHTML =
+          "<strong>Decision reliability:</strong> Property/rental source quality is high. Ranking can be interpreted with higher confidence, subject to normal investment review.";
+      } else if (sourceQuality === "MEDIUM" || sourceQuality === "LOW-MEDIUM") {
+        reliabilityWarning.className = "warning-box";
+        reliabilityWarning.innerHTML =
+          "<strong>Decision reliability warning:</strong> Property/rental evidence is partial. Use ranking for screening only; validate transaction and rental data before negotiation.";
+      } else {
+        reliabilityWarning.className = "danger-box";
+        reliabilityWarning.innerHTML =
+          "<strong>Decision reliability warning:</strong> Property/rental source quality is LOW. Current prices and rents are static prototype inputs. Do not treat BUY/WATCH results as investment-ready until DLD sale/rental data or verified tower-level evidence is connected.";
+      }
+    }
+
     function renderDashboard(payload) {
       const status = document.getElementById("status");
       const latestSummary = document.getElementById("latest-summary");
@@ -728,13 +922,15 @@
 
       const observations = payload.observations || [];
       const context = payload.context || null;
+      const propertySource = payload.propertySource || null;
 
       if (!observations || observations.length === 0) {
         status.textContent = "Connected to Supabase, but no latest run rows found.";
         latestSummary.textContent = "No property observations available.";
         callScript.textContent = "No call script available.";
         renderInvestmentTable([]);
-        renderContext(context);
+        renderMacroContext(context);
+        renderPropertySourceContext(propertySource);
         return;
       }
 
@@ -746,7 +942,8 @@
       callScript.textContent = latest.call_script || "No call script available.";
 
       renderInvestmentTable(observations);
-      renderContext(context);
+      renderMacroContext(context);
+      renderPropertySourceContext(propertySource);
     }
 
     async function main() {
