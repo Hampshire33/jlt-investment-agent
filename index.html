@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>JLT Investment Agent</title>
 
   <style>
@@ -71,6 +72,12 @@
       color: red;
       font-weight: bold;
     }
+
+    .small-note {
+      font-size: 13px;
+      color: #777;
+      margin-top: 10px;
+    }
   </style>
 </head>
 
@@ -83,6 +90,9 @@
     <h2>Latest Observation</h2>
     <div id="status" class="status">Loading live data from Supabase...</div>
     <p id="latest-summary">Loading...</p>
+    <div class="small-note">
+      Dashboard shows only the latest full n8n run using run_id.
+    </div>
   </div>
 
   <div class="card">
@@ -110,8 +120,15 @@
   <script>
     const SUPABASE_URL = "https://cndyxfprqpfkzypxhrxl.supabase.co";
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_VOIytNYEBG7FyZzQqqW66w_nJWK37TC";
-
     const TABLE_NAME = "property_observations";
+
+    function getSupabaseHeaders() {
+      return {
+        "apikey": SUPABASE_PUBLISHABLE_KEY,
+        "Authorization": `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        "Content-Type": "application/json"
+      };
+    }
 
     function formatDecision(decision) {
       if (!decision) return "";
@@ -143,28 +160,61 @@
       return Number(value).toLocaleString();
     }
 
-    async function fetchObservations() {
+    async function fetchLatestRunId() {
       const url =
         `${SUPABASE_URL}/rest/v1/${TABLE_NAME}` +
-        `?select=created_at,tower,unit_type,asking_price_aed,gross_yield_percent,net_yield_percent,decision,summary` +
+        `?select=run_id,created_at` +
+        `&run_id=not.is.null` +
         `&order=created_at.desc` +
-        `&limit=20`;
+        `&limit=1`;
 
       const response = await fetch(url, {
         method: "GET",
-        headers: {
-          "apikey": SUPABASE_PUBLISHABLE_KEY,
-          "Authorization": `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-          "Content-Type": "application/json"
-        }
+        headers: getSupabaseHeaders()
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Supabase error ${response.status}: ${errorText}`);
+        throw new Error(`Supabase latest run error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+
+      if (!data || data.length === 0) {
+        return null;
+      }
+
+      return data[0].run_id;
+    }
+
+    async function fetchObservationsByRunId(runId) {
+      const url =
+        `${SUPABASE_URL}/rest/v1/${TABLE_NAME}` +
+        `?select=created_at,run_id,tower,unit_type,asking_price_aed,gross_yield_percent,net_yield_percent,decision,summary` +
+        `&run_id=eq.${encodeURIComponent(runId)}` +
+        `&order=net_yield_percent.desc`;
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: getSupabaseHeaders()
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Supabase observations error ${response.status}: ${errorText}`);
       }
 
       return await response.json();
+    }
+
+    async function fetchObservations() {
+      const latestRunId = await fetchLatestRunId();
+
+      if (!latestRunId) {
+        return [];
+      }
+
+      return await fetchObservationsByRunId(latestRunId);
     }
 
     function renderDashboard(data) {
@@ -173,15 +223,16 @@
       const tableBody = document.getElementById("observations-table");
 
       if (!data || data.length === 0) {
-        status.textContent = "Connected to Supabase, but no rows found.";
+        status.textContent = "Connected to Supabase, but no latest run rows found.";
         latestSummary.textContent = "No property observations available.";
         tableBody.innerHTML = `<tr><td colspan="7">No data available</td></tr>`;
         return;
       }
 
       const latest = data[0];
+      const runTime = latest.created_at ? formatDate(latest.created_at) : "unknown time";
 
-      status.textContent = `Loaded ${data.length} latest row(s) from Supabase.`;
+      status.textContent = `Loaded latest full run: ${data.length} row(s). Run time: ${runTime}.`;
       latestSummary.textContent = latest.summary || "No summary available.";
 
       tableBody.innerHTML = "";
