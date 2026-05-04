@@ -55,6 +55,15 @@
       background: #eef1f5;
     }
 
+    ul {
+      margin-top: 8px;
+      padding-left: 22px;
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+
     .verdict-buy {
       color: green;
       font-weight: bold;
@@ -125,6 +134,49 @@
       color: #777;
       margin-top: 10px;
     }
+
+    .warning-box {
+      background: #fff7e6;
+      border-left: 5px solid #f0ad4e;
+      padding: 12px;
+      margin-top: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .source-link {
+      color: #0645ad;
+      text-decoration: none;
+    }
+
+    .source-link:hover {
+      text-decoration: underline;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 3px 7px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: bold;
+      background: #eef1f5;
+      color: #333;
+    }
+
+    .tag-low {
+      background: #ffe0e0;
+      color: #990000;
+    }
+
+    .tag-medium {
+      background: #fff0cc;
+      color: #8a5a00;
+    }
+
+    .tag-high {
+      background: #e2f5e2;
+      color: #006600;
+    }
   </style>
 </head>
 
@@ -174,6 +226,148 @@
   <div class="card">
     <h2>Call Script</h2>
     <p id="call-script">Loading...</p>
+  </div>
+
+  <div class="card">
+    <h2>Market & Macro Context</h2>
+
+    <p>
+      <strong>Current prototype macro view:</strong>
+      Dubai property market liquidity remains strong, but the macro backdrop is not risk-free. Dubai Land Department reported Q1 2026 real-estate transactions of AED252bn, up 31% year-on-year, which supports liquidity and investor depth. At the same time, UAE/Dubai PMI remains expansionary but has slowed, indicating a positive but cooling non-oil business environment.
+    </p>
+
+    <p>
+      <strong>Geopolitical/economic stress monitor:</strong>
+      The agent should continue tracking oil price direction, Hormuz/shipping risk, Gulf equity sentiment, Reuters geopolitical headlines, PMI trend, and financial-stability signals. These are not yet live-connected in this dashboard, so the current stability and proxy-LEI scores remain placeholders.
+    </p>
+
+    <p>
+      <strong>Current conservative interpretation:</strong>
+      After applying 5% vacancy, 6.6% entry cost, 2% exit cost, 5-year holding period, 3.5% bank benchmark and 8% NPV discount rate, the sample deals do not show a clean immediate BUY. The current action is to negotiate toward the 6.5% net-yield trigger price, not chase asking prices.
+    </p>
+
+    <div class="warning-box">
+      <strong>Prototype warning:</strong>
+      Property prices and rents currently come from static n8n sample inputs. They are not yet pulled from live DLD transaction/rental data or listing APIs. Treat this dashboard as workflow validation until the live data engine is connected.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Source Reliability Framework</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Data Type</th>
+          <th>Preferred Source</th>
+          <th>Current Status</th>
+          <th>Reliability</th>
+          <th>How Agent Should Use It</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Sale transactions</td>
+          <td>
+            <a class="source-link" href="https://dubailand.gov.ae/en/open-data/real-estate-data/" target="_blank">
+              Dubai Land Department Open Data
+            </a>
+          </td>
+          <td>Not yet live-connected</td>
+          <td><span class="tag tag-high">HIGH</span></td>
+          <td>Primary source for fair value and entry-price zones.</td>
+        </tr>
+
+        <tr>
+          <td>Rental transactions</td>
+          <td>
+            <a class="source-link" href="https://dubailand.gov.ae/en/open-data/real-estate-data/" target="_blank">
+              Dubai Land Department Rents
+            </a>
+          </td>
+          <td>Not yet live-connected</td>
+          <td><span class="tag tag-high">HIGH</span></td>
+          <td>Primary source for rent assumptions and net-yield calculation.</td>
+        </tr>
+
+        <tr>
+          <td>Listings</td>
+          <td>Property portals / broker listings</td>
+          <td>Not yet live-connected</td>
+          <td><span class="tag tag-medium">MEDIUM</span></td>
+          <td>Use only for negotiation context, not primary valuation.</td>
+        </tr>
+
+        <tr>
+          <td>Service charges</td>
+          <td>fäm / verified tower-level service-charge source</td>
+          <td>Partly locked manually</td>
+          <td><span class="tag tag-high">HIGH</span></td>
+          <td>Mandatory deduction from rent before net yield.</td>
+        </tr>
+
+        <tr>
+          <td>PMI / business cycle</td>
+          <td>
+            <a class="source-link" href="https://www.pmi.spglobal.com/" target="_blank">
+              S&amp;P Global PMI
+            </a>
+            / Reuters reporting
+          </td>
+          <td>Manual note only</td>
+          <td><span class="tag tag-high">HIGH</span></td>
+          <td>Macro-regime and proxy-LEI scoring.</td>
+        </tr>
+
+        <tr>
+          <td>Dubai equity sentiment</td>
+          <td>
+            <a class="source-link" href="https://www.dfm.ae/the-exchange/market-information/indices/dfmgi" target="_blank">
+              DFMGI
+            </a>
+          </td>
+          <td>Manual note only</td>
+          <td><span class="tag tag-medium">MEDIUM</span></td>
+          <td>Risk appetite / local sentiment overlay.</td>
+        </tr>
+
+        <tr>
+          <td>Geopolitical headlines</td>
+          <td>Reuters / official statements</td>
+          <td>Manual note only</td>
+          <td><span class="tag tag-high">HIGH</span></td>
+          <td>Financial-stability and risk-overlay scoring.</td>
+        </tr>
+
+        <tr>
+          <td>Bank benchmark</td>
+          <td>HSBC UAE AED term-deposit reference</td>
+          <td>Locked manually at 3.5%</td>
+          <td><span class="tag tag-medium">MEDIUM</span></td>
+          <td>Compare 5Y property IRR vs low-risk cash return.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>How This Prototype Reaches the Verdict</h2>
+
+    <ul>
+      <li><strong>Step 1:</strong> Calculate gross yield from annual rent divided by asking price.</li>
+      <li><strong>Step 2:</strong> Deduct 5% vacancy and tower service charge to calculate net rent.</li>
+      <li><strong>Step 3:</strong> Calculate net yield using net rent divided by asking price.</li>
+      <li><strong>Step 4:</strong> Estimate 5-year IRR using entry cost, exit cost, rent growth, price growth and sale proceeds.</li>
+      <li><strong>Step 5:</strong> Compare IRR against 3.5% bank benchmark.</li>
+      <li><strong>Step 6:</strong> Calculate 6.5% strong-buy price and fair price zone.</li>
+      <li><strong>Step 7:</strong> Apply quality score as an overlay, but do not allow quality narrative to override weak economics.</li>
+      <li><strong>Step 8:</strong> Output verdict: STRONG BUY, BUY, SELECTIVE BUY, WATCH or PASS.</li>
+    </ul>
+
+    <p>
+      <strong>Master rule:</strong>
+      Alpha = entry price. The agent must not recommend buying based only on timing, hype, tower reputation, or gross yield.
+    </p>
   </div>
 
   <script>
