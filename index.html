@@ -41,11 +41,11 @@
       width: 100%;
       border-collapse: collapse;
       background: white;
-      font-size: 14px;
+      font-size: 13px;
     }
 
     th, td {
-      padding: 10px;
+      padding: 9px;
       border-bottom: 1px solid #ddd;
       text-align: left;
       vertical-align: top;
@@ -55,17 +55,22 @@
       background: #eef1f5;
     }
 
-    .decision-strong {
+    .verdict-buy {
       color: green;
       font-weight: bold;
     }
 
-    .decision-watch {
+    .verdict-selective {
       color: orange;
       font-weight: bold;
     }
 
-    .decision-avoid {
+    .verdict-watch {
+      color: #996600;
+      font-weight: bold;
+    }
+
+    .verdict-pass {
       color: red;
       font-weight: bold;
     }
@@ -100,6 +105,16 @@
       font-weight: bold;
     }
 
+    .negative-npv {
+      color: red;
+      font-weight: bold;
+    }
+
+    .positive-npv {
+      color: green;
+      font-weight: bold;
+    }
+
     .error {
       color: red;
       font-weight: bold;
@@ -116,42 +131,49 @@
 <body>
 
   <h1>JLT Investment Agent</h1>
-  <div class="subtitle">Live dashboard for JLT property investment screening</div>
+  <div class="subtitle">Macro-aware, finance-driven JLT ready-apartment screening</div>
 
   <div class="card">
     <h2>Latest Best Candidate</h2>
     <div id="status" class="status">Loading live data from Supabase...</div>
     <p id="latest-summary">Loading...</p>
     <div class="small-note">
-      Dashboard shows only the latest full n8n run using run_id, ranked by final quality-adjusted score.
+      Shows latest full n8n run using run_id. Ranking is based on final score, but verdict follows net yield, IRR vs bank, and entry-price discipline.
     </div>
   </div>
 
   <div class="card">
-    <h2>Quality-Adjusted Ranking</h2>
+    <h2>Investment Ranking</h2>
     <table>
       <thead>
         <tr>
           <th>Rank</th>
           <th>Date</th>
           <th>Tower</th>
-          <th>Unit</th>
           <th>Price AED</th>
           <th>Net Yield %</th>
-          <th>Quality</th>
-          <th>Yield Score</th>
+          <th>5Y IRR %</th>
+          <th>IRR vs Bank %</th>
+          <th>NPV @ 8% AED</th>
           <th>Final Score</th>
-          <th>6.5% Target Price</th>
+          <th>Strong Buy Price</th>
+          <th>Fair Price</th>
           <th>Gap to 6.5%</th>
+          <th>Verdict</th>
           <th>Action</th>
         </tr>
       </thead>
       <tbody id="observations-table">
         <tr>
-          <td colspan="12">Loading...</td>
+          <td colspan="14">Loading...</td>
         </tr>
       </tbody>
     </table>
+  </div>
+
+  <div class="card">
+    <h2>Call Script</h2>
+    <p id="call-script">Loading...</p>
   </div>
 
   <script>
@@ -177,6 +199,11 @@
       return Number(value).toLocaleString();
     }
 
+    function formatPercent(value) {
+      if (value === null || value === undefined || value === "") return "";
+      return Number(value).toFixed(2);
+    }
+
     function formatScore(value) {
       if (value === null || value === undefined || value === "") return "";
 
@@ -192,24 +219,37 @@
       return `<span class="${cssClass}">${score.toFixed(2)}</span>`;
     }
 
-    function formatAction(actionLabel) {
-      if (!actionLabel) return "";
+    function formatNpv(value) {
+      if (value === null || value === undefined || value === "") return "";
 
-      const lower = actionLabel.toLowerCase();
+      const npv = Number(value);
+      const cssClass = npv >= 0 ? "positive-npv" : "negative-npv";
 
-      if (lower.includes("buy candidate") && !lower.includes("verify")) {
-        return `<span class="decision-strong">${actionLabel}</span>`;
+      return `<span class="${cssClass}">${formatNumber(npv)}</span>`;
+    }
+
+    function formatVerdict(verdict) {
+      if (!verdict) return "";
+
+      const upper = verdict.toUpperCase();
+
+      if (upper.includes("STRONG BUY") || upper === "BUY") {
+        return `<span class="verdict-buy">${verdict}</span>`;
       }
 
-      if (lower.includes("negotiate") || lower.includes("verify") || lower.includes("yield play") || lower.includes("watch")) {
-        return `<span class="decision-watch">${actionLabel}</span>`;
+      if (upper.includes("SELECTIVE")) {
+        return `<span class="verdict-selective">${verdict}</span>`;
       }
 
-      if (lower.includes("avoid")) {
-        return `<span class="decision-avoid">${actionLabel}</span>`;
+      if (upper.includes("WATCH")) {
+        return `<span class="verdict-watch">${verdict}</span>`;
       }
 
-      return actionLabel;
+      if (upper.includes("PASS")) {
+        return `<span class="verdict-pass">${verdict}</span>`;
+      }
+
+      return verdict;
     }
 
     function formatGap(valueAed, valuePercent) {
@@ -259,7 +299,7 @@
     async function fetchObservationsByRunId(runId) {
       const url =
         `${SUPABASE_URL}/rest/v1/${TABLE_NAME}` +
-        `?select=created_at,run_id,tower,unit_type,asking_price_aed,net_yield_percent,target_price_6_5_net_yield,discount_to_6_5_target_aed,discount_to_6_5_target_percent,quality_score,yield_score,final_score,final_decision,action_label,summary` +
+        `?select=created_at,run_id,tower,unit_type,asking_price_aed,net_yield_percent,irr_5y_percent,irr_vs_bank_percent,npv_5y_aed,final_score,strong_buy_price_aed,fair_price_aed,discount_to_6_5_target_aed,discount_to_6_5_target_percent,final_decision,action_label,summary,call_script` +
         `&run_id=eq.${encodeURIComponent(runId)}` +
         `&order=final_score.desc`;
 
@@ -290,11 +330,13 @@
       const status = document.getElementById("status");
       const latestSummary = document.getElementById("latest-summary");
       const tableBody = document.getElementById("observations-table");
+      const callScript = document.getElementById("call-script");
 
       if (!data || data.length === 0) {
         status.textContent = "Connected to Supabase, but no latest run rows found.";
         latestSummary.textContent = "No property observations available.";
-        tableBody.innerHTML = `<tr><td colspan="12">No data available</td></tr>`;
+        callScript.textContent = "No call script available.";
+        tableBody.innerHTML = `<tr><td colspan="14">No data available</td></tr>`;
         return;
       }
 
@@ -303,6 +345,7 @@
 
       status.textContent = `Loaded latest full run: ${data.length} row(s). Run time: ${runTime}.`;
       latestSummary.textContent = latest.summary || "No summary available.";
+      callScript.textContent = latest.call_script || "No call script available.";
 
       tableBody.innerHTML = "";
 
@@ -312,15 +355,17 @@
             <td>${index + 1}</td>
             <td>${formatDate(row.created_at)}</td>
             <td>${row.tower || ""}</td>
-            <td>${row.unit_type || ""}</td>
             <td>${formatNumber(row.asking_price_aed)}</td>
-            <td>${row.net_yield_percent ?? ""}</td>
-            <td>${row.quality_score ?? ""}</td>
-            <td>${formatScore(row.yield_score)}</td>
+            <td>${formatPercent(row.net_yield_percent)}</td>
+            <td>${formatPercent(row.irr_5y_percent)}</td>
+            <td>${formatPercent(row.irr_vs_bank_percent)}</td>
+            <td>${formatNpv(row.npv_5y_aed)}</td>
             <td>${formatScore(row.final_score)}</td>
-            <td>${formatNumber(row.target_price_6_5_net_yield)}</td>
+            <td>${formatNumber(row.strong_buy_price_aed)}</td>
+            <td>${formatNumber(row.fair_price_aed)}</td>
             <td>${formatGap(row.discount_to_6_5_target_aed, row.discount_to_6_5_target_percent)}</td>
-            <td>${formatAction(row.action_label)}</td>
+            <td>${formatVerdict(row.final_decision)}</td>
+            <td>${row.action_label || ""}</td>
           </tr>
         `;
       });
@@ -335,9 +380,10 @@
           `<span class="error">Failed to load Supabase data.</span>`;
 
         document.getElementById("latest-summary").textContent = error.message;
+        document.getElementById("call-script").textContent = error.message;
 
         document.getElementById("observations-table").innerHTML =
-          `<tr><td colspan="12">${error.message}</td></tr>`;
+          `<tr><td colspan="14">${error.message}</td></tr>`;
 
         console.error(error);
       }
