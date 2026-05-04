@@ -41,12 +41,14 @@
       width: 100%;
       border-collapse: collapse;
       background: white;
+      font-size: 14px;
     }
 
     th, td {
-      padding: 12px;
+      padding: 10px;
       border-bottom: 1px solid #ddd;
       text-align: left;
+      vertical-align: top;
     }
 
     th {
@@ -65,6 +67,21 @@
 
     .decision-avoid {
       color: red;
+      font-weight: bold;
+    }
+
+    .positive-gap {
+      color: red;
+      font-weight: bold;
+    }
+
+    .negative-gap {
+      color: green;
+      font-weight: bold;
+    }
+
+    .neutral-gap {
+      color: #555;
       font-weight: bold;
     }
 
@@ -104,14 +121,15 @@
           <th>Tower</th>
           <th>Unit</th>
           <th>Price AED</th>
-          <th>Gross Yield %</th>
           <th>Net Yield %</th>
+          <th>6.5% Target Price</th>
+          <th>Gap to 6.5%</th>
           <th>Decision</th>
         </tr>
       </thead>
       <tbody id="observations-table">
         <tr>
-          <td colspan="7">Loading...</td>
+          <td colspan="8">Loading...</td>
         </tr>
       </tbody>
     </table>
@@ -160,6 +178,23 @@
       return Number(value).toLocaleString();
     }
 
+    function formatGap(valueAed, valuePercent) {
+      if (valueAed === null || valueAed === undefined || valueAed === "") return "";
+
+      const gapAed = Number(valueAed);
+      const gapPercent = Number(valuePercent);
+
+      if (Math.abs(gapAed) < 1000) {
+        return `<span class="neutral-gap">At trigger</span>`;
+      }
+
+      if (gapAed > 0) {
+        return `<span class="positive-gap">Needs AED ${formatNumber(gapAed)} reduction (${gapPercent}%)</span>`;
+      }
+
+      return `<span class="negative-gap">Below trigger by AED ${formatNumber(Math.abs(gapAed))} (${Math.abs(gapPercent)}%)</span>`;
+    }
+
     async function fetchLatestRunId() {
       const url =
         `${SUPABASE_URL}/rest/v1/${TABLE_NAME}` +
@@ -190,7 +225,7 @@
     async function fetchObservationsByRunId(runId) {
       const url =
         `${SUPABASE_URL}/rest/v1/${TABLE_NAME}` +
-        `?select=created_at,run_id,tower,unit_type,asking_price_aed,gross_yield_percent,net_yield_percent,decision,summary` +
+        `?select=created_at,run_id,tower,unit_type,asking_price_aed,net_yield_percent,target_price_6_5_net_yield,discount_to_6_5_target_aed,discount_to_6_5_target_percent,decision,summary` +
         `&run_id=eq.${encodeURIComponent(runId)}` +
         `&order=net_yield_percent.desc`;
 
@@ -225,7 +260,7 @@
       if (!data || data.length === 0) {
         status.textContent = "Connected to Supabase, but no latest run rows found.";
         latestSummary.textContent = "No property observations available.";
-        tableBody.innerHTML = `<tr><td colspan="7">No data available</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="8">No data available</td></tr>`;
         return;
       }
 
@@ -244,8 +279,9 @@
             <td>${row.tower || ""}</td>
             <td>${row.unit_type || ""}</td>
             <td>${formatNumber(row.asking_price_aed)}</td>
-            <td>${row.gross_yield_percent ?? ""}</td>
             <td>${row.net_yield_percent ?? ""}</td>
+            <td>${formatNumber(row.target_price_6_5_net_yield)}</td>
+            <td>${formatGap(row.discount_to_6_5_target_aed, row.discount_to_6_5_target_percent)}</td>
             <td>${formatDecision(row.decision)}</td>
           </tr>
         `;
@@ -263,7 +299,7 @@
         document.getElementById("latest-summary").textContent = error.message;
 
         document.getElementById("observations-table").innerHTML =
-          `<tr><td colspan="7">${error.message}</td></tr>`;
+          `<tr><td colspan="8">${error.message}</td></tr>`;
 
         console.error(error);
       }
