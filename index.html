@@ -143,7 +143,7 @@
           <th>Final Score</th>
           <th>6.5% Target Price</th>
           <th>Gap to 6.5%</th>
-          <th>Final Decision</th>
+          <th>Action</th>
         </tr>
       </thead>
       <tbody id="observations-table">
@@ -192,24 +192,24 @@
       return `<span class="${cssClass}">${score.toFixed(2)}</span>`;
     }
 
-    function formatFinalDecision(decision) {
-      if (!decision) return "";
+    function formatAction(actionLabel) {
+      if (!actionLabel) return "";
 
-      const lower = decision.toLowerCase();
+      const lower = actionLabel.toLowerCase();
 
-      if (lower.includes("strong")) {
-        return `<span class="decision-strong">${decision}</span>`;
+      if (lower.includes("buy candidate") && !lower.includes("verify")) {
+        return `<span class="decision-strong">${actionLabel}</span>`;
       }
 
-      if (lower.includes("watch") || lower.includes("buy")) {
-        return `<span class="decision-watch">${decision}</span>`;
+      if (lower.includes("negotiate") || lower.includes("verify") || lower.includes("yield play") || lower.includes("watch")) {
+        return `<span class="decision-watch">${actionLabel}</span>`;
       }
 
       if (lower.includes("avoid")) {
-        return `<span class="decision-avoid">${decision}</span>`;
+        return `<span class="decision-avoid">${actionLabel}</span>`;
       }
 
-      return decision;
+      return actionLabel;
     }
 
     function formatGap(valueAed, valuePercent) {
@@ -259,7 +259,7 @@
     async function fetchObservationsByRunId(runId) {
       const url =
         `${SUPABASE_URL}/rest/v1/${TABLE_NAME}` +
-        `?select=created_at,run_id,tower,unit_type,asking_price_aed,net_yield_percent,target_price_6_5_net_yield,discount_to_6_5_target_aed,discount_to_6_5_target_percent,quality_score,yield_score,final_score,final_decision,summary` +
+        `?select=created_at,run_id,tower,unit_type,asking_price_aed,net_yield_percent,target_price_6_5_net_yield,discount_to_6_5_target_aed,discount_to_6_5_target_percent,quality_score,yield_score,final_score,final_decision,action_label,summary` +
         `&run_id=eq.${encodeURIComponent(runId)}` +
         `&order=final_score.desc`;
 
@@ -320,7 +320,7 @@
             <td>${formatScore(row.final_score)}</td>
             <td>${formatNumber(row.target_price_6_5_net_yield)}</td>
             <td>${formatGap(row.discount_to_6_5_target_aed, row.discount_to_6_5_target_percent)}</td>
-            <td>${formatFinalDecision(row.final_decision)}</td>
+            <td>${formatAction(row.action_label)}</td>
           </tr>
         `;
       });
