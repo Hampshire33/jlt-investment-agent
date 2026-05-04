@@ -177,6 +177,36 @@
       background: #e2f5e2;
       color: #006600;
     }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .metric-box {
+      background: #f8f9fb;
+      border-radius: 10px;
+      padding: 12px;
+      border: 1px solid #e0e3e8;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+
+    .metric-value {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .context-text {
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
   </style>
 </head>
 
@@ -229,31 +259,48 @@
   </div>
 
   <div class="card">
-    <h2>Market & Macro Context</h2>
+    <h2>Dynamic Market Context</h2>
 
-    <p>
-      <strong>Current prototype macro view:</strong>
-      Dubai property market liquidity remains strong, but the macro backdrop is not risk-free. Dubai Land Department reported Q1 2026 real-estate transactions of AED252bn, up 31% year-on-year, which supports liquidity and investor depth. At the same time, UAE/Dubai PMI remains expansionary but has slowed, indicating a positive but cooling non-oil business environment.
-    </p>
+    <div class="metric-grid">
+      <div class="metric-box">
+        <div class="metric-label">Confidence Level</div>
+        <div id="confidence-level" class="metric-value">Loading...</div>
+      </div>
 
-    <p>
-      <strong>Geopolitical/economic stress monitor:</strong>
-      The agent should continue tracking oil price direction, Hormuz/shipping risk, Gulf equity sentiment, Reuters geopolitical headlines, PMI trend, and financial-stability signals. These are not yet live-connected in this dashboard, so the current stability and proxy-LEI scores remain placeholders.
-    </p>
+      <div class="metric-box">
+        <div class="metric-label">Data Quality</div>
+        <div id="data-quality-score" class="metric-value">Loading...</div>
+      </div>
 
-    <p>
-      <strong>Current conservative interpretation:</strong>
-      After applying 5% vacancy, 6.6% entry cost, 2% exit cost, 5-year holding period, 3.5% bank benchmark and 8% NPV discount rate, the sample deals do not show a clean immediate BUY. The current action is to negotiate toward the 6.5% net-yield trigger price, not chase asking prices.
-    </p>
+      <div class="metric-box">
+        <div class="metric-label">Financial Stability Score</div>
+        <div id="financial-stability-score" class="metric-value">Loading...</div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Proxy LEI Score</div>
+        <div id="proxy-lei-score" class="metric-value">Loading...</div>
+      </div>
+    </div>
+
+    <h3>Macro Regime</h3>
+    <p id="macro-regime" class="context-text">Loading...</p>
+
+    <h3>Market Pulse</h3>
+    <p id="market-pulse" class="context-text">Loading...</p>
+
+    <h3>Risk Summary</h3>
+    <p id="risk-summary" class="context-text">Loading...</p>
 
     <div class="warning-box">
-      <strong>Prototype warning:</strong>
-      Property prices and rents currently come from static n8n sample inputs. They are not yet pulled from live DLD transaction/rental data or listing APIs. Treat this dashboard as workflow validation until the live data engine is connected.
+      <strong>Data Status:</strong>
+      <div id="data-status" class="context-text">Loading...</div>
     </div>
   </div>
 
   <div class="card">
-    <h2>Source Reliability Framework</h2>
+    <h2>Dynamic Source Notes</h2>
+    <p id="source-notes" class="context-text">Loading...</p>
 
     <table>
       <thead>
@@ -269,11 +316,11 @@
         <tr>
           <td>Sale transactions</td>
           <td>
-            <a class="source-link" href="https://dubailand.gov.ae/en/open-data/real-estate-data/" target="_blank">
+            <a id="dld-source-link-1" class="source-link" href="#" target="_blank">
               Dubai Land Department Open Data
             </a>
           </td>
-          <td>Not yet live-connected</td>
+          <td id="property-data-status">Loading...</td>
           <td><span class="tag tag-high">HIGH</span></td>
           <td>Primary source for fair value and entry-price zones.</td>
         </tr>
@@ -281,11 +328,11 @@
         <tr>
           <td>Rental transactions</td>
           <td>
-            <a class="source-link" href="https://dubailand.gov.ae/en/open-data/real-estate-data/" target="_blank">
+            <a id="dld-source-link-2" class="source-link" href="#" target="_blank">
               Dubai Land Department Rents
             </a>
           </td>
-          <td>Not yet live-connected</td>
+          <td id="rental-data-status">Loading...</td>
           <td><span class="tag tag-high">HIGH</span></td>
           <td>Primary source for rent assumptions and net-yield calculation.</td>
         </tr>
@@ -309,12 +356,11 @@
         <tr>
           <td>PMI / business cycle</td>
           <td>
-            <a class="source-link" href="https://www.pmi.spglobal.com/" target="_blank">
+            <a id="pmi-source-link" class="source-link" href="#" target="_blank">
               S&amp;P Global PMI
             </a>
-            / Reuters reporting
           </td>
-          <td>Manual note only</td>
+          <td id="macro-data-status">Loading...</td>
           <td><span class="tag tag-high">HIGH</span></td>
           <td>Macro-regime and proxy-LEI scoring.</td>
         </tr>
@@ -322,7 +368,7 @@
         <tr>
           <td>Dubai equity sentiment</td>
           <td>
-            <a class="source-link" href="https://www.dfm.ae/the-exchange/market-information/indices/dfmgi" target="_blank">
+            <a id="dfmgi-source-link" class="source-link" href="#" target="_blank">
               DFMGI
             </a>
           </td>
@@ -332,17 +378,9 @@
         </tr>
 
         <tr>
-          <td>Geopolitical headlines</td>
-          <td>Reuters / official statements</td>
-          <td>Manual note only</td>
-          <td><span class="tag tag-high">HIGH</span></td>
-          <td>Financial-stability and risk-overlay scoring.</td>
-        </tr>
-
-        <tr>
           <td>Bank benchmark</td>
           <td>HSBC UAE AED term-deposit reference</td>
-          <td>Locked manually at 3.5%</td>
+          <td id="bank-source-note">Loading...</td>
           <td><span class="tag tag-medium">MEDIUM</span></td>
           <td>Compare 5Y property IRR vs low-risk cash return.</td>
         </tr>
@@ -351,18 +389,8 @@
   </div>
 
   <div class="card">
-    <h2>How This Prototype Reaches the Verdict</h2>
-
-    <ul>
-      <li><strong>Step 1:</strong> Calculate gross yield from annual rent divided by asking price.</li>
-      <li><strong>Step 2:</strong> Deduct 5% vacancy and tower service charge to calculate net rent.</li>
-      <li><strong>Step 3:</strong> Calculate net yield using net rent divided by asking price.</li>
-      <li><strong>Step 4:</strong> Estimate 5-year IRR using entry cost, exit cost, rent growth, price growth and sale proceeds.</li>
-      <li><strong>Step 5:</strong> Compare IRR against 3.5% bank benchmark.</li>
-      <li><strong>Step 6:</strong> Calculate 6.5% strong-buy price and fair price zone.</li>
-      <li><strong>Step 7:</strong> Apply quality score as an overlay, but do not allow quality narrative to override weak economics.</li>
-      <li><strong>Step 8:</strong> Output verdict: STRONG BUY, BUY, SELECTIVE BUY, WATCH or PASS.</li>
-    </ul>
+    <h2>Dynamic Scoring Explanation</h2>
+    <p id="scoring-explanation" class="context-text">Loading...</p>
 
     <p>
       <strong>Master rule:</strong>
@@ -373,7 +401,9 @@
   <script>
     const SUPABASE_URL = "https://cndyxfprqpfkzypxhrxl.supabase.co";
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_VOIytNYEBG7FyZzQqqW66w_nJWK37TC";
-    const TABLE_NAME = "property_observations";
+
+    const PROPERTY_TABLE = "property_observations";
+    const CONTEXT_TABLE = "agent_run_context";
 
     function getSupabaseHeaders() {
       return {
@@ -463,9 +493,29 @@
       return `<span class="negative-gap">Below trigger by AED ${formatNumber(Math.abs(gapAed))} (${Math.abs(gapPercent)}%)</span>`;
     }
 
+    function formatQualityTag(value) {
+      if (!value) return "";
+
+      const upper = value.toUpperCase();
+
+      if (upper === "HIGH") {
+        return `<span class="tag tag-high">${value}</span>`;
+      }
+
+      if (upper === "MEDIUM") {
+        return `<span class="tag tag-medium">${value}</span>`;
+      }
+
+      if (upper === "LOW") {
+        return `<span class="tag tag-low">${value}</span>`;
+      }
+
+      return `<span class="tag">${value}</span>`;
+    }
+
     async function fetchLatestRunId() {
       const url =
-        `${SUPABASE_URL}/rest/v1/${TABLE_NAME}` +
+        `${SUPABASE_URL}/rest/v1/${PROPERTY_TABLE}` +
         `?select=run_id,created_at` +
         `&run_id=not.is.null` +
         `&order=created_at.desc` +
@@ -492,7 +542,7 @@
 
     async function fetchObservationsByRunId(runId) {
       const url =
-        `${SUPABASE_URL}/rest/v1/${TABLE_NAME}` +
+        `${SUPABASE_URL}/rest/v1/${PROPERTY_TABLE}` +
         `?select=created_at,run_id,tower,unit_type,asking_price_aed,net_yield_percent,irr_5y_percent,irr_vs_bank_percent,npv_5y_aed,final_score,strong_buy_price_aed,fair_price_aed,discount_to_6_5_target_aed,discount_to_6_5_target_percent,final_decision,action_label,summary,call_script` +
         `&run_id=eq.${encodeURIComponent(runId)}` +
         `&order=final_score.desc`;
@@ -510,36 +560,62 @@
       return await response.json();
     }
 
-    async function fetchObservations() {
+    async function fetchContextByRunId(runId) {
+      const url =
+        `${SUPABASE_URL}/rest/v1/${CONTEXT_TABLE}` +
+        `?select=run_id,created_at,macro_regime,market_pulse,financial_stability_score,proxy_lei_score,data_quality_score,confidence_level,property_data_status,rental_data_status,macro_data_status,source_notes,risk_summary,scoring_explanation,dld_source_url,pmi_source_url,dfmgi_source_url,bank_source_note` +
+        `&run_id=eq.${encodeURIComponent(runId)}` +
+        `&limit=1`;
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: getSupabaseHeaders()
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Supabase context error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+
+      if (!data || data.length === 0) {
+        return null;
+      }
+
+      return data[0];
+    }
+
+    async function fetchDashboardData() {
       const latestRunId = await fetchLatestRunId();
 
       if (!latestRunId) {
-        return [];
+        return {
+          runId: null,
+          observations: [],
+          context: null
+        };
       }
 
-      return await fetchObservationsByRunId(latestRunId);
+      const [observations, context] = await Promise.all([
+        fetchObservationsByRunId(latestRunId),
+        fetchContextByRunId(latestRunId)
+      ]);
+
+      return {
+        runId: latestRunId,
+        observations,
+        context
+      };
     }
 
-    function renderDashboard(data) {
-      const status = document.getElementById("status");
-      const latestSummary = document.getElementById("latest-summary");
+    function renderInvestmentTable(data) {
       const tableBody = document.getElementById("observations-table");
-      const callScript = document.getElementById("call-script");
 
       if (!data || data.length === 0) {
-        status.textContent = "Connected to Supabase, but no latest run rows found.";
-        latestSummary.textContent = "No property observations available.";
-        callScript.textContent = "No call script available.";
         tableBody.innerHTML = `<tr><td colspan="14">No data available</td></tr>`;
         return;
       }
-
-      const latest = data[0];
-      const runTime = latest.created_at ? formatDate(latest.created_at) : "unknown time";
-
-      status.textContent = `Loaded latest full run: ${data.length} row(s). Run time: ${runTime}.`;
-      latestSummary.textContent = latest.summary || "No summary available.";
-      callScript.textContent = latest.call_script || "No call script available.";
 
       tableBody.innerHTML = "";
 
@@ -565,10 +641,118 @@
       });
     }
 
+    function renderContext(context) {
+      const confidenceLevel = document.getElementById("confidence-level");
+      const dataQualityScore = document.getElementById("data-quality-score");
+      const financialStabilityScore = document.getElementById("financial-stability-score");
+      const proxyLeiScore = document.getElementById("proxy-lei-score");
+
+      const macroRegime = document.getElementById("macro-regime");
+      const marketPulse = document.getElementById("market-pulse");
+      const riskSummary = document.getElementById("risk-summary");
+      const dataStatus = document.getElementById("data-status");
+      const sourceNotes = document.getElementById("source-notes");
+      const scoringExplanation = document.getElementById("scoring-explanation");
+
+      const propertyDataStatus = document.getElementById("property-data-status");
+      const rentalDataStatus = document.getElementById("rental-data-status");
+      const macroDataStatus = document.getElementById("macro-data-status");
+      const bankSourceNote = document.getElementById("bank-source-note");
+
+      const dldSourceLink1 = document.getElementById("dld-source-link-1");
+      const dldSourceLink2 = document.getElementById("dld-source-link-2");
+      const pmiSourceLink = document.getElementById("pmi-source-link");
+      const dfmgiSourceLink = document.getElementById("dfmgi-source-link");
+
+      if (!context) {
+        confidenceLevel.innerHTML = formatQualityTag("LOW");
+        dataQualityScore.innerHTML = formatQualityTag("LOW");
+        financialStabilityScore.textContent = "N/A";
+        proxyLeiScore.textContent = "N/A";
+
+        macroRegime.textContent = "No run context found for latest run_id.";
+        marketPulse.textContent = "No dynamic market pulse available.";
+        riskSummary.textContent = "No dynamic risk summary available.";
+        dataStatus.textContent = "Context row missing. Check n8n agent_run_context branch.";
+        sourceNotes.textContent = "No dynamic source notes available.";
+        scoringExplanation.textContent = "No dynamic scoring explanation available.";
+
+        propertyDataStatus.textContent = "Unknown";
+        rentalDataStatus.textContent = "Unknown";
+        macroDataStatus.textContent = "Unknown";
+        bankSourceNote.textContent = "Unknown";
+
+        return;
+      }
+
+      confidenceLevel.innerHTML = formatQualityTag(context.confidence_level || "LOW");
+      dataQualityScore.innerHTML = formatQualityTag(context.data_quality_score || "LOW");
+      financialStabilityScore.textContent = context.financial_stability_score ?? "N/A";
+      proxyLeiScore.textContent = context.proxy_lei_score ?? "N/A";
+
+      macroRegime.textContent = context.macro_regime || "No macro regime available.";
+      marketPulse.textContent = context.market_pulse || "No market pulse available.";
+      riskSummary.textContent = context.risk_summary || "No risk summary available.";
+
+      dataStatus.textContent =
+        `Property data: ${context.property_data_status || "N/A"}\n` +
+        `Rental data: ${context.rental_data_status || "N/A"}\n` +
+        `Macro data: ${context.macro_data_status || "N/A"}`;
+
+      sourceNotes.textContent = context.source_notes || "No source notes available.";
+      scoringExplanation.textContent = context.scoring_explanation || "No scoring explanation available.";
+
+      propertyDataStatus.textContent = context.property_data_status || "N/A";
+      rentalDataStatus.textContent = context.rental_data_status || "N/A";
+      macroDataStatus.textContent = context.macro_data_status || "N/A";
+      bankSourceNote.textContent = context.bank_source_note || "N/A";
+
+      if (context.dld_source_url) {
+        dldSourceLink1.href = context.dld_source_url;
+        dldSourceLink2.href = context.dld_source_url;
+      }
+
+      if (context.pmi_source_url) {
+        pmiSourceLink.href = context.pmi_source_url;
+      }
+
+      if (context.dfmgi_source_url) {
+        dfmgiSourceLink.href = context.dfmgi_source_url;
+      }
+    }
+
+    function renderDashboard(payload) {
+      const status = document.getElementById("status");
+      const latestSummary = document.getElementById("latest-summary");
+      const callScript = document.getElementById("call-script");
+
+      const observations = payload.observations || [];
+      const context = payload.context || null;
+
+      if (!observations || observations.length === 0) {
+        status.textContent = "Connected to Supabase, but no latest run rows found.";
+        latestSummary.textContent = "No property observations available.";
+        callScript.textContent = "No call script available.";
+        renderInvestmentTable([]);
+        renderContext(context);
+        return;
+      }
+
+      const latest = observations[0];
+      const runTime = latest.created_at ? formatDate(latest.created_at) : "unknown time";
+
+      status.textContent = `Loaded latest full run: ${observations.length} row(s). Run time: ${runTime}. Run ID: ${payload.runId}.`;
+      latestSummary.textContent = latest.summary || "No summary available.";
+      callScript.textContent = latest.call_script || "No call script available.";
+
+      renderInvestmentTable(observations);
+      renderContext(context);
+    }
+
     async function main() {
       try {
-        const data = await fetchObservations();
-        renderDashboard(data);
+        const payload = await fetchDashboardData();
+        renderDashboard(payload);
       } catch (error) {
         document.getElementById("status").innerHTML =
           `<span class="error">Failed to load Supabase data.</span>`;
