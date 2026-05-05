@@ -66,11 +66,6 @@
       font-size: 21px;
     }
 
-    h3 {
-      margin: 0 0 8px;
-      font-size: 16px;
-    }
-
     .subtitle {
       color: var(--muted);
       margin-top: 4px;
@@ -108,8 +103,6 @@
       border-left: 8px solid var(--red);
     }
 
-    .decision-card.buy { border-left-color: var(--green); }
-
     .layout-two {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -124,18 +117,18 @@
       margin-top: 14px;
     }
 
-    .grid-four {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 14px;
-    }
-
     .grid-two {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
       margin-top: 12px;
+    }
+
+    .grid-four {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
     }
 
     .metric {
@@ -213,11 +206,6 @@
     .banner.bad {
       background: var(--soft-red);
       border-color: #ffb4b4;
-    }
-
-    .banner.blue {
-      background: var(--soft-blue);
-      border-color: #bdd3ff;
     }
 
     .pill {
@@ -383,8 +371,8 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      .grid-four,
-      .grid-two {
+      .grid-two,
+      .grid-four {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
@@ -393,8 +381,8 @@
       .container { padding: 14px; }
 
       .grid,
-      .grid-four,
-      .grid-two {
+      .grid-two,
+      .grid-four {
         grid-template-columns: 1fr;
       }
 
@@ -507,16 +495,6 @@
       return "Review";
     }
 
-    function dailyActionLabel(action) {
-      const s = String(action || "").toUpperCase();
-      if (s === "VALIDATE_BEFORE_OFFER") return "Validate before offer";
-      if (s === "TRACK_AND_NEGOTIATE_ONLY_IF_SELLER_MOTIVATED") return "Track; negotiate only if seller motivated";
-      if (s === "WATCH_ONLY_PRICE_TOO_HIGH") return "Watch only — price too high";
-      if (s === "COMPLETE_EVIDENCE_FIRST") return "Complete evidence first";
-      if (s === "SCENARIO_ONLY") return "Scenario only";
-      return safe(action, "Review");
-    }
-
     function sortByNetYield(rows) {
       return [...rows].sort((a, b) => num(b.net_yield_percent) - num(a.net_yield_percent));
     }
@@ -565,6 +543,78 @@
 
     function netRentFromRow(row) {
       return num(row.asking_price_aed) * num(row.net_yield_percent) / 100;
+    }
+
+    function scoreLabel(value, type) {
+      const v = num(value, 0);
+
+      if (type === "FS") {
+        if (v > 0) return "supportive / stable";
+        if (v < 0) return "soft / risk-on-hold";
+        return "mixed / neutral";
+      }
+
+      if (type === "LEI") {
+        if (v > 0) return "improving forward signal";
+        if (v < 0) return "weakening forward signal";
+        return "mixed / neutral forward signal";
+      }
+
+      return "mixed";
+    }
+
+    function fsScoringLogic(fs) {
+      return `Financial Stability score is a conservative macro risk score.
+
+Scoring rule:
++1 = clear stability / supportive liquidity / no major stress signals.
+0 = mixed or incomplete evidence.
+-1 = stress or caution signals are present.
+
+Current FS = ${fs} (${scoreLabel(fs, "FS")}).
+
+Why current score is negative:
+- Macro branch returned soft / cautionary market context.
+- Current evidence does not support relaxing entry pricing.
+- Regional/geopolitical and financial-stability uncertainty are treated conservatively.
+
+Effect on decision:
+A negative FS does not reject property by itself. It increases the required entry discipline.`;
+    }
+
+    function leiScoringLogic(lei) {
+      return `Proxy LEI is the forward-looking economic momentum score.
+
+Scoring rule:
++1 = improving momentum / supportive forward indicators.
+0 = mixed or neutral.
+-1 = slowing momentum, weak outlook, disruption, or uncertainty.
+
+Current LEI = ${lei} (${scoreLabel(lei, "LEI")}).
+
+Why current score is negative:
+- Macro branch flagged weaker forward momentum / soft PMI-style signals.
+- Slower growth or disruption language reduces confidence in near-term market momentum.
+- Therefore the agent should not accept a thin property return spread.
+
+Effect on decision:
+A negative LEI pushes the hurdle from 6.50% to 6.75%.`;
+    }
+
+    function hurdleLogic(best, fs, lei) {
+      return `Base strong-buy hurdle = 6.50% net yield.
+
+Macro adjustment rule:
+If Financial Stability < 0 OR Proxy LEI < 0, use stricter hurdle = 6.75%.
+
+Current inputs:
+Financial Stability = ${fs}.
+Proxy LEI = ${lei}.
+
+Applied hurdle = ${best ? pct(best.risk_adjusted_target_yield_percent) : "N/A"}%.
+
+Reason:
+When macro/forward indicators are soft, the deal must be cheaper to compensate for uncertainty, illiquidity and possible weaker resale/rental conditions.`;
     }
 
     function negotiationExplanation(row) {
@@ -764,15 +814,7 @@ All-in acquisition estimate is higher: AED ${money(allIn)} including about ${pct
               "Risk-Adjusted Hurdle",
               best ? `${pct(best.risk_adjusted_target_yield_percent)}%` : "N/A",
               "Macro-adjusted trigger",
-              best
-                ? `Base strong-buy net-yield trigger: 6.50%.
-
-Current macro overlay:
-Financial Stability = ${fs}.
-Proxy LEI = ${lei}.
-
-Because at least one macro signal is negative, the dashboard applies a stricter hurdle of ${pct(best.risk_adjusted_target_yield_percent)}%.`
-                : "No risk-adjusted hurdle available."
+              best ? hurdleLogic(best, fs, lei) : "No risk-adjusted hurdle available."
             )}
 
             ${renderKpiMetric(
@@ -801,13 +843,19 @@ This is the approximate maximum entry price under current risk conditions.`
               "Macro / Bank",
               `FS ${escapeHtml(fs)} / LEI ${escapeHtml(lei)}`,
               `Bank ${pct(bankRate)}% / ${escapeHtml(bankQuality)} / ${escapeHtml(macroConfidence)}`,
-              `FS score scale: +1 supportive, 0 neutral/mixed, -1 soft/negative.
-Current FS = ${fs}.
+              `Current macro scoring:
+FS = ${fs} (${scoreLabel(fs, "FS")}).
+LEI = ${lei} (${scoreLabel(lei, "LEI")}).
 
-Proxy LEI score scale: +1 improving, 0 neutral/mixed, -1 weakening.
-Current LEI = ${lei}.
+FS basis:
+${fsScoringLogic(fs)}
 
-Bank benchmark = ${pct(bankRate)}%. Property IRR should offer enough spread above this low-risk AED alternative.`
+LEI basis:
+${leiScoringLogic(lei)}
+
+Bank benchmark:
+Current bank benchmark = ${pct(bankRate)}%.
+Property should offer enough spread above this low-risk AED alternative to compensate for illiquidity, vacancy, service charge, transaction fees and exit risk.`
             )}
           </div>
 
@@ -849,54 +897,33 @@ Bank benchmark = ${pct(bankRate)}%. Property IRR should offer enough spread abov
               "Financial Stability",
               escapeHtml(fs),
               "Score scale: +1 / 0 / -1",
-              `Score scale:
-+1 = supportive / stable.
-0 = mixed or neutral.
--1 = soft, stressed, or uncertain.
-
-Current value: ${fs}.
-
-This value comes from the latest macro context row generated by the workflow. It reflects the conservative macro branch, including financial-stability and geopolitical stress signals when available.`
+              fsScoringLogic(fs)
             )}
 
             ${renderKpiMetric(
               "Proxy LEI",
               escapeHtml(lei),
               "Forward signal",
-              `Score scale:
-+1 = improving forward signal.
-0 = mixed / neutral.
--1 = weakening or uncertain forward signal.
-
-Current value: ${lei}.
-
-This is driven by the live macro branch. Negative PMI / weak outlook / disruption language pushes the score lower.`
+              leiScoringLogic(lei)
             )}
 
             ${renderKpiMetric(
               "Risk Yield",
               `${pct(riskYield)}%`,
               "Current hurdle",
-              `Base hurdle = 6.50%.
-
-Rule:
-If Financial Stability < 0 or Proxy LEI < 0, use stricter hurdle = 6.75%.
-
-Current FS = ${fs}.
-Current LEI = ${lei}.
-Therefore current hurdle = ${pct(riskYield)}%.`
+              best ? hurdleLogic(best, fs, lei) : "Risk yield applies the macro-adjusted hurdle."
             )}
 
             ${renderKpiMetric(
               "Source Quality",
               escapeHtml(quality),
               `${escapeHtml(confidence)} confidence`,
-              `Macro data quality and confidence are generated by the macro branch.
+              `Macro source quality reflects the evidence returned by the live macro branch.
 
 Current quality = ${quality}.
 Current confidence = ${confidence}.
 
-Use this as an overlay only. Property-level evidence and economics remain the primary decision gate.`
+This does not directly decide buy/sell. It only controls how strict the entry price should be.`
             )}
           </div>
 
@@ -909,13 +936,8 @@ Use this as an overlay only. Property-level evidence and economics remain the pr
           </div>
 
           <details>
-            <summary>View market pulse</summary>
+            <summary>View market pulse evidence</summary>
             <div class="details-box">${escapeHtml(normalizeTextBlock(context.market_pulse_preview || context.market_pulse || context.macro_regime))}</div>
-          </details>
-
-          <details>
-            <summary>View macro risk details</summary>
-            <div class="details-box">${escapeHtml(normalizeTextBlock(context.risk_summary))}</div>
           </details>
         </section>
       `;
@@ -970,9 +992,14 @@ This compensates for illiquidity, vacancy, fees, maintenance, tenant risk and ex
               "Purchase Cost",
               `${pct(PURCHASE_COST_PERCENT)}%`,
               "Estimated acquisition cost",
-              `Current dashboard estimate includes ${pct(PURCHASE_COST_PERCENT)}% purchase cost as a practical all-in capital reminder.
+              `Current dashboard estimate uses ${pct(PURCHASE_COST_PERCENT)}% purchase cost as an all-in capital reminder.
 
-This approximates DLD transfer fee, agency fee, trustee/conveyancing and other acquisition friction.`
+Indicative breakdown:
+DLD transfer fee: ~4.0%.
+Agency fee: ~2.0% plus VAT, approximately 2.1%.
+Trustee/conveyancing/admin/NOC allowance: ~0.5%.
+
+Total screening assumption: ${pct(PURCHASE_COST_PERCENT)}%.`
             )}
           </div>
 
@@ -1021,6 +1048,18 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
           </div>
 
           ${renderWatchlistTable(filteredRows(evidenceRows))}
+
+          <details>
+            <summary>All-in cost assumptions</summary>
+            <div class="details-box">The dashboard adds an estimated ${pct(PURCHASE_COST_PERCENT)}% purchase-cost allowance to show practical capital required.
+
+Indicative breakdown:
+- DLD transfer fee: ~4.0%
+- Agency fee: ~2.0% + VAT, approximately 2.1%
+- Trustee / conveyancing / admin / NOC allowance: ~0.5%
+
+This is a screening estimate. Actual costs depend on transaction structure, financing, agency arrangement and registration details.</div>
+          </details>
         </section>
       `;
     }
@@ -1060,13 +1099,7 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
                   <td class="num">${pct(r.net_yield_percent)}%</td>
                   <td class="num">AED ${money(r.risk_adjusted_target_price_aed)}</td>
                   <td class="num">AED ${money(r.risk_adjusted_required_cut_aed)}<br><span class="small-text">${pct(r.risk_adjusted_required_cut_percent)}%</span></td>
-                  <td>
-                    ${pill(safe(r.negotiation_realism), getNegotiationTone(r.negotiation_realism))}
-                    <details>
-                      <summary>Why?</summary>
-                      <div class="details-box">${escapeHtml(negotiationExplanation(r))}</div>
-                    </details>
-                  </td>
+                  <td>${pill(safe(r.negotiation_realism), getNegotiationTone(r.negotiation_realism))}</td>
                   <td>
                     <details>
                       <summary>View</summary>
@@ -1107,7 +1140,7 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
           <details>
             <summary><h2 style="display:inline;">Evidence Coverage & Data Actions</h2></summary>
             <div class="note">
-              Kept collapsed because it is a QA section. Use it to see what is missing and why final decision cannot be made.
+              QA section. Use it to see what is missing and why final purchase action cannot be made.
             </div>
 
             <div class="table-wrap">
@@ -1175,7 +1208,7 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
             <div class="metric">
               <div class="metric-label">Estimated Net Rent</div>
               <div class="metric-value">AED ${money(netRent)}</div>
-              <div class="metric-small">From current model row</div>
+              <div class="metric-small">From selected model row</div>
             </div>
 
             <div class="metric">
@@ -1193,7 +1226,7 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
             <div class="metric">
               <div class="metric-label">All-in Cash Need</div>
               <div class="metric-value">AED ${money(totalCash)}</div>
-              <div class="metric-small">Owner ask + ${pct(PURCHASE_COST_PERCENT)}% costs</div>
+              <div class="metric-small">Ask + ${pct(PURCHASE_COST_PERCENT)}% costs</div>
             </div>
           </div>
 
