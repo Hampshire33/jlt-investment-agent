@@ -63,6 +63,16 @@
       font-size: 21px;
     }
 
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.035em;
+      margin-bottom: 5px;
+    }
+
     .subtitle {
       color: var(--muted);
       margin-top: 4px;
@@ -115,9 +125,7 @@
       content: "Expand";
     }
 
-    .section-body {
-      padding: 18px;
-    }
+    .section-body { padding: 18px; }
 
     .card {
       background: var(--card);
@@ -157,6 +165,25 @@
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 10px;
       margin-top: 14px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+      align-items: end;
+    }
+
+    .form-field input,
+    .form-field select {
+      width: 100%;
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      padding: 9px 10px;
+      background: #fff;
+      min-height: 38px;
+      font-size: 14px;
     }
 
     .metric {
@@ -386,12 +413,12 @@
     @media (max-width: 1180px) {
       .layout-two { grid-template-columns: 1fr; }
       .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .grid-two, .grid-four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid-two, .grid-four, .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
     @media (max-width: 700px) {
       .container { padding: 14px; }
-      .grid, .grid-two, .grid-four { grid-template-columns: 1fr; }
+      .grid, .grid-two, .grid-four, .form-grid { grid-template-columns: 1fr; }
       h1 { font-size: 24px; }
       .decision-title { font-size: 24px; }
       .toolbar input, .toolbar select { width: 100%; }
@@ -436,14 +463,17 @@
       filters: { search: "", readiness: "ALL", realism: "ALL" },
       settings: {
         minBudget: DEFAULT_MIN_BUDGET_AED,
-        maxBudget: DEFAULT_MAX_BUDGET_AED,
-        purchaseCostPercent: DEFAULT_PURCHASE_COST_PERCENT
+        maxBudget: DEFAULT_MAX_BUDGET_AED
       },
       dealTest: {
-        ownerAsk: 1385000,
-        expectedNetYield: 6.0,
-        requiredNetYield: 6.75,
-        purchaseCostPercent: DEFAULT_PURCHASE_COST_PERCENT
+        selectedIndex: 0,
+        ownerAsk: 0,
+        purchaseCostPercent: DEFAULT_PURCHASE_COST_PERCENT,
+        purchaseFeesAed: 0,
+        serviceChargeAedSqftYear: 0,
+        annualRentAed: 0,
+        expectedNetYield: 0,
+        requiredNetYield: 6.75
       }
     };
 
@@ -526,11 +556,11 @@
       return [...rows].sort((a, b) => num(b.net_yield_percent) - num(a.net_yield_percent));
     }
 
-    function estimatedPurchaseCosts(price, costPercent = state.settings.purchaseCostPercent) {
+    function estimatedPurchaseCosts(price, costPercent = DEFAULT_PURCHASE_COST_PERCENT) {
       return num(price) * num(costPercent) / 100;
     }
 
-    function allInCost(price, costPercent = state.settings.purchaseCostPercent) {
+    function allInCost(price, costPercent = DEFAULT_PURCHASE_COST_PERCENT) {
       return num(price) + estimatedPurchaseCosts(price, costPercent);
     }
 
@@ -566,6 +596,13 @@
         ["DECISION_READY", "INTERIM_SCREENED"].includes(derivedReadiness(r)) &&
         num(r.asking_price_aed) >= state.settings.minBudget &&
         num(r.asking_price_aed) <= state.settings.maxBudget
+      );
+    }
+
+    function getCalculatorRows(rows) {
+      return rows.filter(r =>
+        ["DECISION_READY", "INTERIM_SCREENED"].includes(String(r.readiness_status || "")) &&
+        num(r.asking_price_aed) > 0
       );
     }
 
@@ -617,11 +654,6 @@ Scoring rule:
 
 Current FS = ${fs} (${scoreLabel(fs, "FS")}).
 
-Why current score is negative:
-- Macro branch returned soft / cautionary market context.
-- Current evidence does not support relaxing entry pricing.
-- Regional/geopolitical and financial-stability uncertainty are treated conservatively.
-
 Effect:
 A negative FS increases required entry discipline.`;
     }
@@ -650,10 +682,7 @@ Current inputs:
 Financial Stability = ${fs}.
 Proxy LEI = ${lei}.
 
-Applied hurdle = ${best ? pct(best.risk_adjusted_target_yield_percent) : "N/A"}%.
-
-Reason:
-When macro/forward indicators are soft, the deal must be cheaper to compensate for uncertainty, illiquidity and possible weaker resale/rental conditions.`;
+Applied hurdle = ${best ? pct(best.risk_adjusted_target_yield_percent) : "N/A"}%.`;
     }
 
     function negotiationExplanation(row) {
@@ -795,26 +824,30 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
 
     function renderBudgetControl() {
       return `
-        <section class="card">
-          <h2>Active Investment Limits</h2>
-          <div class="note">
-            Controlled budget range. Rows outside the range are monitored separately, not rejected.
-          </div>
+        <div class="note">
+          Express how much cash you are willing to deploy. Rows outside the range are monitored separately, not rejected.
+        </div>
 
-          <div class="toolbar">
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="minBudgetSelect">Minimum cash budget</label>
             <select id="minBudgetSelect">${getBudgetOptions(state.settings.minBudget)}</select>
-            <select id="maxBudgetSelect">${getBudgetOptions(state.settings.maxBudget)}</select>
-            <input id="purchaseCostInput" type="number" min="0" step="0.1" value="${state.settings.purchaseCostPercent}" placeholder="Purchase cost %" />
-            <button id="applySettingsButton">Apply</button>
           </div>
 
-          <div class="note">
-            Active budget range:
-            <strong>AED ${money(state.settings.minBudget)} – AED ${money(state.settings.maxBudget)}</strong>.
-            Purchase-cost assumption:
-            <strong>${pct(state.settings.purchaseCostPercent)}%</strong>.
+          <div class="form-field">
+            <label for="maxBudgetSelect">Maximum cash budget</label>
+            <select id="maxBudgetSelect">${getBudgetOptions(state.settings.maxBudget)}</select>
           </div>
-        </section>
+
+          <div class="form-field">
+            <button id="applySettingsButton">Apply Budget Range</button>
+          </div>
+        </div>
+
+        <div class="note">
+          Active cash range:
+          <strong>AED ${money(state.settings.minBudget)} – AED ${money(state.settings.maxBudget)}</strong>.
+        </div>
       `;
     }
 
@@ -844,7 +877,7 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
           <div class="decision-subtitle">
             ${best
               ? `Best watch item is <strong>${escapeHtml(rowName(best))}</strong>, but it still requires AED ${money(best.risk_adjusted_required_cut_aed)} / ${pct(best.risk_adjusted_required_cut_percent)}% lower entry price.`
-              : `No screened candidate is currently available within the selected budget range.`
+              : `No screened candidate is currently available within the selected cash range.`
             }
           </div>
 
@@ -854,13 +887,13 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
               best ? escapeHtml(rowName(best)) : "None",
               best ? readinessLabel(derivedReadiness(best)) : "N/A",
               best
-                ? `Selected because it has the highest current net yield among screened candidates inside the selected budget range.
+                ? `Selected because it has the highest current net yield among screened candidates inside the selected cash range.
 
-Budget range: AED ${money(state.settings.minBudget)} – AED ${money(state.settings.maxBudget)}.
+Cash range: AED ${money(state.settings.minBudget)} – AED ${money(state.settings.maxBudget)}.
 Current ranking yield: ${pct(best.net_yield_percent)}%.
 Current price: AED ${money(best.asking_price_aed)}.
 Estimated net rent: AED ${money(netRent)} per year.`
-                : "No screened candidate is available within the selected budget range."
+                : "No screened candidate is available within the selected cash range."
             )}
 
             ${renderKpiMetric(
@@ -874,7 +907,7 @@ Estimated net rent: AED ${money(netRent)}.
 Current evidence price: AED ${money(best.asking_price_aed)}.
 Net yield: ${pct(best.net_yield_percent)}%.
 
-All-in cost estimate: AED ${money(allIn)} including ${pct(state.settings.purchaseCostPercent)}% purchase costs.`
+All-in cost estimate: AED ${money(allIn)} including ${pct(DEFAULT_PURCHASE_COST_PERCENT)}% purchase costs.`
                 : "No current yield available."
             )}
 
@@ -1040,14 +1073,14 @@ Preferred property IRR should be about ${pct(num(rate) + 3)}% or higher.`
 
             ${renderKpiMetric(
               "Purchase Cost",
-              `${pct(state.settings.purchaseCostPercent)}%`,
-              "Estimated acquisition cost",
+              `${pct(DEFAULT_PURCHASE_COST_PERCENT)}%`,
+              "Screening assumption",
               `Indicative breakdown:
 DLD transfer fee: ~4.0%.
 Agency fee: ~2.0% + VAT, about 2.1%.
 Trustee/conveyancing/admin/NOC allowance: ~0.5%.
 
-Current screening assumption: ${pct(state.settings.purchaseCostPercent)}%.`
+Current screening assumption: ${pct(DEFAULT_PURCHASE_COST_PERCENT)}%.`
             )}
           </div>
 
@@ -1067,7 +1100,7 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
       const evidenceRows = sortByNetYield(getEvidenceRows(state.rows));
 
       if (!evidenceRows.length) {
-        return `<div class="banner bad">No screened watchlist rows available within the selected budget range.</div>`;
+        return `<div class="banner bad">No screened watchlist rows available within the selected cash range.</div>`;
       }
 
       return `
@@ -1099,7 +1132,7 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
         <details class="inline-detail">
           <summary>All-in cost, net-yield and target-price assumptions</summary>
           <div class="details-box">Purchase-cost assumption:
-The dashboard adds ${pct(state.settings.purchaseCostPercent)}% to estimate practical all-in capital required.
+The watchlist adds ${pct(DEFAULT_PURCHASE_COST_PERCENT)}% to estimate practical all-in capital required.
 
 Indicative acquisition-cost breakdown:
 - DLD transfer fee: ~4.0%
@@ -1147,8 +1180,8 @@ Target price is a screening entry-price discipline. Final action still needs uni
                   <td><span class="candidate-title">${escapeHtml(safe(r.tower))}</span><br><span class="small-text">${escapeHtml(safe(r.unit_type))}</span></td>
                   <td>${pill(readinessLabel(derivedReadiness(r)))}</td>
                   <td class="num">AED ${money(r.asking_price_aed)}</td>
-                  <td class="num">AED ${money(estimatedPurchaseCosts(r.asking_price_aed))}<br><span class="small-text">${pct(state.settings.purchaseCostPercent)}%</span></td>
-                  <td class="num">AED ${money(allInCost(r.asking_price_aed))}</td>
+                  <td class="num">AED ${money(estimatedPurchaseCosts(r.asking_price_aed, DEFAULT_PURCHASE_COST_PERCENT))}<br><span class="small-text">${pct(DEFAULT_PURCHASE_COST_PERCENT)}%</span></td>
+                  <td class="num">AED ${money(allInCost(r.asking_price_aed, DEFAULT_PURCHASE_COST_PERCENT))}</td>
                   <td class="num">AED ${money(r.estimated_annual_rent_aed)}</td>
                   <td class="num">${pct(r.net_yield_percent)}%</td>
                   <td class="num">AED ${money(r.risk_adjusted_target_price_aed)}</td>
@@ -1172,54 +1205,148 @@ Target price is a screening entry-price discipline. Final action still needs uni
       `;
     }
 
+    function selectedDealRow() {
+      const rows = sortByNetYield(getCalculatorRows(state.rows));
+      return rows[state.dealTest.selectedIndex] || rows[0] || null;
+    }
+
+    function applyDealRowDefaults(index) {
+      const rows = sortByNetYield(getCalculatorRows(state.rows));
+      const row = rows[index] || rows[0];
+
+      if (!row) return;
+
+      state.dealTest.selectedIndex = index;
+      state.dealTest.ownerAsk = num(row.asking_price_aed);
+      state.dealTest.purchaseCostPercent = DEFAULT_PURCHASE_COST_PERCENT;
+      state.dealTest.purchaseFeesAed = estimatedPurchaseCosts(row.asking_price_aed, DEFAULT_PURCHASE_COST_PERCENT);
+      state.dealTest.serviceChargeAedSqftYear = num(row.service_charge_aed_sqft_year);
+      state.dealTest.annualRentAed = num(row.estimated_annual_rent_aed);
+      state.dealTest.expectedNetYield = num(row.net_yield_percent);
+      state.dealTest.requiredNetYield = num(row.risk_adjusted_target_yield_percent, 6.75);
+    }
+
     function renderDealTestCalculator() {
+      const rows = sortByNetYield(getCalculatorRows(state.rows));
+      if (!rows.length) {
+        return `<div class="banner warn">No screened rows are available for calculator setup.</div>`;
+      }
+
+      const selected = selectedDealRow();
+
       const ownerAsk = num(state.dealTest.ownerAsk);
+      const purchaseCostPercent = num(state.dealTest.purchaseCostPercent, DEFAULT_PURCHASE_COST_PERCENT);
+      const purchaseFeesAed = num(state.dealTest.purchaseFeesAed, estimatedPurchaseCosts(ownerAsk, purchaseCostPercent));
+      const serviceCharge = num(state.dealTest.serviceChargeAedSqftYear);
+      const annualRent = num(state.dealTest.annualRentAed);
       const expectedYield = num(state.dealTest.expectedNetYield);
       const requiredYield = num(state.dealTest.requiredNetYield);
-      const costPercent = num(state.dealTest.purchaseCostPercent, state.settings.purchaseCostPercent);
 
-      const estimatedNetRent = ownerAsk * expectedYield / 100;
-      const targetPrice = requiredYield > 0 ? estimatedNetRent / (requiredYield / 100) : 0;
-      const requiredCut = ownerAsk - targetPrice;
-      const requiredCutPercent = ownerAsk > 0 ? requiredCut / ownerAsk * 100 : 0;
-      const buyCosts = estimatedPurchaseCosts(ownerAsk, costPercent);
-      const totalCash = allInCost(ownerAsk, costPercent);
+      const estimatedNetRentFromYield = ownerAsk * expectedYield / 100;
+      const targetPriceFromYield = requiredYield > 0 ? estimatedNetRentFromYield / (requiredYield / 100) : 0;
+      const requiredCutFromYield = ownerAsk - targetPriceFromYield;
+      const requiredCutPercentFromYield = ownerAsk > 0 ? requiredCutFromYield / ownerAsk * 100 : 0;
+
+      const allInCash = ownerAsk + purchaseFeesAed;
 
       return `
         <div class="note">
-          Enter owner asking price and expected net yield manually. No tower selection required.
+          Select a tower to pre-fill model assumptions, then adjust any number manually and recalculate instantly.
         </div>
 
-        <div class="toolbar">
-          <input id="dealOwnerAskInput" type="number" min="0" step="1000" value="${ownerAsk}" placeholder="Owner asking price AED" />
-          <input id="dealExpectedYieldInput" type="number" min="0" step="0.05" value="${expectedYield}" placeholder="Expected net yield %" />
-          <input id="dealRequiredYieldInput" type="number" min="0" step="0.05" value="${requiredYield}" placeholder="Required net yield %" />
-          <input id="dealPurchaseCostInput" type="number" min="0" step="0.1" value="${costPercent}" placeholder="Purchase cost %" />
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="dealTowerSelect">Tower / unit</label>
+            <select id="dealTowerSelect">
+              ${rows.map((r, idx) => `
+                <option value="${idx}" ${idx === state.dealTest.selectedIndex ? "selected" : ""}>${escapeHtml(rowName(r))}</option>
+              `).join("")}
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="dealOwnerAskInput">Owner asking price, AED</label>
+            <input id="dealOwnerAskInput" type="number" min="0" step="1000" value="${ownerAsk}" />
+          </div>
+
+          <div class="form-field">
+            <label for="dealPurchaseCostPercentInput">Purchase-cost assumption, %</label>
+            <input id="dealPurchaseCostPercentInput" type="number" min="0" step="0.1" value="${purchaseCostPercent}" />
+          </div>
+
+          <div class="form-field">
+            <label for="dealPurchaseFeesInput">Estimated fees to purchase, AED</label>
+            <input id="dealPurchaseFeesInput" type="number" min="0" step="1000" value="${Math.round(purchaseFeesAed)}" />
+          </div>
+
+          <div class="form-field">
+            <label for="dealServiceChargeInput">Service charge, AED/sqft/year</label>
+            <input id="dealServiceChargeInput" type="number" min="0" step="0.01" value="${serviceCharge}" />
+          </div>
+
+          <div class="form-field">
+            <label for="dealAnnualRentInput">Estimated annual rent, AED/year</label>
+            <input id="dealAnnualRentInput" type="number" min="0" step="1000" value="${annualRent}" />
+          </div>
+
+          <div class="form-field">
+            <label for="dealExpectedYieldInput">Expected net yield, %</label>
+            <input id="dealExpectedYieldInput" type="number" min="0" step="0.05" value="${expectedYield}" />
+          </div>
+
+          <div class="form-field">
+            <label for="dealRequiredYieldInput">Required net yield, %</label>
+            <input id="dealRequiredYieldInput" type="number" min="0" step="0.05" value="${requiredYield}" />
+          </div>
         </div>
 
         <div class="grid-four">
           <div class="metric">
-            <div class="metric-label">Estimated Net Rent</div>
-            <div class="metric-value">AED ${money(estimatedNetRent)}</div>
-            <div class="metric-small">Owner ask × expected yield</div>
+            <div class="metric-label">Selected model row</div>
+            <div class="metric-value">${escapeHtml(rowName(selected))}</div>
+            <div class="metric-small">Pre-filled from dashboard data</div>
           </div>
 
           <div class="metric">
-            <div class="metric-label">Target Buy Price</div>
-            <div class="metric-value">AED ${money(targetPrice)}</div>
-            <div class="metric-small">Based on ${pct(requiredYield)}% required yield</div>
+            <div class="metric-label">Estimated net rent</div>
+            <div class="metric-value">AED ${money(estimatedNetRentFromYield)}</div>
+            <div class="metric-small">Owner ask × expected net yield</div>
           </div>
 
           <div class="metric">
-            <div class="metric-label">Required Cut</div>
-            <div class="metric-value">AED ${money(requiredCut)}</div>
-            <div class="metric-small">${pct(requiredCutPercent)}% vs owner ask</div>
+            <div class="metric-label">Target buy price</div>
+            <div class="metric-value">AED ${money(targetPriceFromYield)}</div>
+            <div class="metric-small">Net rent ÷ required net yield</div>
           </div>
 
           <div class="metric">
-            <div class="metric-label">All-in Cash Need</div>
-            <div class="metric-value">AED ${money(totalCash)}</div>
-            <div class="metric-small">Ask + AED ${money(buyCosts)} costs</div>
+            <div class="metric-label">Required cut</div>
+            <div class="metric-value">AED ${money(requiredCutFromYield)}</div>
+            <div class="metric-small">${pct(requiredCutPercentFromYield)}% vs owner ask</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">All-in cash need</div>
+            <div class="metric-value">AED ${money(allInCash)}</div>
+            <div class="metric-small">Ask + estimated fees</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Purchase fees</div>
+            <div class="metric-value">AED ${money(purchaseFeesAed)}</div>
+            <div class="metric-small">${pct(purchaseCostPercent)}% of owner ask if linked</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Annual rent used</div>
+            <div class="metric-value">AED ${money(annualRent)}</div>
+            <div class="metric-small">Editable reference input</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Service charge used</div>
+            <div class="metric-value">${pct(serviceCharge)}</div>
+            <div class="metric-small">AED/sqft/year</div>
           </div>
         </div>
 
@@ -1231,9 +1358,9 @@ Target buy price = estimated net rent ÷ required net yield.
 
 Required cut = owner asking price − target buy price.
 
-Purchase costs = owner asking price × purchase-cost percentage.
+All-in cash need = owner asking price + estimated purchase fees.
 
-All-in cash need = owner asking price + purchase costs.</div>
+The annual rent and service charge fields are shown as editable reference assumptions. In this compact calculator, expected net yield drives the target-price math.</div>
         </details>
       `;
     }
@@ -1258,7 +1385,7 @@ All-in cash need = owner asking price + purchase costs.</div>
 
       return `
         <div class="note">
-          QA section. Use it to see what is missing or why an item is outside the active budget range.
+          QA section. Use it to see what is missing or why an item is outside the active cash range.
         </div>
 
         <div class="table-wrap">
@@ -1296,11 +1423,11 @@ All-in cash need = owner asking price + purchase costs.</div>
       }
 
       if (dr === "BUDGET_MONITOR") {
-        return `Above selected max budget of AED ${money(state.settings.maxBudget)}, or normal market evidence is above budget.`;
+        return `Above selected max cash range of AED ${money(state.settings.maxBudget)}, or normal market evidence is above budget.`;
       }
 
       if (dr === "BELOW_RANGE") {
-        return `Below selected min budget of AED ${money(state.settings.minBudget)}.`;
+        return `Below selected min cash range of AED ${money(state.settings.minBudget)}.`;
       }
 
       return safe(row.evidence_gap_reason, "Evidence issue not specified.");
@@ -1334,9 +1461,9 @@ Screened = Property Finder DLD-derived transaction/rent evidence plus DLD Servic
 
 Needs evidence = missing sale or rent evidence.
 
-Budget monitor = selected candidate is above active max budget or normal market evidence is above budget.
+Budget monitor = selected candidate is above active max cash range or normal market evidence is above budget.
 
-Below range = selected candidate is below active min budget.
+Below range = selected candidate is below active min cash range.
 
 Deal test = scenario only.</div>
         </details>
@@ -1381,32 +1508,9 @@ Deal test = scenario only.</div>
       attachEvents();
     }
 
-    function renderBudgetControl() {
-      return `
-        <div class="note">
-          Controlled budget range. Rows outside the range are monitored separately, not rejected.
-        </div>
-
-        <div class="toolbar">
-          <select id="minBudgetSelect">${getBudgetOptions(state.settings.minBudget)}</select>
-          <select id="maxBudgetSelect">${getBudgetOptions(state.settings.maxBudget)}</select>
-          <input id="purchaseCostInput" type="number" min="0" step="0.1" value="${state.settings.purchaseCostPercent}" placeholder="Purchase cost %" />
-          <button id="applySettingsButton">Apply</button>
-        </div>
-
-        <div class="note">
-          Active budget range:
-          <strong>AED ${money(state.settings.minBudget)} – AED ${money(state.settings.maxBudget)}</strong>.
-          Purchase-cost assumption:
-          <strong>${pct(state.settings.purchaseCostPercent)}%</strong>.
-        </div>
-      `;
-    }
-
     function attachEvents() {
       const minBudgetSelect = document.getElementById("minBudgetSelect");
       const maxBudgetSelect = document.getElementById("maxBudgetSelect");
-      const purchaseCostInput = document.getElementById("purchaseCostInput");
       const applySettingsButton = document.getElementById("applySettingsButton");
 
       if (applySettingsButton) {
@@ -1422,8 +1526,6 @@ Deal test = scenario only.</div>
 
           state.settings.minBudget = minBudget;
           state.settings.maxBudget = maxBudget;
-          state.settings.purchaseCostPercent = num(purchaseCostInput.value, DEFAULT_PURCHASE_COST_PERCENT);
-
           renderDashboard();
         });
       }
@@ -1455,14 +1557,56 @@ Deal test = scenario only.</div>
         });
       }
 
+      const dealTowerSelect = document.getElementById("dealTowerSelect");
       const dealOwnerAskInput = document.getElementById("dealOwnerAskInput");
+      const dealPurchaseCostPercentInput = document.getElementById("dealPurchaseCostPercentInput");
+      const dealPurchaseFeesInput = document.getElementById("dealPurchaseFeesInput");
+      const dealServiceChargeInput = document.getElementById("dealServiceChargeInput");
+      const dealAnnualRentInput = document.getElementById("dealAnnualRentInput");
       const dealExpectedYieldInput = document.getElementById("dealExpectedYieldInput");
       const dealRequiredYieldInput = document.getElementById("dealRequiredYieldInput");
-      const dealPurchaseCostInput = document.getElementById("dealPurchaseCostInput");
+
+      if (dealTowerSelect) {
+        dealTowerSelect.addEventListener("change", (e) => {
+          applyDealRowDefaults(Number(e.target.value));
+          renderDashboard();
+        });
+      }
 
       if (dealOwnerAskInput) {
         dealOwnerAskInput.addEventListener("input", (e) => {
           state.dealTest.ownerAsk = e.target.value;
+          const percent = num(state.dealTest.purchaseCostPercent, DEFAULT_PURCHASE_COST_PERCENT);
+          state.dealTest.purchaseFeesAed = estimatedPurchaseCosts(e.target.value, percent);
+          renderDashboard();
+        });
+      }
+
+      if (dealPurchaseCostPercentInput) {
+        dealPurchaseCostPercentInput.addEventListener("input", (e) => {
+          state.dealTest.purchaseCostPercent = e.target.value;
+          state.dealTest.purchaseFeesAed = estimatedPurchaseCosts(state.dealTest.ownerAsk, e.target.value);
+          renderDashboard();
+        });
+      }
+
+      if (dealPurchaseFeesInput) {
+        dealPurchaseFeesInput.addEventListener("input", (e) => {
+          state.dealTest.purchaseFeesAed = e.target.value;
+          renderDashboard();
+        });
+      }
+
+      if (dealServiceChargeInput) {
+        dealServiceChargeInput.addEventListener("input", (e) => {
+          state.dealTest.serviceChargeAedSqftYear = e.target.value;
+          renderDashboard();
+        });
+      }
+
+      if (dealAnnualRentInput) {
+        dealAnnualRentInput.addEventListener("input", (e) => {
+          state.dealTest.annualRentAed = e.target.value;
           renderDashboard();
         });
       }
@@ -1477,13 +1621,6 @@ Deal test = scenario only.</div>
       if (dealRequiredYieldInput) {
         dealRequiredYieldInput.addEventListener("input", (e) => {
           state.dealTest.requiredNetYield = e.target.value;
-          renderDashboard();
-        });
-      }
-
-      if (dealPurchaseCostInput) {
-        dealPurchaseCostInput.addEventListener("input", (e) => {
-          state.dealTest.purchaseCostPercent = e.target.value;
           renderDashboard();
         });
       }
@@ -1533,12 +1670,9 @@ Deal test = scenario only.</div>
         state.contextRows = contextRows;
         state.bankRows = bankRows;
 
-        const best = getBestWatch(state.rows);
-        if (best) {
-          state.dealTest.ownerAsk = best.asking_price_aed;
-          state.dealTest.expectedNetYield = best.net_yield_percent;
-          state.dealTest.requiredNetYield = best.risk_adjusted_target_yield_percent;
-          state.dealTest.purchaseCostPercent = state.settings.purchaseCostPercent;
+        const calcRows = sortByNetYield(getCalculatorRows(state.rows));
+        if (calcRows.length) {
+          applyDealRowDefaults(0);
         }
 
         renderDashboard();
