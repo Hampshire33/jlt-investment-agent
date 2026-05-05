@@ -130,6 +130,9 @@
     .tag-used { background: #e2f5e2; color: #006600; }
     .tag-not-used { background: #ffe0e0; color: #990000; }
     .tag-test { background: #e8e4ff; color: #3d2a91; }
+    .tag-full { background: #dff5df; color: #006600; }
+    .tag-partial { background: #fff0cc; color: #8a5a00; }
+    .tag-prototype { background: #ffe0e0; color: #990000; }
 
     .metric-grid {
       display: grid;
@@ -432,6 +435,32 @@
   </div>
 
   <div class="card">
+    <h2>Evidence Completeness</h2>
+    <div class="small-note">
+      Evidence-supported core inputs require sale and rent evidence. Evidence completeness checks sale, rent, and service-charge evidence together.
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Tower</th>
+          <th>Unit</th>
+          <th>Sale Evidence</th>
+          <th>Rent Evidence</th>
+          <th>Service Charge Evidence</th>
+          <th>Completeness</th>
+          <th>Evidence Note</th>
+        </tr>
+      </thead>
+      <tbody id="evidence-completeness-table">
+        <tr>
+          <td colspan="7">Loading evidence completeness...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
     <h2>Property Evidence Log</h2>
 
     <div class="small-note">
@@ -660,6 +689,7 @@
     const PROPERTY_SOURCE_TABLE = "property_source_context";
     const BANK_CONTEXT_TABLE = "bank_benchmark_context";
     const EVIDENCE_TABLE = "property_evidence_log";
+    const EVIDENCE_COMPLETENESS_VIEW = "property_evidence_completeness";
 
     function getSupabaseHeaders() {
       return {
@@ -743,6 +773,22 @@
       if (upper === "LOW") return `<span class="tag tag-low">${value}</span>`;
 
       return `<span class="tag">${value}</span>`;
+    }
+
+    function formatYesNoTag(value) {
+      const upper = String(value || "").toUpperCase();
+      if (upper === "YES") return `<span class="tag tag-high">YES</span>`;
+      return `<span class="tag tag-low">NO</span>`;
+    }
+
+    function formatCompletenessTag(value) {
+      const upper = String(value || "").toUpperCase();
+
+      if (upper === "FULL") return `<span class="tag tag-full">FULL</span>`;
+      if (upper === "PARTIAL") return `<span class="tag tag-partial">PARTIAL</span>`;
+      if (upper === "PROTOTYPE") return `<span class="tag tag-prototype">PROTOTYPE</span>`;
+
+      return `<span class="tag">${value || ""}</span>`;
     }
 
     function isDealTestObservation(row) {
@@ -867,7 +913,7 @@
 
       let testNote = isTest
         ? "This is a deal-test scenario, not a core validated candidate."
-        : "This is a core candidate."
+        : "This is a core candidate.";
 
       return `
         <details>
@@ -1034,7 +1080,7 @@
         `?select=created_at,evidence_date,tower,unit_type,evidence_type,evidence_source,source_quality,confidence_level,evidence_url,evidence_note,price_aed,rent_aed_year,area_sqft,service_charge_aed_sqft_year,relevance_to_model,used_in_model,is_active` +
         `&is_active=eq.true` +
         `&order=evidence_date.desc.nullslast,created_at.desc` +
-        `&limit=30`;
+        `&limit=50`;
 
       const response = await fetch(url, { method: "GET", headers: getSupabaseHeaders() });
 
@@ -1046,11 +1092,28 @@
       return await response.json();
     }
 
+    async function fetchEvidenceCompleteness() {
+      const url =
+        `${SUPABASE_URL}/rest/v1/${EVIDENCE_COMPLETENESS_VIEW}` +
+        `?select=tower,unit_type,sale_evidence,rent_evidence,service_charge_evidence,evidence_completeness,evidence_note,source_type,data_confidence` +
+        `&order=tower.asc`;
+
+      const response = await fetch(url, { method: "GET", headers: getSupabaseHeaders() });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Supabase evidence completeness error ${response.status}: ${errorText}`);
+      }
+
+      return await response.json();
+    }
+
     async function fetchDashboardData() {
       const latestRunId = await fetchLatestRunId();
 
-      const [evidenceLog] = await Promise.all([
-        fetchEvidenceLog()
+      const [evidenceLog, evidenceCompleteness] = await Promise.all([
+        fetchEvidenceLog(),
+        fetchEvidenceCompleteness()
       ]);
 
       if (!latestRunId) {
@@ -1060,7 +1123,8 @@
           context: null,
           propertySource: null,
           bankContext: null,
-          evidenceLog
+          evidenceLog,
+          evidenceCompleteness
         };
       }
 
@@ -1071,7 +1135,7 @@
         fetchBankContextByRunId(latestRunId)
       ]);
 
-      return { runId: latestRunId, observations, context, propertySource, bankContext, evidenceLog };
+      return { runId: latestRunId, observations, context, propertySource, bankContext, evidenceLog, evidenceCompleteness };
     }
 
     function renderLatestDataUpdate(observations, context, bankContext) {
@@ -1227,6 +1291,95 @@
         `It remains a ${getCallPosition(topOverall).toLowerCase()} case because ` +
         `net yield is ${Number(topOverall.net_yield_percent).toFixed(2)}% and IRR spread over bank is ${Number(topOverall.irr_vs_bank_percent).toFixed(2)}%. ` +
         `Strong-buy entry is around AED ${formatNumber(topOverall.strong_buy_price_aed)}.`;
+    }
+
+    function renderReliabilityWarning(allObservations, propertySource, bankContext) {
+      const reliabilityWarning = document.getElementById("decision-reliability-warning");
+
+      const bankSourceQuality = String(bankContext?.source_quality || "LOW").toUpperCase();
+
+      const coreRows = allObservations.filter(isCoreObservation);
+      const dealTestRows = allObservations.filter(isDealTestObservation);
+
+      const evidenceSupportedRows = coreRows.filter(isEvidenceSupportedObservation);
+      const manualRows = coreRows.filter(isManualObservation);
+
+      const evidenceCount = evidenceSupportedRows.length;
+      const manualCount = manualRows.length;
+      const dealTestCount = dealTestRows.length;
+      const totalCore = coreRows.length;
+
+      document.getElementById("evidence-supported-count").textContent = `${evidenceCount}/${totalCore}`;
+      document.getElementById("manual-input-count").textContent = `${manualCount}/${totalCore}`;
+      document.getElementById("deal-test-count").textContent = `${dealTestCount}`;
+
+      const evidenceTowerNames = evidenceSupportedRows
+        .map(row => row.tower)
+        .filter(Boolean)
+        .join(", ") || "None";
+
+      const manualTowerNames = manualRows
+        .map(row => row.tower)
+        .filter(Boolean)
+        .join(", ") || "None";
+
+      const dealTestNames = dealTestRows
+        .map(row => row.tower)
+        .filter(Boolean)
+        .join(", ") || "None";
+
+      document.getElementById("evidence-supported-note").innerHTML =
+        `<div>${evidenceCount}/${totalCore} core tower(s) use evidence-supported price/rent inputs.</div>` +
+        `<div>Evidence-supported: ${evidenceTowerNames}.</div>`;
+
+      document.getElementById("manual-input-note").innerHTML =
+        `<div>${manualCount}/${totalCore} core tower(s) still use manual/prototype price/rent inputs.</div>` +
+        `<div>Manual/prototype: ${manualTowerNames}.</div>`;
+
+      document.getElementById("deal-test-note").innerHTML =
+        `<div>${dealTestCount} deal-test row(s) are included in the latest run.</div>` +
+        `<div>Deal tests: ${dealTestNames}.</div>` +
+        `<div>Deal tests are excluded from the core ranking.</div>`;
+
+      if (totalCore > 0 && evidenceCount === totalCore && bankSourceQuality === "HIGH") {
+        reliabilityWarning.className = "ok-box";
+        reliabilityWarning.innerHTML =
+          "<strong>Decision reliability:</strong> Bank benchmark evidence is strong and all core property price/rent inputs are evidence-supported. Core ranking can be interpreted with higher confidence, subject to normal investment review.";
+      } else if (evidenceCount > 0 && manualCount > 0 && bankSourceQuality === "HIGH") {
+        reliabilityWarning.className = "warning-box";
+        reliabilityWarning.innerHTML =
+          `<strong>Decision reliability warning:</strong> Bank benchmark evidence is strong. ${evidenceCount}/${totalCore} core tower(s) have HIGH-confidence evidence-supported price/rent inputs (${evidenceTowerNames}). ` +
+          `${manualCount}/${totalCore} core tower(s) still use manual/prototype price/rent inputs. Deal-test rows are shown separately and excluded from core ranking.`;
+      } else {
+        reliabilityWarning.className = "danger-box";
+        reliabilityWarning.innerHTML =
+          "<strong>Decision reliability warning:</strong> Most or all core property/rental inputs remain manual/prototype. Use results as screening only until evidence is connected.";
+      }
+    }
+
+    function renderEvidenceCompleteness(data) {
+      const tableBody = document.getElementById("evidence-completeness-table");
+
+      if (!data || data.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="7">No evidence completeness data available.</td></tr>`;
+        return;
+      }
+
+      tableBody.innerHTML = "";
+
+      data.forEach(row => {
+        tableBody.innerHTML += `
+          <tr>
+            <td>${row.tower || ""}</td>
+            <td>${row.unit_type || ""}</td>
+            <td>${formatYesNoTag(row.sale_evidence)}</td>
+            <td>${formatYesNoTag(row.rent_evidence)}</td>
+            <td>${formatYesNoTag(row.service_charge_evidence)}</td>
+            <td>${formatCompletenessTag(row.evidence_completeness)}</td>
+            <td>${row.evidence_note || ""}</td>
+          </tr>
+        `;
+      });
     }
 
     function renderEvidenceLog(data, coreRows) {
@@ -1386,70 +1539,6 @@
         `<div>The model avoids selecting the first returned percentage blindly and uses the explicit 3.50% benchmark.</div>`;
     }
 
-    function renderReliabilityWarning(allObservations, propertySource, bankContext) {
-      const reliabilityWarning = document.getElementById("decision-reliability-warning");
-
-      const bankSourceQuality = String(bankContext?.source_quality || "LOW").toUpperCase();
-
-      const coreRows = allObservations.filter(isCoreObservation);
-      const dealTestRows = allObservations.filter(isDealTestObservation);
-
-      const evidenceSupportedRows = coreRows.filter(isEvidenceSupportedObservation);
-      const manualRows = coreRows.filter(isManualObservation);
-
-      const evidenceCount = evidenceSupportedRows.length;
-      const manualCount = manualRows.length;
-      const dealTestCount = dealTestRows.length;
-      const totalCore = coreRows.length;
-
-      document.getElementById("evidence-supported-count").textContent = `${evidenceCount}/${totalCore}`;
-      document.getElementById("manual-input-count").textContent = `${manualCount}/${totalCore}`;
-      document.getElementById("deal-test-count").textContent = `${dealTestCount}`;
-
-      const evidenceTowerNames = evidenceSupportedRows
-        .map(row => row.tower)
-        .filter(Boolean)
-        .join(", ") || "None";
-
-      const manualTowerNames = manualRows
-        .map(row => row.tower)
-        .filter(Boolean)
-        .join(", ") || "None";
-
-      const dealTestNames = dealTestRows
-        .map(row => row.tower)
-        .filter(Boolean)
-        .join(", ") || "None";
-
-      document.getElementById("evidence-supported-note").innerHTML =
-        `<div>${evidenceCount}/${totalCore} core tower(s) use evidence-supported inputs.</div>` +
-        `<div>Evidence-supported: ${evidenceTowerNames}.</div>`;
-
-      document.getElementById("manual-input-note").innerHTML =
-        `<div>${manualCount}/${totalCore} core tower(s) still use manual/prototype inputs.</div>` +
-        `<div>Manual/prototype: ${manualTowerNames}.</div>`;
-
-      document.getElementById("deal-test-note").innerHTML =
-        `<div>${dealTestCount} deal-test row(s) are included in the latest run.</div>` +
-        `<div>Deal tests: ${dealTestNames}.</div>` +
-        `<div>Deal tests are excluded from the core ranking.</div>`;
-
-      if (totalCore > 0 && evidenceCount === totalCore && bankSourceQuality === "HIGH") {
-        reliabilityWarning.className = "ok-box";
-        reliabilityWarning.innerHTML =
-          "<strong>Decision reliability:</strong> Bank benchmark evidence is strong and all core property inputs are evidence-supported. Core ranking can be interpreted with higher confidence, subject to normal investment review.";
-      } else if (evidenceCount > 0 && manualCount > 0 && bankSourceQuality === "HIGH") {
-        reliabilityWarning.className = "warning-box";
-        reliabilityWarning.innerHTML =
-          `<strong>Decision reliability warning:</strong> Bank benchmark evidence is strong. ${evidenceCount}/${totalCore} core tower(s) have HIGH-confidence evidence-supported inputs (${evidenceTowerNames}). ` +
-          `${manualCount}/${totalCore} core tower(s) still use manual/prototype inputs. Deal-test rows are shown separately and excluded from core ranking.`;
-      } else {
-        reliabilityWarning.className = "danger-box";
-        reliabilityWarning.innerHTML =
-          "<strong>Decision reliability warning:</strong> Most or all core property/rental inputs remain manual/prototype. Use results as screening only until evidence is connected.";
-      }
-    }
-
     function renderDashboard(payload) {
       const status = document.getElementById("status");
 
@@ -1458,6 +1547,7 @@
       const propertySource = payload.propertySource || null;
       const bankContext = payload.bankContext || null;
       const evidenceLog = payload.evidenceLog || [];
+      const evidenceCompleteness = payload.evidenceCompleteness || [];
 
       const coreRows = observations.filter(isCoreObservation);
       const dealTestRows = observations.filter(isDealTestObservation);
@@ -1469,12 +1559,13 @@
         renderInvestmentTable([]);
         renderDealTargets([]);
         renderDealDiagnostics([]);
+        renderReliabilityWarning([], propertySource, bankContext);
+        renderEvidenceCompleteness(evidenceCompleteness);
         renderEvidenceLog(evidenceLog, []);
         renderMacroContext(context);
         renderModelEvidenceStatus([]);
         renderPropertySourceContext(propertySource);
         renderBankContext(bankContext);
-        renderReliabilityWarning([], propertySource, bankContext);
         return;
       }
 
@@ -1488,12 +1579,13 @@
       renderInvestmentTable(coreRows);
       renderDealTargets(coreRows);
       renderDealDiagnostics(coreRows);
+      renderReliabilityWarning(observations, propertySource, bankContext);
+      renderEvidenceCompleteness(evidenceCompleteness);
       renderEvidenceLog(evidenceLog, coreRows);
       renderMacroContext(context);
       renderModelEvidenceStatus(coreRows);
       renderPropertySourceContext(propertySource);
       renderBankContext(bankContext);
-      renderReliabilityWarning(observations, propertySource, bankContext);
     }
 
     async function main() {
@@ -1512,6 +1604,9 @@
 
         document.getElementById("deal-targets-table").innerHTML =
           `<tr><td colspan="12">${error.message}</td></tr>`;
+
+        document.getElementById("evidence-completeness-table").innerHTML =
+          `<tr><td colspan="7">${error.message}</td></tr>`;
 
         document.getElementById("evidence-table").innerHTML =
           `<tr><td colspan="12">${error.message}</td></tr>`;
