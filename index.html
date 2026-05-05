@@ -32,9 +32,7 @@
       --radius: 16px;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -104,9 +102,7 @@
       cursor: pointer;
     }
 
-    button:hover {
-      background: var(--soft-blue);
-    }
+    button:hover { background: var(--soft-blue); }
 
     .card {
       background: var(--card);
@@ -121,67 +117,87 @@
       border-left: 8px solid var(--amber);
     }
 
-    .decision-card.buy {
-      border-left-color: var(--green);
-    }
-
-    .decision-card.no-buy {
-      border-left-color: var(--red);
-    }
+    .decision-card.buy { border-left-color: var(--green); }
+    .decision-card.no-buy { border-left-color: var(--red); }
 
     .layout-two {
       display: grid;
-      grid-template-columns: 1.12fr 0.88fr;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
       gap: 16px;
       margin-top: 16px;
     }
 
     .layout-three {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.95fr) minmax(0, 0.9fr);
       gap: 16px;
       margin-top: 16px;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(6, minmax(140px, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
       gap: 12px;
       margin-top: 14px;
     }
 
     .grid-four {
       display: grid;
-      grid-template-columns: repeat(4, minmax(150px, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
       margin-top: 14px;
+    }
+
+    .grid-two {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
     }
 
     .metric {
       background: var(--card-soft);
       border: 1px solid var(--border);
       border-radius: 14px;
-      padding: 14px;
-      min-height: 86px;
+      padding: 12px;
+      min-height: 78px;
+      overflow: hidden;
     }
 
     .metric-label {
       color: var(--muted);
-      font-size: 12px;
+      font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
 
     .metric-value {
-      margin-top: 6px;
-      font-size: 22px;
+      margin-top: 5px;
+      font-size: 19px;
       font-weight: 800;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
     }
 
     .metric-small {
-      margin-top: 5px;
+      margin-top: 4px;
       color: var(--muted);
       font-size: 12px;
+    }
+
+    .metric details {
+      margin-top: 7px;
+    }
+
+    .metric summary {
+      font-size: 12px;
+      color: var(--blue);
+      font-weight: 800;
+    }
+
+    .metric .details-box {
+      font-size: 12px;
+      line-height: 1.35;
     }
 
     .decision-title {
@@ -311,11 +327,11 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 1050px;
+      min-width: 980px;
     }
 
     th, td {
-      padding: 10px 12px;
+      padding: 9px 10px;
       border-bottom: 1px solid var(--border);
       text-align: left;
       vertical-align: top;
@@ -325,7 +341,7 @@
     th {
       background: #f1f4f7;
       color: #2d3748;
-      font-size: 12px;
+      font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.035em;
       position: sticky;
@@ -333,9 +349,7 @@
       z-index: 1;
     }
 
-    tr:last-child td {
-      border-bottom: none;
-    }
+    tr:last-child td { border-bottom: none; }
 
     .num {
       text-align: right;
@@ -344,7 +358,7 @@
 
     details {
       cursor: pointer;
-      margin-top: 10px;
+      margin-top: 8px;
     }
 
     summary {
@@ -361,6 +375,20 @@
       word-break: break-word;
       font-size: 13px;
     }
+
+    .compact-detail {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .compact-detail ul {
+      margin: 6px 0 0;
+      padding-left: 17px;
+    }
+
+    .compact-detail li { margin: 2px 0; }
 
     .loading {
       padding: 20px;
@@ -379,66 +407,43 @@
       vertical-align: -2px;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .mini-list {
-      margin: 8px 0 0;
-      padding-left: 18px;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .mini-list li {
-      margin: 4px 0;
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     .candidate-title {
       font-weight: 800;
       color: var(--text);
     }
 
-    .nowrap {
-      white-space: nowrap;
-    }
+    .nowrap { white-space: nowrap; }
 
-    @media (max-width: 1120px) {
-      .layout-two,
-      .layout-three {
+    @media (max-width: 1180px) {
+      .layout-three,
+      .layout-two {
         grid-template-columns: 1fr;
       }
 
       .grid {
-        grid-template-columns: repeat(2, minmax(150px, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      .grid-four {
-        grid-template-columns: repeat(2, minmax(150px, 1fr));
+      .grid-four,
+      .grid-two {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 
-    @media (max-width: 680px) {
-      .container {
-        padding: 14px;
-      }
+    @media (max-width: 700px) {
+      .container { padding: 14px; }
 
       .grid,
-      .grid-four {
+      .grid-four,
+      .grid-two {
         grid-template-columns: 1fr;
       }
 
-      h1 {
-        font-size: 24px;
-      }
-
-      .decision-title {
-        font-size: 24px;
-      }
-
-      .toolbar input {
-        min-width: 100%;
-      }
+      h1 { font-size: 24px; }
+      .decision-title { font-size: 24px; }
+      .toolbar input { min-width: 100%; }
     }
   </style>
 </head>
@@ -623,11 +628,79 @@
       return "blue";
     }
 
-    function evidenceDetails(row) {
+    function negotiationExplanation(row) {
+      const p = num(row.risk_adjusted_required_cut_percent);
+      const realism = String(row.negotiation_realism || "NOT_APPLICABLE").toUpperCase();
+
+      if (realism === "REALISTIC") {
+        return `Required cut is ${pct(p)}%, which is within a normal negotiation range. Worth active negotiation if evidence is sound.`;
+      }
+
+      if (realism === "POSSIBLE") {
+        return `Required cut is ${pct(p)}%. This may work only with a motivated seller, weak listing traction or strong cash-buyer leverage.`;
+      }
+
+      if (realism === "DIFFICULT") {
+        return `Required cut is ${pct(p)}%. This is above normal negotiation range; track only and avoid chasing unless seller motivation is visible.`;
+      }
+
+      if (realism === "UNLIKELY") {
+        return `Required cut is ${pct(p)}%. This is likely unrealistic unless distress, unusual unit issue, or very stale listing appears.`;
+      }
+
+      return `Negotiation realism is not applicable because this row is not an active valuation candidate.`;
+    }
+
+    function compactSourceNote(row) {
+      const source = String(row.input_source_type || "");
+      const confidence = String(row.input_data_confidence || "");
+      const readiness = readinessLabel(row.readiness_status);
+
+      if (row.readiness_status === "INTERIM_SCREENED") {
+        return [
+          `Status: ${readiness}`,
+          `Basis: Property Finder DLD-derived sale/rent data + user-entered 2026 DLD service charge.`,
+          `Why interim: Property Finder is a secondary interface. It references DLD-derived transactions, but it is not a direct DLD/Ejari export and may have filtering, aggregation, partial-period or mapping limitations.`,
+          `Confidence: ${confidence}`,
+          `Action: ${safe(row.next_data_action, "Track price; validate direct source before offer.")}`
+        ].join("\n");
+      }
+
+      if (row.readiness_status === "NEEDS_EVIDENCE") {
+        return [
+          `Status: ${readiness}`,
+          `Missing: ${safe(row.evidence_gap_reason, "Sale/rent evidence incomplete.")}`,
+          `Why it matters: ${whyItMatters(row)}`,
+          `Action: ${safe(row.next_data_action, "Add evidence before valuation.")}`
+        ].join("\n");
+      }
+
+      if (row.readiness_status === "BUDGET_MONITOR") {
+        return [
+          `Status: ${readiness}`,
+          `Issue: ${safe(row.evidence_gap_reason, "Likely above budget.")}`,
+          `Action: ${safe(row.next_data_action, "Monitor only for distressed below-budget opportunity.")}`
+        ].join("\n");
+      }
+
+      if (row.readiness_status === "DEAL_TEST") {
+        return [
+          `Status: Deal test`,
+          `Basis: Scenario only.`,
+          `Action: ${safe(row.next_data_action, "Promote only after evidence support is added.")}`
+        ].join("\n");
+      }
+
       return [
-        `Readiness: ${readinessLabel(row.readiness_status)}`,
-        `Evidence gap / basis: ${safe(row.evidence_gap_reason, "N/A")}`,
-        `Next data action: ${safe(row.next_data_action, "N/A")}`,
+        `Status: ${readiness}`,
+        `Source type: ${source}`,
+        `Confidence: ${confidence}`,
+        `Action: ${safe(row.next_data_action, "Review.")}`
+      ].join("\n");
+    }
+
+    function fullEvidenceDetails(row) {
+      return [
         `Price source: ${safe(row.price_source_note, "N/A")}`,
         `Rent source: ${safe(row.rent_source_note, "N/A")}`,
         `Service-charge source: ${safe(row.service_charge_source_note, "N/A")}`,
@@ -635,6 +708,28 @@
         `Technical verdict: ${safe(row.final_decision, "N/A")}`,
         `Decision reason: ${safe(row.decision_reason, "N/A")}`
       ].join("\n\n");
+    }
+
+    function whyItMatters(row) {
+      const reason = String(row.evidence_gap_reason || "").toLowerCase();
+
+      if (row.readiness_status === "INTERIM_SCREENED") {
+        return "Good for screening, but not final action. Direct DLD/Ejari validation is still required before offer.";
+      }
+
+      if (reason.includes("rent")) {
+        return "Without rent evidence, net yield and IRR cannot be trusted.";
+      }
+
+      if (reason.includes("sale")) {
+        return "Without sale evidence, fair entry price and required discount cannot be trusted.";
+      }
+
+      if (row.readiness_status === "BUDGET_MONITOR") {
+        return "The normal market level appears above the current AED 1.6m capital limit.";
+      }
+
+      return "Missing or weak evidence can distort yield, IRR, fair price and negotiation target.";
     }
 
     function filteredRows(rows) {
@@ -698,6 +793,20 @@
       }
     }
 
+    function renderKpiMetric(label, value, small, explanation) {
+      return `
+        <div class="metric">
+          <div class="metric-label">${escapeHtml(label)}</div>
+          <div class="metric-value">${value}</div>
+          <div class="metric-small">${escapeHtml(small)}</div>
+          <details>
+            <summary>Why?</summary>
+            <div class="details-box">${escapeHtml(explanation)}</div>
+          </details>
+        </div>
+      `;
+    }
+
     function renderExecutiveDecision(rows, contextRows, bankRows) {
       const groups = classifyRows(rows);
       const evidenceRows = getEvidenceRows(rows);
@@ -726,47 +835,71 @@
 
       const decisionTone = buyGateRows.length ? "buy" : "no-buy";
 
+      const bestName = best ? rowName(best) : "None";
+      const bestCut = best ? `${pct(best.risk_adjusted_required_cut_percent)}%` : "N/A";
+
       return `
         <section class="card decision-card ${decisionTone}">
           <div class="decision-title">${decisionTitle}</div>
           <div class="decision-subtitle">
             ${best
-              ? `Best current watch item is <strong>${escapeHtml(rowName(best))}</strong>, but the required price cut is still ${pct(best.risk_adjusted_required_cut_percent)}% under the risk-adjusted hurdle.`
+              ? `Best current watch item is <strong>${escapeHtml(bestName)}</strong>, but the required price cut is still ${bestCut} under the risk-adjusted hurdle.`
               : `No evidence-based candidate is currently available.`
             }
           </div>
 
           <div class="grid">
-            <div class="metric">
-              <div class="metric-label">Best Watch Item</div>
-              <div class="metric-value">${best ? escapeHtml(rowName(best)) : "None"}</div>
-              <div class="metric-small">${best ? readinessLabel(best.readiness_status) : "N/A"}</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Current Net Yield</div>
-              <div class="metric-value">${best ? pct(best.net_yield_percent) + "%" : "N/A"}</div>
-              <div class="metric-small">Current economics</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Risk-Adjusted Hurdle</div>
-              <div class="metric-value">${best ? pct(best.risk_adjusted_target_yield_percent) + "%" : "N/A"}</div>
-              <div class="metric-small">Macro-adjusted trigger</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Risk-Adjusted Price</div>
-              <div class="metric-value">AED ${best ? money(best.risk_adjusted_target_price_aed) : "N/A"}</div>
-              <div class="metric-small">Target entry</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Required Cut</div>
-              <div class="metric-value">AED ${best ? money(best.risk_adjusted_required_cut_aed) : "N/A"}</div>
-              <div class="metric-small">${best ? pct(best.risk_adjusted_required_cut_percent) + "% — " + safe(best.negotiation_realism) : "N/A"}</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Macro / Bank</div>
-              <div class="metric-value">FS ${escapeHtml(macroFs)} / LEI ${escapeHtml(macroLei)}</div>
-              <div class="metric-small">Bank ${pct(bankRate)}% / ${escapeHtml(bankQuality)} / ${escapeHtml(macroConfidence)}</div>
-            </div>
+            ${renderKpiMetric(
+              "Best Watch Item",
+              best ? escapeHtml(bestName) : "None",
+              best ? readinessLabel(best.readiness_status) : "N/A",
+              best
+                ? `This is the strongest current row by net yield among decision-ready/interim-screened candidates. It is not a buy signal by itself. It only identifies the best item to monitor.`
+                : `No decision-ready or interim-screened candidate is available.`
+            )}
+
+            ${renderKpiMetric(
+              "Current Net Yield",
+              best ? `${pct(best.net_yield_percent)}%` : "N/A",
+              "Current economics",
+              best
+                ? `Net yield is calculated after vacancy and service charge. It is below the risk-adjusted hurdle, so the price is not attractive enough now.`
+                : `No current yield available.`
+            )}
+
+            ${renderKpiMetric(
+              "Risk-Adjusted Hurdle",
+              best ? `${pct(best.risk_adjusted_target_yield_percent)}%` : "N/A",
+              "Macro-adjusted trigger",
+              best
+                ? `Base buy trigger is 6.50% net yield. Because the macro overlay is soft/negative, the hurdle increases to ${pct(best.risk_adjusted_target_yield_percent)}%.`
+                : `No hurdle available.`
+            )}
+
+            ${renderKpiMetric(
+              "Risk-Adjusted Price",
+              `AED ${best ? money(best.risk_adjusted_target_price_aed) : "N/A"}`,
+              "Target entry",
+              best
+                ? `This is the estimated entry price needed to meet the risk-adjusted net-yield hurdle. Above this level, the deal does not compensate enough for income, cost and macro risk.`
+                : `No target price available.`
+            )}
+
+            ${renderKpiMetric(
+              "Required Cut",
+              `AED ${best ? money(best.risk_adjusted_required_cut_aed) : "N/A"}`,
+              best ? `${pct(best.risk_adjusted_required_cut_percent)}% — ${safe(best.negotiation_realism)}` : "N/A",
+              best
+                ? negotiationExplanation(best)
+                : `No required cut available.`
+            )}
+
+            ${renderKpiMetric(
+              "Macro / Bank",
+              `FS ${escapeHtml(macroFs)} / LEI ${escapeHtml(macroLei)}`,
+              `Bank ${pct(bankRate)}% / ${escapeHtml(bankQuality)} / ${escapeHtml(macroConfidence)}`,
+              `FS = financial-stability overlay. LEI = forward-looking market proxy. Negative readings increase required entry discipline. Bank benchmark is the low-risk AED cash alternative used to test property IRR spread.`
+            )}
           </div>
 
           <div class="banner warn">
@@ -805,7 +938,6 @@
                   <th>Action</th>
                   <th class="num">Risk-Adj. Price</th>
                   <th class="num">Required Cut</th>
-                  <th>Reason</th>
                 </tr>
               </thead>
               <tbody>
@@ -817,7 +949,6 @@
                     <td>${escapeHtml(dailyActionLabel(r.daily_action_category))}</td>
                     <td class="num">AED ${money(r.risk_adjusted_target_price_aed)}</td>
                     <td class="num">AED ${money(r.risk_adjusted_required_cut_aed)}<br><span class="small-text">${pct(r.risk_adjusted_required_cut_percent)}%</span></td>
-                    <td>${escapeHtml(safe(r.evidence_gap_reason, "N/A"))}</td>
                   </tr>
                 `).join("")}
               </tbody>
@@ -844,27 +975,34 @@
           <h2>Market / Macro Overlay</h2>
           <div class="note">Macro affects entry discipline. It does not rescue weak property economics.</div>
 
-          <div class="grid-four">
-            <div class="metric">
-              <div class="metric-label">Financial Stability</div>
-              <div class="metric-value">${escapeHtml(fs)}</div>
-              <div class="metric-small">Higher is better</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Proxy LEI</div>
-              <div class="metric-value">${escapeHtml(lei)}</div>
-              <div class="metric-small">Forward signal</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Risk Yield</div>
-              <div class="metric-value">${pct(riskYield)}%</div>
-              <div class="metric-small">Current hurdle</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Source Quality</div>
-              <div class="metric-value">${escapeHtml(quality)}</div>
-              <div class="metric-small">${escapeHtml(confidence)} confidence</div>
-            </div>
+          <div class="grid-two">
+            ${renderKpiMetric(
+              "Financial Stability",
+              escapeHtml(fs),
+              "Higher is better",
+              `A negative score means current macro/geopolitical/financial-stability signals are not supportive enough to relax entry pricing. It pushes the dashboard toward patience.`
+            )}
+
+            ${renderKpiMetric(
+              "Proxy LEI",
+              escapeHtml(lei),
+              "Forward signal",
+              `Proxy LEI is a forward-looking market signal. Negative value means weaker forward momentum or more uncertainty, so the entry hurdle should be stricter.`
+            )}
+
+            ${renderKpiMetric(
+              "Risk Yield",
+              `${pct(riskYield)}%`,
+              "Current hurdle",
+              `This is the required net yield after macro adjustment. Base hurdle is 6.50%; soft macro increases it to ${pct(riskYield)}%.`
+            )}
+
+            ${renderKpiMetric(
+              "Source Quality",
+              escapeHtml(quality),
+              `${escapeHtml(confidence)} confidence`,
+              `This reflects quality and confidence of the macro evidence returned by the live search branch. It should be used as an overlay, not as a direct buy/sell trigger.`
+            )}
           </div>
 
           <div class="banner ${negative ? "warn" : "good"}">
@@ -898,29 +1036,36 @@
       return `
         <section class="card">
           <h2>Bank Benchmark</h2>
-          <div class="note">Used to test whether property IRR gives enough spread over low-risk AED cash return.</div>
+          <div class="note">Low-risk AED cash alternative used to test property IRR spread.</div>
 
-          <div class="grid-four">
-            <div class="metric">
-              <div class="metric-label">Rate Used</div>
-              <div class="metric-value">${pct(rate)}%</div>
-              <div class="metric-small">AED term-deposit benchmark</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Source Quality</div>
-              <div class="metric-value">${escapeHtml(quality)}</div>
-              <div class="metric-small">${escapeHtml(safe(bank.confidence_level, quality))}</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Target Spread</div>
-              <div class="metric-value">3.00%</div>
-              <div class="metric-small">Property IRR above bank</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Use</div>
-              <div class="metric-value">IRR test</div>
-              <div class="metric-small">Not yield substitute</div>
-            </div>
+          <div class="grid-two">
+            ${renderKpiMetric(
+              "Rate Used",
+              `${pct(rate)}%`,
+              "AED term-deposit benchmark",
+              `This is the comparison return from AED bank deposit evidence. Property should offer enough extra return to compensate for illiquidity, fees, vacancy and property risk.`
+            )}
+
+            ${renderKpiMetric(
+              "Source Quality",
+              escapeHtml(quality),
+              escapeHtml(safe(bank.confidence_level, quality)),
+              `The benchmark is considered high quality because it comes from the dedicated bank benchmark branch and is tied to HSBC/UAE AED term-deposit evidence.`
+            )}
+
+            ${renderKpiMetric(
+              "Target Spread",
+              "3.00%",
+              "Property IRR above bank",
+              `The property IRR should ideally exceed the bank benchmark by about 3 percentage points. Below that, the extra property risk may not be adequately compensated.`
+            )}
+
+            ${renderKpiMetric(
+              "Usage",
+              "IRR test",
+              "Not yield substitute",
+              `The bank rate is used to compare 5-year property IRR, not to replace net yield. Yield and IRR both need to be acceptable.`
+            )}
           </div>
 
           <details>
@@ -973,21 +1118,6 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
           </div>
 
           ${renderWatchlistTable(filteredRows(evidenceRows), true)}
-
-          <details>
-            <summary>Show explanation of watchlist logic</summary>
-            <div class="details-box">Net yield ranks income attractiveness.
-
-Risk-adjusted target price converts the required yield hurdle into an entry-price target.
-
-Negotiation realism:
-- Realistic: <=5% cut
-- Possible: >5% to 10%
-- Difficult: >10% to 20%
-- Unlikely: >20%
-
-A high-quality tower is not automatically a buy. The price still has to compensate for service charges, vacancy, entry/exit costs, bank alternative return and macro risk.</div>
-          </details>
         </section>
       `;
     }
@@ -1028,13 +1158,25 @@ A high-quality tower is not automatically a buy. The price still has to compensa
                   <td class="num">${pct(r.irr_vs_bank_percent)}%</td>
                   <td class="num">AED ${money(r.risk_adjusted_target_price_aed)}</td>
                   <td class="num">AED ${money(r.risk_adjusted_required_cut_aed)}<br><span class="small-text">${pct(r.risk_adjusted_required_cut_percent)}%</span></td>
-                  <td>${pill(safe(r.negotiation_realism), getNegotiationTone(r.negotiation_realism))}</td>
+                  <td>
+                    ${pill(safe(r.negotiation_realism), getNegotiationTone(r.negotiation_realism))}
+                    <details>
+                      <summary>Why?</summary>
+                      <div class="details-box">${escapeHtml(negotiationExplanation(r))}</div>
+                    </details>
+                  </td>
                   <td>${escapeHtml(dailyActionLabel(r.daily_action_category))}</td>
                   ${includeEvidence ? `
                     <td>
                       <details>
                         <summary>View</summary>
-                        <div class="details-box">${escapeHtml(evidenceDetails(r))}</div>
+                        <div class="compact-detail">
+                          ${escapeHtml(compactSourceNote(r))}
+                          <details>
+                            <summary>Raw source details</summary>
+                            <div class="details-box">${escapeHtml(fullEvidenceDetails(r))}</div>
+                          </details>
+                        </div>
                       </details>
                     </td>
                   ` : ""}
@@ -1076,7 +1218,7 @@ A high-quality tower is not automatically a buy. The price still has to compensa
         <section class="card">
           <h2>Evidence Coverage & Data Actions</h2>
           <div class="note">
-            This section explains what is missing and why the agent cannot make a final purchase decision.
+            Shows what is available, what is missing, why it matters, and the next data action.
           </div>
 
           <div class="table-wrap">
@@ -1107,28 +1249,6 @@ A high-quality tower is not automatically a buy. The price still has to compensa
       `;
     }
 
-    function whyItMatters(row) {
-      const reason = String(row.evidence_gap_reason || "").toLowerCase();
-
-      if (row.readiness_status === "INTERIM_SCREENED") {
-        return "Good for screening, but not final action. Direct DLD/Ejari validation is still required before offer.";
-      }
-
-      if (reason.includes("rent")) {
-        return "Without rent evidence, net yield and IRR cannot be trusted.";
-      }
-
-      if (reason.includes("sale")) {
-        return "Without sale evidence, fair entry price and required discount cannot be trusted.";
-      }
-
-      if (row.readiness_status === "BUDGET_MONITOR") {
-        return "The normal market level appears above the current AED 1.6m capital limit.";
-      }
-
-      return "Missing or weak evidence can distort yield, IRR, fair price and negotiation target.";
-    }
-
     function renderDealTest(rows) {
       const dealRows = rows.filter(r => r.readiness_status === "DEAL_TEST");
 
@@ -1149,26 +1269,33 @@ A high-quality tower is not automatically a buy. The price still has to compensa
           <div class="note">Scenario only. Do not treat as validated candidate unless promoted through evidence workflow.</div>
 
           <div class="grid-four">
-            <div class="metric">
-              <div class="metric-label">Scenario</div>
-              <div class="metric-value">${escapeHtml(safe(r.tower))}</div>
-              <div class="metric-small">${escapeHtml(safe(r.unit_type))}</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Net Yield</div>
-              <div class="metric-value">${pct(r.net_yield_percent)}%</div>
-              <div class="metric-small">Scenario yield</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Risk Target Price</div>
-              <div class="metric-value">AED ${money(r.risk_adjusted_target_price_aed)}</div>
-              <div class="metric-small">Current macro hurdle</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Required Cut</div>
-              <div class="metric-value">AED ${money(r.risk_adjusted_required_cut_aed)}</div>
-              <div class="metric-small">${pct(r.risk_adjusted_required_cut_percent)}%</div>
-            </div>
+            ${renderKpiMetric(
+              "Scenario",
+              escapeHtml(safe(r.tower)),
+              escapeHtml(safe(r.unit_type)),
+              `This is a user-defined scenario, not a validated market candidate. It is excluded from investment ranking.`
+            )}
+
+            ${renderKpiMetric(
+              "Net Yield",
+              `${pct(r.net_yield_percent)}%`,
+              "Scenario yield",
+              `This is calculated only for sensitivity testing. It should not be used for real action until evidence is promoted.`
+            )}
+
+            ${renderKpiMetric(
+              "Risk Target Price",
+              `AED ${money(r.risk_adjusted_target_price_aed)}`,
+              "Current macro hurdle",
+              `Scenario price needed to satisfy the current risk-adjusted yield target.`
+            )}
+
+            ${renderKpiMetric(
+              "Required Cut",
+              `AED ${money(r.risk_adjusted_required_cut_aed)}`,
+              `${pct(r.risk_adjusted_required_cut_percent)}%`,
+              `Discount required from the scenario price to reach the current risk-adjusted target.`
+            )}
           </div>
         </section>
       `;
@@ -1184,7 +1311,7 @@ A high-quality tower is not automatically a buy. The price still has to compensa
             <summary>Readiness rules</summary>
             <div class="details-box">Decision-ready = strict / high-confidence direct evidence.
 
-Interim-screened = enough for screening and watchlist, not enough for final offer.
+Interim-screened = Property Finder DLD-derived transaction/rent evidence plus manually entered DLD Service Charge Index. Useful for screening and target pricing, not final offer.
 
 Needs evidence = missing sale or rent evidence.
 
