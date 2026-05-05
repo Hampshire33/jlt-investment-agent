@@ -468,11 +468,10 @@
       dealTest: {
         selectedIndex: 0,
         ownerAsk: 0,
+        areaSqft: 0,
         purchaseCostPercent: DEFAULT_PURCHASE_COST_PERCENT,
-        purchaseFeesAed: 0,
         serviceChargeAedSqftYear: 0,
         annualRentAed: 0,
-        expectedNetYield: 0,
         requiredNetYield: 6.75
       }
     };
@@ -564,7 +563,39 @@
       return num(price) + estimatedPurchaseCosts(price, costPercent);
     }
 
+    function serviceChargeCost(areaSqft, serviceChargeAedSqftYear) {
+      return num(areaSqft) * num(serviceChargeAedSqftYear);
+    }
+
+    function netRentFromInputs(annualRentAed, areaSqft, serviceChargeAedSqftYear) {
+      return num(annualRentAed) - serviceChargeCost(areaSqft, serviceChargeAedSqftYear);
+    }
+
+    function expectedNetYield(ownerAsk, annualRentAed, areaSqft, serviceChargeAedSqftYear) {
+      const ask = num(ownerAsk);
+      if (ask <= 0) return 0;
+      return netRentFromInputs(annualRentAed, areaSqft, serviceChargeAedSqftYear) / ask * 100;
+    }
+
+    function targetBuyPrice(netRentAed, requiredYieldPercent) {
+      const y = num(requiredYieldPercent);
+      if (y <= 0) return 0;
+      return num(netRentAed) / (y / 100);
+    }
+
+    function requiredCut(ownerAsk, targetPrice) {
+      return num(ownerAsk) - num(targetPrice);
+    }
+
+    function requiredCutPercent(ownerAsk, targetPrice) {
+      const ask = num(ownerAsk);
+      if (ask <= 0) return 0;
+      return requiredCut(ask, targetPrice) / ask * 100;
+    }
+
     function netRentFromRow(row) {
+      const explicit = num(row.estimated_annual_rent_aed) - serviceChargeCost(row.area_sqft, row.service_charge_aed_sqft_year);
+      if (explicit > 0) return explicit;
       return num(row.asking_price_aed) * num(row.net_yield_percent) / 100;
     }
 
@@ -723,13 +754,13 @@ Next action: ${safe(row.next_data_action, "Add evidence before valuation.")}`;
 
       if (dr === "BUDGET_MONITOR") {
         return `Status: Budget monitor
-Issue: Price is above selected max budget of AED ${money(state.settings.maxBudget)}.
+Issue: Price is above selected max cash range of AED ${money(state.settings.maxBudget)}.
 Next action: Monitor only for below-budget or distressed opportunity.`;
       }
 
       if (dr === "BELOW_RANGE") {
         return `Status: Below selected range
-Issue: Price is below selected min budget of AED ${money(state.settings.minBudget)}.
+Issue: Price is below selected min cash range of AED ${money(state.settings.minBudget)}.
 Next action: Review only if intentionally targeting lower ticket size.`;
       }
 
@@ -754,8 +785,8 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
       const dr = derivedReadiness(row);
 
       if (dr === "INTERIM_SCREENED") return "Evidence is sufficient for current screening; commercial issue is whether price reaches target.";
-      if (dr === "BUDGET_MONITOR") return "Price is above the active max budget range.";
-      if (dr === "BELOW_RANGE") return "Price is below the active min budget range.";
+      if (dr === "BUDGET_MONITOR") return "Price is above the active max cash range.";
+      if (dr === "BELOW_RANGE") return "Price is below the active min cash range.";
       if (reason.includes("rent")) return "Without rent evidence, net yield and IRR cannot be trusted.";
       if (reason.includes("sale")) return "Without sale evidence, fair entry price and required discount cannot be trusted.";
 
@@ -1218,12 +1249,46 @@ Target price is a screening entry-price discipline. Final action still needs uni
 
       state.dealTest.selectedIndex = index;
       state.dealTest.ownerAsk = num(row.asking_price_aed);
+      state.dealTest.areaSqft = num(row.area_sqft);
       state.dealTest.purchaseCostPercent = DEFAULT_PURCHASE_COST_PERCENT;
-      state.dealTest.purchaseFeesAed = estimatedPurchaseCosts(row.asking_price_aed, DEFAULT_PURCHASE_COST_PERCENT);
       state.dealTest.serviceChargeAedSqftYear = num(row.service_charge_aed_sqft_year);
       state.dealTest.annualRentAed = num(row.estimated_annual_rent_aed);
-      state.dealTest.expectedNetYield = num(row.net_yield_percent);
       state.dealTest.requiredNetYield = num(row.risk_adjusted_target_yield_percent, 6.75);
+    }
+
+    function getDealCalcValues() {
+      const ask = num(state.dealTest.ownerAsk);
+      const area = num(state.dealTest.areaSqft);
+      const costPct = num(state.dealTest.purchaseCostPercent, DEFAULT_PURCHASE_COST_PERCENT);
+      const serviceCharge = num(state.dealTest.serviceChargeAedSqftYear);
+      const annualRent = num(state.dealTest.annualRentAed);
+      const requiredYield = num(state.dealTest.requiredNetYield);
+
+      const annualServiceCharge = serviceChargeCost(area, serviceCharge);
+      const netRent = netRentFromInputs(annualRent, area, serviceCharge);
+      const yieldPct = expectedNetYield(ask, annualRent, area, serviceCharge);
+      const targetPrice = targetBuyPrice(netRent, requiredYield);
+      const cut = requiredCut(ask, targetPrice);
+      const cutPct = requiredCutPercent(ask, targetPrice);
+      const fees = estimatedPurchaseCosts(ask, costPct);
+      const allIn = allInCost(ask, costPct);
+
+      return {
+        ask,
+        area,
+        costPct,
+        serviceCharge,
+        annualRent,
+        requiredYield,
+        annualServiceCharge,
+        netRent,
+        yieldPct,
+        targetPrice,
+        cut,
+        cutPct,
+        fees,
+        allIn
+      };
     }
 
     function renderDealTestCalculator() {
@@ -1233,25 +1298,11 @@ Target price is a screening entry-price discipline. Final action still needs uni
       }
 
       const selected = selectedDealRow();
-
-      const ownerAsk = num(state.dealTest.ownerAsk);
-      const purchaseCostPercent = num(state.dealTest.purchaseCostPercent, DEFAULT_PURCHASE_COST_PERCENT);
-      const purchaseFeesAed = num(state.dealTest.purchaseFeesAed, estimatedPurchaseCosts(ownerAsk, purchaseCostPercent));
-      const serviceCharge = num(state.dealTest.serviceChargeAedSqftYear);
-      const annualRent = num(state.dealTest.annualRentAed);
-      const expectedYield = num(state.dealTest.expectedNetYield);
-      const requiredYield = num(state.dealTest.requiredNetYield);
-
-      const estimatedNetRentFromYield = ownerAsk * expectedYield / 100;
-      const targetPriceFromYield = requiredYield > 0 ? estimatedNetRentFromYield / (requiredYield / 100) : 0;
-      const requiredCutFromYield = ownerAsk - targetPriceFromYield;
-      const requiredCutPercentFromYield = ownerAsk > 0 ? requiredCutFromYield / ownerAsk * 100 : 0;
-
-      const allInCash = ownerAsk + purchaseFeesAed;
+      const c = getDealCalcValues();
 
       return `
         <div class="note">
-          Select a tower to pre-fill model assumptions, then adjust any number manually and recalculate instantly.
+          Select a tower to pull real model values. Change any linked input and the relevant economics update automatically.
         </div>
 
         <div class="form-grid">
@@ -1266,37 +1317,32 @@ Target price is a screening entry-price discipline. Final action still needs uni
 
           <div class="form-field">
             <label for="dealOwnerAskInput">Owner asking price, AED</label>
-            <input id="dealOwnerAskInput" type="number" min="0" step="1000" value="${ownerAsk}" />
+            <input id="dealOwnerAskInput" type="number" min="0" step="1000" value="${Math.round(c.ask)}" />
           </div>
 
           <div class="form-field">
-            <label for="dealPurchaseCostPercentInput">Purchase-cost assumption, %</label>
-            <input id="dealPurchaseCostPercentInput" type="number" min="0" step="0.1" value="${purchaseCostPercent}" />
-          </div>
-
-          <div class="form-field">
-            <label for="dealPurchaseFeesInput">Estimated fees to purchase, AED</label>
-            <input id="dealPurchaseFeesInput" type="number" min="0" step="1000" value="${Math.round(purchaseFeesAed)}" />
-          </div>
-
-          <div class="form-field">
-            <label for="dealServiceChargeInput">Service charge, AED/sqft/year</label>
-            <input id="dealServiceChargeInput" type="number" min="0" step="0.01" value="${serviceCharge}" />
+            <label for="dealAreaInput">Area, sqft</label>
+            <input id="dealAreaInput" type="number" min="0" step="0.01" value="${c.area}" />
           </div>
 
           <div class="form-field">
             <label for="dealAnnualRentInput">Estimated annual rent, AED/year</label>
-            <input id="dealAnnualRentInput" type="number" min="0" step="1000" value="${annualRent}" />
+            <input id="dealAnnualRentInput" type="number" min="0" step="1000" value="${Math.round(c.annualRent)}" />
           </div>
 
           <div class="form-field">
-            <label for="dealExpectedYieldInput">Expected net yield, %</label>
-            <input id="dealExpectedYieldInput" type="number" min="0" step="0.05" value="${expectedYield}" />
+            <label for="dealServiceChargeInput">Service charge, AED/sqft/year</label>
+            <input id="dealServiceChargeInput" type="number" min="0" step="0.01" value="${c.serviceCharge}" />
+          </div>
+
+          <div class="form-field">
+            <label for="dealPurchaseCostPercentInput">Purchase-cost assumption, %</label>
+            <input id="dealPurchaseCostPercentInput" type="number" min="0" step="0.1" value="${c.costPct}" />
           </div>
 
           <div class="form-field">
             <label for="dealRequiredYieldInput">Required net yield, %</label>
-            <input id="dealRequiredYieldInput" type="number" min="0" step="0.05" value="${requiredYield}" />
+            <input id="dealRequiredYieldInput" type="number" min="0" step="0.05" value="${c.requiredYield}" />
           </div>
         </div>
 
@@ -1304,63 +1350,68 @@ Target price is a screening entry-price discipline. Final action still needs uni
           <div class="metric">
             <div class="metric-label">Selected model row</div>
             <div class="metric-value">${escapeHtml(rowName(selected))}</div>
-            <div class="metric-small">Pre-filled from dashboard data</div>
+            <div class="metric-small">Pre-filled from DB view</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Annual service charge</div>
+            <div class="metric-value">AED ${money(c.annualServiceCharge)}</div>
+            <div class="metric-small">Area × service charge</div>
           </div>
 
           <div class="metric">
             <div class="metric-label">Estimated net rent</div>
-            <div class="metric-value">AED ${money(estimatedNetRentFromYield)}</div>
-            <div class="metric-small">Owner ask × expected net yield</div>
+            <div class="metric-value">AED ${money(c.netRent)}</div>
+            <div class="metric-small">Annual rent − service charge</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Expected net yield</div>
+            <div class="metric-value">${pct(c.yieldPct)}%</div>
+            <div class="metric-small">Net rent ÷ asking price</div>
           </div>
 
           <div class="metric">
             <div class="metric-label">Target buy price</div>
-            <div class="metric-value">AED ${money(targetPriceFromYield)}</div>
-            <div class="metric-small">Net rent ÷ required net yield</div>
+            <div class="metric-value">AED ${money(c.targetPrice)}</div>
+            <div class="metric-small">Net rent ÷ required yield</div>
           </div>
 
           <div class="metric">
             <div class="metric-label">Required cut</div>
-            <div class="metric-value">AED ${money(requiredCutFromYield)}</div>
-            <div class="metric-small">${pct(requiredCutPercentFromYield)}% vs owner ask</div>
-          </div>
-
-          <div class="metric">
-            <div class="metric-label">All-in cash need</div>
-            <div class="metric-value">AED ${money(allInCash)}</div>
-            <div class="metric-small">Ask + estimated fees</div>
+            <div class="metric-value">AED ${money(c.cut)}</div>
+            <div class="metric-small">${pct(c.cutPct)}% vs owner ask</div>
           </div>
 
           <div class="metric">
             <div class="metric-label">Purchase fees</div>
-            <div class="metric-value">AED ${money(purchaseFeesAed)}</div>
-            <div class="metric-small">${pct(purchaseCostPercent)}% of owner ask if linked</div>
+            <div class="metric-value">AED ${money(c.fees)}</div>
+            <div class="metric-small">${pct(c.costPct)}% of owner ask</div>
           </div>
 
           <div class="metric">
-            <div class="metric-label">Annual rent used</div>
-            <div class="metric-value">AED ${money(annualRent)}</div>
-            <div class="metric-small">Editable reference input</div>
-          </div>
-
-          <div class="metric">
-            <div class="metric-label">Service charge used</div>
-            <div class="metric-value">${pct(serviceCharge)}</div>
-            <div class="metric-small">AED/sqft/year</div>
+            <div class="metric-label">All-in cash need</div>
+            <div class="metric-value">AED ${money(c.allIn)}</div>
+            <div class="metric-small">Ask + purchase fees</div>
           </div>
         </div>
 
         <details class="inline-detail">
-          <summary>How this is calculated</summary>
-          <div class="details-box">Estimated net rent = owner asking price × expected net yield.
+          <summary>Linked calculation logic</summary>
+          <div class="details-box">When tower changes:
+All inputs reset from the DB view.
 
-Target buy price = estimated net rent ÷ required net yield.
+When asking price changes:
+Expected yield, purchase fees, all-in cash, target price gap and required cut update.
 
-Required cut = owner asking price − target buy price.
+When area, annual rent, or service charge changes:
+Annual service charge, net rent, expected yield, target price and required cut update.
 
-All-in cash need = owner asking price + estimated purchase fees.
+When purchase-cost % changes:
+Purchase fees and all-in cash update. Yield is not changed because purchase costs are acquisition cash impact, not rent economics.
 
-The annual rent and service charge fields are shown as editable reference assumptions. In this compact calculator, expected net yield drives the target-price math.</div>
+When required net yield changes:
+Target buy price and required cut update. Owner asking price is not overwritten because it represents the seller's price.</div>
         </details>
       `;
     }
@@ -1559,11 +1610,10 @@ Deal test = scenario only.</div>
 
       const dealTowerSelect = document.getElementById("dealTowerSelect");
       const dealOwnerAskInput = document.getElementById("dealOwnerAskInput");
+      const dealAreaInput = document.getElementById("dealAreaInput");
       const dealPurchaseCostPercentInput = document.getElementById("dealPurchaseCostPercentInput");
-      const dealPurchaseFeesInput = document.getElementById("dealPurchaseFeesInput");
       const dealServiceChargeInput = document.getElementById("dealServiceChargeInput");
       const dealAnnualRentInput = document.getElementById("dealAnnualRentInput");
-      const dealExpectedYieldInput = document.getElementById("dealExpectedYieldInput");
       const dealRequiredYieldInput = document.getElementById("dealRequiredYieldInput");
 
       if (dealTowerSelect) {
@@ -1576,8 +1626,13 @@ Deal test = scenario only.</div>
       if (dealOwnerAskInput) {
         dealOwnerAskInput.addEventListener("input", (e) => {
           state.dealTest.ownerAsk = e.target.value;
-          const percent = num(state.dealTest.purchaseCostPercent, DEFAULT_PURCHASE_COST_PERCENT);
-          state.dealTest.purchaseFeesAed = estimatedPurchaseCosts(e.target.value, percent);
+          renderDashboard();
+        });
+      }
+
+      if (dealAreaInput) {
+        dealAreaInput.addEventListener("input", (e) => {
+          state.dealTest.areaSqft = e.target.value;
           renderDashboard();
         });
       }
@@ -1585,14 +1640,6 @@ Deal test = scenario only.</div>
       if (dealPurchaseCostPercentInput) {
         dealPurchaseCostPercentInput.addEventListener("input", (e) => {
           state.dealTest.purchaseCostPercent = e.target.value;
-          state.dealTest.purchaseFeesAed = estimatedPurchaseCosts(state.dealTest.ownerAsk, e.target.value);
-          renderDashboard();
-        });
-      }
-
-      if (dealPurchaseFeesInput) {
-        dealPurchaseFeesInput.addEventListener("input", (e) => {
-          state.dealTest.purchaseFeesAed = e.target.value;
           renderDashboard();
         });
       }
@@ -1607,13 +1654,6 @@ Deal test = scenario only.</div>
       if (dealAnnualRentInput) {
         dealAnnualRentInput.addEventListener("input", (e) => {
           state.dealTest.annualRentAed = e.target.value;
-          renderDashboard();
-        });
-      }
-
-      if (dealExpectedYieldInput) {
-        dealExpectedYieldInput.addEventListener("input", (e) => {
-          state.dealTest.expectedNetYield = e.target.value;
           renderDashboard();
         });
       }
