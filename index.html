@@ -196,6 +196,8 @@
           <th>Price AED</th>
           <th>Net Yield %</th>
           <th>5Y IRR %</th>
+          <th>Bank %</th>
+          <th>Bank Source</th>
           <th>IRR vs Bank %</th>
           <th>NPV @ 8% AED</th>
           <th>Final Score</th>
@@ -211,12 +213,12 @@
       </thead>
       <tbody id="observations-table">
         <tr>
-          <td colspan="17">Loading...</td>
+          <td colspan="19">Loading...</td>
         </tr>
       </tbody>
     </table>
     <div class="small-note">
-      Input confidence is per tower. It reflects the source of price/rent/service-charge assumptions used in the financial calculation.
+      Input confidence is per tower. Bank source confirms which benchmark was used for IRR vs Bank.
     </div>
   </div>
 
@@ -551,6 +553,7 @@
       const priceNote = row.price_source_note || "No price source note.";
       const rentNote = row.rent_source_note || "No rent source note.";
       const serviceChargeNote = row.service_charge_source_note || "No service charge source note.";
+      const bankNote = row.bank_benchmark_source_note || "No bank benchmark source note.";
 
       return `
         <details>
@@ -559,6 +562,7 @@
             <div><strong>Price:</strong> ${priceNote}</div>
             <div><strong>Rent:</strong> ${rentNote}</div>
             <div><strong>Service charge:</strong> ${serviceChargeNote}</div>
+            <div><strong>Bank benchmark:</strong> ${bankNote}</div>
           </div>
         </details>
       `;
@@ -586,7 +590,7 @@
     async function fetchObservationsByRunId(runId) {
       const url =
         `${SUPABASE_URL}/rest/v1/${PROPERTY_TABLE}` +
-        `?select=created_at,run_id,tower,unit_type,asking_price_aed,net_yield_percent,irr_5y_percent,irr_vs_bank_percent,npv_5y_aed,final_score,strong_buy_price_aed,fair_price_aed,discount_to_6_5_target_aed,discount_to_6_5_target_percent,final_decision,action_label,summary,call_script,input_source_type,input_data_confidence,price_source_note,rent_source_note,service_charge_source_note` +
+        `?select=created_at,run_id,tower,unit_type,asking_price_aed,net_yield_percent,irr_5y_percent,bank_yield_percent,bank_source_quality,bank_benchmark_source_note,irr_vs_bank_percent,npv_5y_aed,final_score,strong_buy_price_aed,fair_price_aed,discount_to_6_5_target_aed,discount_to_6_5_target_percent,final_decision,action_label,summary,call_script,input_source_type,input_data_confidence,price_source_note,rent_source_note,service_charge_source_note` +
         `&run_id=eq.${encodeURIComponent(runId)}` +
         `&order=final_score.desc`;
 
@@ -675,7 +679,7 @@
       const tableBody = document.getElementById("observations-table");
 
       if (!data || data.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="17">No data available</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="19">No data available</td></tr>`;
         return;
       }
 
@@ -690,6 +694,8 @@
             <td>${formatNumber(row.asking_price_aed)}</td>
             <td>${formatPercent(row.net_yield_percent)}</td>
             <td>${formatPercent(row.irr_5y_percent)}</td>
+            <td>${formatPercent(row.bank_yield_percent)}</td>
+            <td>${formatQualityTag(row.bank_source_quality || "LOW")}</td>
             <td>${formatPercent(row.irr_vs_bank_percent)}</td>
             <td>${formatNpv(row.npv_5y_aed)}</td>
             <td>${formatScore(row.final_score)}</td>
@@ -851,7 +857,7 @@
         document.getElementById("call-script").textContent = error.message;
 
         document.getElementById("observations-table").innerHTML =
-          `<tr><td colspan="17">${error.message}</td></tr>`;
+          `<tr><td colspan="19">${error.message}</td></tr>`;
 
         console.error(error);
       }
