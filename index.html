@@ -225,6 +225,37 @@
   </div>
 
   <div class="card">
+    <h2>Deal Input / Negotiation Targets</h2>
+    <div class="small-note">
+      This table converts the ranking into live-call negotiation language. Strong-buy price is based on the 6.5% net-yield trigger.
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Tower</th>
+          <th>Current Price AED</th>
+          <th>Strong-Buy Price AED</th>
+          <th>Fair Price AED</th>
+          <th>Required Cut AED</th>
+          <th>Required Cut %</th>
+          <th>Net Yield %</th>
+          <th>IRR vs Bank %</th>
+          <th>Input Confidence</th>
+          <th>Call Position</th>
+          <th>Negotiation Message</th>
+        </tr>
+      </thead>
+      <tbody id="deal-targets-table">
+        <tr>
+          <td colspan="12">Loading deal targets...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
     <h2>Call Script</h2>
     <p id="call-script">Loading...</p>
   </div>
@@ -659,6 +690,47 @@
       return !isEvidenceSupportedObservation(row);
     }
 
+    function getCallPosition(row) {
+      const netYield = Number(row.net_yield_percent);
+      const irrVsBank = Number(row.irr_vs_bank_percent);
+      const confidence = String(row.input_data_confidence || "").toUpperCase();
+
+      if (netYield >= 6.5 && irrVsBank >= 3.0 && confidence === "HIGH") {
+        return "Buy candidate";
+      }
+
+      if (netYield >= 6.2 && irrVsBank >= 2.5) {
+        return "Negotiate";
+      }
+
+      if (netYield >= 6.0) {
+        return "Watch / wait";
+      }
+
+      return "Pass";
+    }
+
+    function getNegotiationMessage(row) {
+      const tower = row.tower || "This unit";
+      const currentPrice = Number(row.asking_price_aed || 0);
+      const strongBuyPrice = Number(row.strong_buy_price_aed || 0);
+      const gap = Number(row.discount_to_6_5_target_aed || 0);
+      const gapPercent = Number(row.discount_to_6_5_target_percent || 0);
+      const netYield = Number(row.net_yield_percent || 0);
+      const irrVsBank = Number(row.irr_vs_bank_percent || 0);
+      const confidence = String(row.input_data_confidence || "").toUpperCase();
+
+      if (gap > 1000) {
+        return `${tower}: current price AED ${formatNumber(currentPrice)} gives ${netYield.toFixed(2)}% net yield and ${irrVsBank.toFixed(2)}% IRR spread over bank. Target entry is around AED ${formatNumber(strongBuyPrice)}, requiring about AED ${formatNumber(gap)} (${gapPercent.toFixed(2)}%) reduction.`;
+      }
+
+      if (confidence === "HIGH") {
+        return `${tower}: price is near the 6.5% net-yield trigger and inputs are evidence-supported. Proceed only after final unit-condition and transaction checks.`;
+      }
+
+      return `${tower}: price is near target, but input evidence is weak. Validate price and rent before treating this as a buy candidate.`;
+    }
+
     async function fetchLatestRunId() {
       const url =
         `${SUPABASE_URL}/rest/v1/${PROPERTY_TABLE}` +
@@ -827,6 +899,41 @@
             <td>${formatInputSource(row.input_source_type)}</td>
             <td>${formatQualityTag(row.input_data_confidence || "LOW")}</td>
             <td>${formatSourceNotes(row)}</td>
+          </tr>
+        `;
+      });
+    }
+
+    function renderDealTargets(data) {
+      const tableBody = document.getElementById("deal-targets-table");
+
+      if (!data || data.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="12">No deal targets available.</td></tr>`;
+        return;
+      }
+
+      tableBody.innerHTML = "";
+
+      data.forEach((row, index) => {
+        const gapAed = Number(row.discount_to_6_5_target_aed || 0);
+        const gapPercent = Number(row.discount_to_6_5_target_percent || 0);
+        const callPosition = getCallPosition(row);
+        const message = getNegotiationMessage(row);
+
+        tableBody.innerHTML += `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${row.tower || ""}</td>
+            <td>${formatNumber(row.asking_price_aed)}</td>
+            <td>${formatNumber(row.strong_buy_price_aed)}</td>
+            <td>${formatNumber(row.fair_price_aed)}</td>
+            <td>${gapAed > 0 ? formatNumber(gapAed) : "0"}</td>
+            <td>${gapAed > 0 ? gapPercent.toFixed(2) + "%" : "0.00%"}</td>
+            <td>${formatPercent(row.net_yield_percent)}</td>
+            <td>${formatPercent(row.irr_vs_bank_percent)}</td>
+            <td>${formatQualityTag(row.input_data_confidence || "LOW")}</td>
+            <td>${callPosition}</td>
+            <td>${message}</td>
           </tr>
         `;
       });
@@ -1011,6 +1118,7 @@
         latestSummary.textContent = "No property observations available.";
         callScript.textContent = "No call script available.";
         renderInvestmentTable([]);
+        renderDealTargets([]);
         renderEvidenceLog(evidenceLog);
         renderMacroContext(context);
         renderPropertySourceContext(propertySource);
@@ -1027,6 +1135,7 @@
       callScript.textContent = latest.call_script || "No call script available.";
 
       renderInvestmentTable(observations);
+      renderDealTargets(observations);
       renderEvidenceLog(evidenceLog);
       renderMacroContext(context);
       renderPropertySourceContext(propertySource);
@@ -1047,6 +1156,9 @@
 
         document.getElementById("observations-table").innerHTML =
           `<tr><td colspan="19">${error.message}</td></tr>`;
+
+        document.getElementById("deal-targets-table").innerHTML =
+          `<tr><td colspan="12">${error.message}</td></tr>`;
 
         document.getElementById("evidence-table").innerHTML =
           `<tr><td colspan="12">${error.message}</td></tr>`;
