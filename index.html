@@ -20,13 +20,11 @@
       --green: #0b7a3b;
       --amber: #b26a00;
       --red: #a12626;
-      --purple: #6346b8;
 
       --soft-blue: #eef4ff;
       --soft-green: #eefaf2;
       --soft-amber: #fff6e5;
       --soft-red: #fff0f0;
-      --soft-purple: #f3f0ff;
 
       --shadow: 0 8px 22px rgba(0, 0, 0, 0.055);
       --radius: 16px;
@@ -73,23 +71,16 @@
       font-size: 16px;
     }
 
-    code {
-      background: #eef1f4;
-      padding: 2px 5px;
-      border-radius: 6px;
-    }
-
     .subtitle {
       color: var(--muted);
       margin-top: 4px;
       font-size: 15px;
     }
 
-    .top-actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
+    code {
+      background: #eef1f4;
+      padding: 2px 5px;
+      border-radius: 6px;
     }
 
     button {
@@ -114,22 +105,14 @@
     }
 
     .decision-card {
-      border-left: 8px solid var(--amber);
+      border-left: 8px solid var(--red);
     }
 
     .decision-card.buy { border-left-color: var(--green); }
-    .decision-card.no-buy { border-left-color: var(--red); }
 
     .layout-two {
       display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-      gap: 16px;
-      margin-top: 16px;
-    }
-
-    .layout-three {
-      display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.95fr) minmax(0, 0.9fr);
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 16px;
       margin-top: 16px;
     }
@@ -183,21 +166,6 @@
       margin-top: 4px;
       color: var(--muted);
       font-size: 12px;
-    }
-
-    .metric details {
-      margin-top: 7px;
-    }
-
-    .metric summary {
-      font-size: 12px;
-      color: var(--blue);
-      font-weight: 800;
-    }
-
-    .metric .details-box {
-      font-size: 12px;
-      line-height: 1.35;
     }
 
     .decision-title {
@@ -287,12 +255,6 @@
       border-color: #bdd3ff;
     }
 
-    .pill.purple {
-      color: var(--purple);
-      background: var(--soft-purple);
-      border-color: #d3c7ff;
-    }
-
     .toolbar {
       display: flex;
       gap: 10px;
@@ -312,7 +274,7 @@
     }
 
     .toolbar input {
-      min-width: 260px;
+      min-width: 250px;
       flex: 1;
     }
 
@@ -367,6 +329,10 @@
       font-size: 13px;
     }
 
+    .metric details summary {
+      font-size: 12px;
+    }
+
     .details-box {
       margin-top: 8px;
       color: var(--muted);
@@ -381,14 +347,13 @@
       color: var(--muted);
       font-size: 12px;
       line-height: 1.4;
+      white-space: pre-wrap;
     }
 
-    .compact-detail ul {
-      margin: 6px 0 0;
-      padding-left: 17px;
+    .candidate-title {
+      font-weight: 800;
+      color: var(--text);
     }
-
-    .compact-detail li { margin: 2px 0; }
 
     .loading {
       padding: 20px;
@@ -409,15 +374,7 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .candidate-title {
-      font-weight: 800;
-      color: var(--text);
-    }
-
-    .nowrap { white-space: nowrap; }
-
     @media (max-width: 1180px) {
-      .layout-three,
       .layout-two {
         grid-template-columns: 1fr;
       }
@@ -455,9 +412,7 @@
         <h1>JLT Investment Agent</h1>
         <div class="subtitle">Macro-aware, finance-driven JLT ready-apartment screening</div>
       </div>
-      <div class="top-actions">
-        <button onclick="window.location.reload()">Refresh</button>
-      </div>
+      <button onclick="window.location.reload()">Refresh</button>
     </header>
 
     <div id="app" class="loading">
@@ -473,6 +428,8 @@
     const TABLE_AGENT_CONTEXT = "agent_run_context";
     const TABLE_BANK_CONTEXT = "bank_benchmark_context";
 
+    const PURCHASE_COST_PERCENT = 6.6;
+
     const AED = new Intl.NumberFormat("en-AE", { maximumFractionDigits: 0 });
     const NUM = new Intl.NumberFormat("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -480,11 +437,8 @@
       rows: [],
       contextRows: [],
       bankRows: [],
-      filters: {
-        search: "",
-        readiness: "ALL",
-        realism: "ALL"
-      }
+      filters: { search: "", readiness: "ALL", realism: "ALL" },
+      dealTest: { selectedIndex: 0, ownerAsk: "", targetYield: "" }
     };
 
     function safe(v, fallback = "") {
@@ -507,11 +461,7 @@
 
     function dateTime(v) {
       if (!v) return "N/A";
-      try {
-        return new Date(v).toLocaleString();
-      } catch {
-        return v;
-      }
+      try { return new Date(v).toLocaleString(); } catch { return v; }
     }
 
     function escapeHtml(str) {
@@ -549,7 +499,6 @@
 
     function readinessLabel(status) {
       const s = String(status || "").toUpperCase();
-
       if (s === "DECISION_READY") return "Decision-ready";
       if (s === "INTERIM_SCREENED") return "Interim-screened";
       if (s === "NEEDS_EVIDENCE") return "Needs evidence";
@@ -560,7 +509,6 @@
 
     function dailyActionLabel(action) {
       const s = String(action || "").toUpperCase();
-
       if (s === "VALIDATE_BEFORE_OFFER") return "Validate before offer";
       if (s === "TRACK_AND_NEGOTIATE_ONLY_IF_SELLER_MOTIVATED") return "Track; negotiate only if seller motivated";
       if (s === "WATCH_ONLY_PRICE_TOO_HIGH") return "Watch only — price too high";
@@ -573,33 +521,13 @@
       return [...rows].sort((a, b) => num(b.net_yield_percent) - num(a.net_yield_percent));
     }
 
-    function sortByActionPriority(rows) {
-      const order = {
-        "VALIDATE_BEFORE_OFFER": 1,
-        "TRACK_AND_NEGOTIATE_ONLY_IF_SELLER_MOTIVATED": 2,
-        "WATCH_ONLY_PRICE_TOO_HIGH": 3,
-        "COMPLETE_EVIDENCE_FIRST": 4,
-        "SCENARIO_ONLY": 5,
-        "REVIEW": 6
-      };
-
-      return [...rows].sort((a, b) => {
-        const oa = order[a.daily_action_category] || 99;
-        const ob = order[b.daily_action_category] || 99;
-
-        if (oa !== ob) return oa - ob;
-        return num(b.net_yield_percent) - num(a.net_yield_percent);
-      });
-    }
-
     function classifyRows(rows) {
       return {
         decisionReady: rows.filter(r => r.readiness_status === "DECISION_READY"),
         interim: rows.filter(r => r.readiness_status === "INTERIM_SCREENED"),
         needsEvidence: rows.filter(r => r.readiness_status === "NEEDS_EVIDENCE"),
         budgetMonitor: rows.filter(r => r.readiness_status === "BUDGET_MONITOR"),
-        dealTest: rows.filter(r => r.readiness_status === "DEAL_TEST"),
-        review: rows.filter(r => !["DECISION_READY", "INTERIM_SCREENED", "NEEDS_EVIDENCE", "BUDGET_MONITOR", "DEAL_TEST"].includes(r.readiness_status))
+        dealTest: rows.filter(r => r.readiness_status === "DEAL_TEST")
       };
     }
 
@@ -608,16 +536,15 @@
     }
 
     function getBestWatch(rows) {
-      const evidenceRows = getEvidenceRows(rows);
-      return sortByNetYield(evidenceRows)[0] || null;
+      return sortByNetYield(getEvidenceRows(rows))[0] || null;
     }
 
-    function getLatestContext(contextRows) {
-      return contextRows[0] || {};
+    function getLatestContext() {
+      return state.contextRows[0] || {};
     }
 
-    function getLatestBank(bankRows, rows) {
-      return bankRows[0] || rows.find(r => r.bank_yield_percent !== null && r.bank_yield_percent !== undefined) || {};
+    function getLatestBank() {
+      return state.bankRows[0] || state.rows.find(r => r.bank_yield_percent !== null && r.bank_yield_percent !== undefined) || {};
     }
 
     function getNegotiationTone(realism) {
@@ -628,108 +555,90 @@
       return "blue";
     }
 
+    function estimatedPurchaseCosts(price) {
+      return num(price) * PURCHASE_COST_PERCENT / 100;
+    }
+
+    function allInCost(price) {
+      return num(price) + estimatedPurchaseCosts(price);
+    }
+
+    function netRentFromRow(row) {
+      return num(row.asking_price_aed) * num(row.net_yield_percent) / 100;
+    }
+
     function negotiationExplanation(row) {
       const p = num(row.risk_adjusted_required_cut_percent);
       const realism = String(row.negotiation_realism || "NOT_APPLICABLE").toUpperCase();
 
-      if (realism === "REALISTIC") {
-        return `Required cut is ${pct(p)}%, which is within a normal negotiation range. Worth active negotiation if evidence is sound.`;
-      }
+      const base = `Current evidence price: AED ${money(row.asking_price_aed)}.
+Risk-adjusted target price: AED ${money(row.risk_adjusted_target_price_aed)}.
+Required cut: AED ${money(row.risk_adjusted_required_cut_aed)} / ${pct(p)}%.`;
 
-      if (realism === "POSSIBLE") {
-        return `Required cut is ${pct(p)}%. This may work only with a motivated seller, weak listing traction or strong cash-buyer leverage.`;
-      }
+      if (realism === "REALISTIC") return `${base}
 
-      if (realism === "DIFFICULT") {
-        return `Required cut is ${pct(p)}%. This is above normal negotiation range; track only and avoid chasing unless seller motivation is visible.`;
-      }
+This is within a normal negotiation band. Active negotiation can be justified if evidence is sound.`;
+      if (realism === "POSSIBLE") return `${base}
 
-      if (realism === "UNLIKELY") {
-        return `Required cut is ${pct(p)}%. This is likely unrealistic unless distress, unusual unit issue, or very stale listing appears.`;
-      }
+This requires seller motivation or negotiation leverage. Track, but do not chase.`;
+      if (realism === "DIFFICULT") return `${base}
 
-      return `Negotiation realism is not applicable because this row is not an active valuation candidate.`;
+This is above normal negotiation range. It needs a motivated seller, stale listing, cash-buyer advantage, or unit-specific weakness.`;
+      if (realism === "UNLIKELY") return `${base}
+
+This discount is likely unrealistic unless distress, poor unit condition, urgent seller, or abnormal listing appears.`;
+
+      return "Negotiation realism is not applicable for this row.";
     }
 
     function compactSourceNote(row) {
-      const source = String(row.input_source_type || "");
       const confidence = String(row.input_data_confidence || "");
-      const readiness = readinessLabel(row.readiness_status);
 
       if (row.readiness_status === "INTERIM_SCREENED") {
-        return [
-          `Status: ${readiness}`,
-          `Basis: Property Finder DLD-derived sale/rent data + user-entered 2026 DLD service charge.`,
-          `Why interim: Property Finder is a secondary interface. It references DLD-derived transactions, but it is not a direct DLD/Ejari export and may have filtering, aggregation, partial-period or mapping limitations.`,
-          `Confidence: ${confidence}`,
-          `Action: ${safe(row.next_data_action, "Track price; validate direct source before offer.")}`
-        ].join("\n");
+        return `Status: Interim-screened
+Basis: Property Finder DLD-derived sale/rent + user-entered 2026 DLD service charge.
+Why not final: Property Finder references DLD-derived transactions, but it is still a secondary interface, not a direct DLD/Ejari export.
+Known limitations: filtering, aggregation, partial-period rent contracts, tower/unit mapping, and freshness checks.
+Confidence: ${confidence}
+Next action: ${safe(row.next_data_action, "Validate direct source before offer.")}`;
       }
 
       if (row.readiness_status === "NEEDS_EVIDENCE") {
-        return [
-          `Status: ${readiness}`,
-          `Missing: ${safe(row.evidence_gap_reason, "Sale/rent evidence incomplete.")}`,
-          `Why it matters: ${whyItMatters(row)}`,
-          `Action: ${safe(row.next_data_action, "Add evidence before valuation.")}`
-        ].join("\n");
+        return `Status: Needs evidence
+Issue: ${safe(row.evidence_gap_reason, "Sale/rent evidence incomplete.")}
+Why it matters: ${whyItMatters(row)}
+Next action: ${safe(row.next_data_action, "Add evidence before valuation.")}`;
       }
 
       if (row.readiness_status === "BUDGET_MONITOR") {
-        return [
-          `Status: ${readiness}`,
-          `Issue: ${safe(row.evidence_gap_reason, "Likely above budget.")}`,
-          `Action: ${safe(row.next_data_action, "Monitor only for distressed below-budget opportunity.")}`
-        ].join("\n");
+        return `Status: Budget monitor
+Issue: ${safe(row.evidence_gap_reason, "Likely above budget.")}
+Next action: ${safe(row.next_data_action, "Monitor only for distressed below-budget opportunity.")}`;
       }
 
-      if (row.readiness_status === "DEAL_TEST") {
-        return [
-          `Status: Deal test`,
-          `Basis: Scenario only.`,
-          `Action: ${safe(row.next_data_action, "Promote only after evidence support is added.")}`
-        ].join("\n");
-      }
-
-      return [
-        `Status: ${readiness}`,
-        `Source type: ${source}`,
-        `Confidence: ${confidence}`,
-        `Action: ${safe(row.next_data_action, "Review.")}`
-      ].join("\n");
+      return `Status: ${readinessLabel(row.readiness_status)}
+Next action: ${safe(row.next_data_action, "Review.")}`;
     }
 
     function fullEvidenceDetails(row) {
-      return [
-        `Price source: ${safe(row.price_source_note, "N/A")}`,
-        `Rent source: ${safe(row.rent_source_note, "N/A")}`,
-        `Service-charge source: ${safe(row.service_charge_source_note, "N/A")}`,
-        `Dashboard bucket: ${safe(row.dashboard_bucket, "N/A")}`,
-        `Technical verdict: ${safe(row.final_decision, "N/A")}`,
-        `Decision reason: ${safe(row.decision_reason, "N/A")}`
-      ].join("\n\n");
+      return `Price source: ${safe(row.price_source_note, "N/A")}
+
+Rent source: ${safe(row.rent_source_note, "N/A")}
+
+Service-charge source: ${safe(row.service_charge_source_note, "N/A")}
+
+Technical verdict: ${safe(row.final_decision, "N/A")}
+
+Decision reason: ${safe(row.decision_reason, "N/A")}`;
     }
 
     function whyItMatters(row) {
       const reason = String(row.evidence_gap_reason || "").toLowerCase();
-
-      if (row.readiness_status === "INTERIM_SCREENED") {
-        return "Good for screening, but not final action. Direct DLD/Ejari validation is still required before offer.";
-      }
-
-      if (reason.includes("rent")) {
-        return "Without rent evidence, net yield and IRR cannot be trusted.";
-      }
-
-      if (reason.includes("sale")) {
-        return "Without sale evidence, fair entry price and required discount cannot be trusted.";
-      }
-
-      if (row.readiness_status === "BUDGET_MONITOR") {
-        return "The normal market level appears above the current AED 1.6m capital limit.";
-      }
-
-      return "Missing or weak evidence can distort yield, IRR, fair price and negotiation target.";
+      if (row.readiness_status === "INTERIM_SCREENED") return "Good for screening, but final offer should still be validated against direct/primary evidence.";
+      if (reason.includes("rent")) return "Without rent evidence, net yield and IRR cannot be trusted.";
+      if (reason.includes("sale")) return "Without sale evidence, fair entry price and required discount cannot be trusted.";
+      if (row.readiness_status === "BUDGET_MONITOR") return "Normal market level appears above the AED 1.6m capital limit.";
+      return "Weak evidence can distort yield, IRR, fair price and negotiation target.";
     }
 
     function filteredRows(rows) {
@@ -738,26 +647,16 @@
       const realism = state.filters.realism;
 
       return rows.filter(row => {
-        const haystack = [
-          row.tower,
-          row.unit_type,
-          row.readiness_status,
-          row.negotiation_realism,
-          row.daily_action_category
-        ].join(" ").toLowerCase();
-
-        const searchOk = !search || haystack.includes(search);
-        const readinessOk = readiness === "ALL" || row.readiness_status === readiness;
-        const realismOk = realism === "ALL" || row.negotiation_realism === realism;
-
-        return searchOk && readinessOk && realismOk;
+        const haystack = [row.tower, row.unit_type, row.readiness_status, row.negotiation_realism, row.daily_action_category].join(" ").toLowerCase();
+        return (!search || haystack.includes(search))
+          && (readiness === "ALL" || row.readiness_status === readiness)
+          && (realism === "ALL" || row.negotiation_realism === realism);
       });
     }
 
     async function fetchWithTimeout(url, options, timeoutMs = 15000) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
       try {
         const response = await fetch(url, { ...options, signal: controller.signal });
         clearTimeout(timeout);
@@ -770,7 +669,6 @@
 
     async function restGet(path, query = "select=*") {
       const url = `${SUPABASE_REST_URL}/${path}?${query}`;
-
       const response = await fetchWithTimeout(url, {
         method: "GET",
         headers: {
@@ -781,16 +679,10 @@
       });
 
       const text = await response.text();
+      if (!response.ok) throw new Error(`REST ${path} failed: ${response.status} ${text}`);
 
-      if (!response.ok) {
-        throw new Error(`REST ${path} failed: ${response.status} ${text}`);
-      }
-
-      try {
-        return JSON.parse(text);
-      } catch {
-        throw new Error(`REST ${path} returned non-JSON response: ${text}`);
-      }
+      try { return JSON.parse(text); }
+      catch { throw new Error(`REST ${path} returned non-JSON response: ${text}`); }
     }
 
     function renderKpiMetric(label, value, small, explanation) {
@@ -807,43 +699,32 @@
       `;
     }
 
-    function renderExecutiveDecision(rows, contextRows, bankRows) {
+    function renderExecutiveDecision() {
+      const rows = state.rows;
       const groups = classifyRows(rows);
-      const evidenceRows = getEvidenceRows(rows);
       const best = getBestWatch(rows);
+      const context = getLatestContext();
+      const bank = getLatestBank();
+
       const latestRun = rows[0]?.run_id || "N/A";
       const latestTime = rows[0]?.created_at || null;
-
-      const bank = getLatestBank(bankRows, rows);
-      const context = getLatestContext(contextRows);
 
       const bankRate = bank.benchmark_rate_percent || best?.bank_yield_percent || 3.5;
       const bankQuality = bank.source_quality || best?.bank_source_quality || "HIGH";
 
-      const macroFs = safe(context.financial_stability_score ?? best?.financial_stability_score, "N/A");
-      const macroLei = safe(context.proxy_lei_score ?? best?.proxy_lei_score, "N/A");
+      const fs = safe(context.financial_stability_score ?? best?.financial_stability_score, "N/A");
+      const lei = safe(context.proxy_lei_score ?? best?.proxy_lei_score, "N/A");
       const macroConfidence = safe(context.confidence_level ?? best?.macro_confidence, "MEDIUM");
 
-      const buyGateRows = evidenceRows.filter(r =>
-        String(r.daily_action_category || "") === "VALIDATE_BEFORE_OFFER" ||
-        String(r.final_decision || "").includes("BUY")
-      );
-
-      const decisionTitle = buyGateRows.length
-        ? "Validate before any offer"
-        : "Do not buy now";
-
-      const decisionTone = buyGateRows.length ? "buy" : "no-buy";
-
-      const bestName = best ? rowName(best) : "None";
-      const bestCut = best ? `${pct(best.risk_adjusted_required_cut_percent)}%` : "N/A";
+      const netRent = best ? netRentFromRow(best) : 0;
+      const allIn = best ? allInCost(best.asking_price_aed) : 0;
 
       return `
-        <section class="card decision-card ${decisionTone}">
-          <div class="decision-title">${decisionTitle}</div>
+        <section class="card decision-card">
+          <div class="decision-title">Do not buy now</div>
           <div class="decision-subtitle">
             ${best
-              ? `Best current watch item is <strong>${escapeHtml(bestName)}</strong>, but the required price cut is still ${bestCut} under the risk-adjusted hurdle.`
+              ? `Best watch item is <strong>${escapeHtml(rowName(best))}</strong>, but it still requires AED ${money(best.risk_adjusted_required_cut_aed)} / ${pct(best.risk_adjusted_required_cut_percent)}% lower entry price.`
               : `No evidence-based candidate is currently available.`
             }
           </div>
@@ -851,11 +732,17 @@
           <div class="grid">
             ${renderKpiMetric(
               "Best Watch Item",
-              best ? escapeHtml(bestName) : "None",
+              best ? escapeHtml(rowName(best)) : "None",
               best ? readinessLabel(best.readiness_status) : "N/A",
               best
-                ? `This is the strongest current row by net yield among decision-ready/interim-screened candidates. It is not a buy signal by itself. It only identifies the best item to monitor.`
-                : `No decision-ready or interim-screened candidate is available.`
+                ? `Selected because it has the highest current net yield among decision-ready / interim-screened candidates.
+
+Current ranking yield: ${pct(best.net_yield_percent)}%.
+Current price: AED ${money(best.asking_price_aed)}.
+Estimated net rent: AED ${money(netRent)} per year.
+
+It is a watch item, not a buy recommendation.`
+                : "No decision-ready or interim-screened row is available."
             )}
 
             ${renderKpiMetric(
@@ -863,8 +750,14 @@
               best ? `${pct(best.net_yield_percent)}%` : "N/A",
               "Current economics",
               best
-                ? `Net yield is calculated after vacancy and service charge. It is below the risk-adjusted hurdle, so the price is not attractive enough now.`
-                : `No current yield available.`
+                ? `Formula used in model: net rent ÷ current evidence price.
+
+Estimated net rent: AED ${money(netRent)}.
+Current evidence price: AED ${money(best.asking_price_aed)}.
+Net yield: ${pct(best.net_yield_percent)}%.
+
+All-in acquisition estimate is higher: AED ${money(allIn)} including about ${pct(PURCHASE_COST_PERCENT)}% purchase costs, so all-in yield would be lower.`
+                : "No current yield available."
             )}
 
             ${renderKpiMetric(
@@ -872,8 +765,14 @@
               best ? `${pct(best.risk_adjusted_target_yield_percent)}%` : "N/A",
               "Macro-adjusted trigger",
               best
-                ? `Base buy trigger is 6.50% net yield. Because the macro overlay is soft/negative, the hurdle increases to ${pct(best.risk_adjusted_target_yield_percent)}%.`
-                : `No hurdle available.`
+                ? `Base strong-buy net-yield trigger: 6.50%.
+
+Current macro overlay:
+Financial Stability = ${fs}.
+Proxy LEI = ${lei}.
+
+Because at least one macro signal is negative, the dashboard applies a stricter hurdle of ${pct(best.risk_adjusted_target_yield_percent)}%.`
+                : "No risk-adjusted hurdle available."
             )}
 
             ${renderKpiMetric(
@@ -881,24 +780,34 @@
               `AED ${best ? money(best.risk_adjusted_target_price_aed) : "N/A"}`,
               "Target entry",
               best
-                ? `This is the estimated entry price needed to meet the risk-adjusted net-yield hurdle. Above this level, the deal does not compensate enough for income, cost and macro risk.`
-                : `No target price available.`
+                ? `Formula: estimated net rent ÷ risk-adjusted target yield.
+
+Estimated net rent: AED ${money(netRent)}.
+Target yield: ${pct(best.risk_adjusted_target_yield_percent)}%.
+Target price: AED ${money(best.risk_adjusted_target_price_aed)}.
+
+This is the approximate maximum entry price under current risk conditions.`
+                : "No target price available."
             )}
 
             ${renderKpiMetric(
               "Required Cut",
               `AED ${best ? money(best.risk_adjusted_required_cut_aed) : "N/A"}`,
               best ? `${pct(best.risk_adjusted_required_cut_percent)}% — ${safe(best.negotiation_realism)}` : "N/A",
-              best
-                ? negotiationExplanation(best)
-                : `No required cut available.`
+              best ? negotiationExplanation(best) : "No required cut available."
             )}
 
             ${renderKpiMetric(
               "Macro / Bank",
-              `FS ${escapeHtml(macroFs)} / LEI ${escapeHtml(macroLei)}`,
+              `FS ${escapeHtml(fs)} / LEI ${escapeHtml(lei)}`,
               `Bank ${pct(bankRate)}% / ${escapeHtml(bankQuality)} / ${escapeHtml(macroConfidence)}`,
-              `FS = financial-stability overlay. LEI = forward-looking market proxy. Negative readings increase required entry discipline. Bank benchmark is the low-risk AED cash alternative used to test property IRR spread.`
+              `FS score scale: +1 supportive, 0 neutral/mixed, -1 soft/negative.
+Current FS = ${fs}.
+
+Proxy LEI score scale: +1 improving, 0 neutral/mixed, -1 weakening.
+Current LEI = ${lei}.
+
+Bank benchmark = ${pct(bankRate)}%. Property IRR should offer enough spread above this low-risk AED alternative.`
             )}
           </div>
 
@@ -919,89 +828,75 @@
       `;
     }
 
-    function renderAdvisorActionPanel(rows) {
-      const sorted = sortByActionPriority(rows);
-      const active = sorted.filter(r => r.readiness_status !== "DEAL_TEST").slice(0, 5);
-
-      return `
-        <section class="card">
-          <h2>Daily Action Panel</h2>
-          <div class="note">What to do next, based on evidence quality, price gap and negotiation realism.</div>
-
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Priority</th>
-                  <th>Candidate</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                  <th class="num">Risk-Adj. Price</th>
-                  <th class="num">Required Cut</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${active.map((r, i) => `
-                  <tr>
-                    <td>${i + 1}</td>
-                    <td><span class="candidate-title">${escapeHtml(safe(r.tower))}</span><br><span class="small-text">${escapeHtml(safe(r.unit_type))}</span></td>
-                    <td>${pill(readinessLabel(r.readiness_status))}</td>
-                    <td>${escapeHtml(dailyActionLabel(r.daily_action_category))}</td>
-                    <td class="num">AED ${money(r.risk_adjusted_target_price_aed)}</td>
-                    <td class="num">AED ${money(r.risk_adjusted_required_cut_aed)}<br><span class="small-text">${pct(r.risk_adjusted_required_cut_percent)}%</span></td>
-                  </tr>
-                `).join("")}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      `;
-    }
-
-    function renderMacroPanel(rows, contextRows) {
-      const context = getLatestContext(contextRows);
-      const best = getBestWatch(rows);
+    function renderMacroPanel() {
+      const context = getLatestContext();
+      const best = getBestWatch(state.rows);
 
       const fs = safe(context.financial_stability_score ?? best?.financial_stability_score, "N/A");
       const lei = safe(context.proxy_lei_score ?? best?.proxy_lei_score, "N/A");
       const confidence = safe(context.confidence_level ?? best?.macro_confidence, "MEDIUM");
       const quality = safe(context.data_quality_score ?? best?.macro_data_quality, "MEDIUM");
       const riskYield = best?.risk_adjusted_target_yield_percent || 6.75;
-
       const negative = num(fs) < 0 || num(lei) < 0;
 
       return `
         <section class="card">
           <h2>Market / Macro Overlay</h2>
-          <div class="note">Macro affects entry discipline. It does not rescue weak property economics.</div>
+          <div class="note">Macro changes entry discipline. It does not rescue weak property economics.</div>
 
           <div class="grid-two">
             ${renderKpiMetric(
               "Financial Stability",
               escapeHtml(fs),
-              "Higher is better",
-              `A negative score means current macro/geopolitical/financial-stability signals are not supportive enough to relax entry pricing. It pushes the dashboard toward patience.`
+              "Score scale: +1 / 0 / -1",
+              `Score scale:
++1 = supportive / stable.
+0 = mixed or neutral.
+-1 = soft, stressed, or uncertain.
+
+Current value: ${fs}.
+
+This value comes from the latest macro context row generated by the workflow. It reflects the conservative macro branch, including financial-stability and geopolitical stress signals when available.`
             )}
 
             ${renderKpiMetric(
               "Proxy LEI",
               escapeHtml(lei),
               "Forward signal",
-              `Proxy LEI is a forward-looking market signal. Negative value means weaker forward momentum or more uncertainty, so the entry hurdle should be stricter.`
+              `Score scale:
++1 = improving forward signal.
+0 = mixed / neutral.
+-1 = weakening or uncertain forward signal.
+
+Current value: ${lei}.
+
+This is driven by the live macro branch. Negative PMI / weak outlook / disruption language pushes the score lower.`
             )}
 
             ${renderKpiMetric(
               "Risk Yield",
               `${pct(riskYield)}%`,
               "Current hurdle",
-              `This is the required net yield after macro adjustment. Base hurdle is 6.50%; soft macro increases it to ${pct(riskYield)}%.`
+              `Base hurdle = 6.50%.
+
+Rule:
+If Financial Stability < 0 or Proxy LEI < 0, use stricter hurdle = 6.75%.
+
+Current FS = ${fs}.
+Current LEI = ${lei}.
+Therefore current hurdle = ${pct(riskYield)}%.`
             )}
 
             ${renderKpiMetric(
               "Source Quality",
               escapeHtml(quality),
               `${escapeHtml(confidence)} confidence`,
-              `This reflects quality and confidence of the macro evidence returned by the live search branch. It should be used as an overlay, not as a direct buy/sell trigger.`
+              `Macro data quality and confidence are generated by the macro branch.
+
+Current quality = ${quality}.
+Current confidence = ${confidence}.
+
+Use this as an overlay only. Property-level evidence and economics remain the primary decision gate.`
             )}
           </div>
 
@@ -1026,10 +921,9 @@
       `;
     }
 
-    function renderBankPanel(rows, bankRows) {
-      const bank = getLatestBank(bankRows, rows);
-      const best = getBestWatch(rows);
-
+    function renderBankPanel() {
+      const bank = getLatestBank();
+      const best = getBestWatch(state.rows);
       const rate = bank.benchmark_rate_percent || best?.bank_yield_percent || 3.5;
       const quality = bank.source_quality || best?.bank_source_quality || "HIGH";
 
@@ -1043,28 +937,42 @@
               "Rate Used",
               `${pct(rate)}%`,
               "AED term-deposit benchmark",
-              `This is the comparison return from AED bank deposit evidence. Property should offer enough extra return to compensate for illiquidity, fees, vacancy and property risk.`
+              `The model compares property 5Y IRR against an AED bank benchmark.
+
+Current rate used: ${pct(rate)}%.
+This helps test whether property risk is compensated versus low-risk cash return.`
             )}
 
             ${renderKpiMetric(
               "Source Quality",
               escapeHtml(quality),
               escapeHtml(safe(bank.confidence_level, quality)),
-              `The benchmark is considered high quality because it comes from the dedicated bank benchmark branch and is tied to HSBC/UAE AED term-deposit evidence.`
+              `Current source quality = ${quality}.
+Current confidence = ${safe(bank.confidence_level, quality)}.
+
+The rate is from the dedicated bank benchmark branch, not from random property assumptions.`
             )}
 
             ${renderKpiMetric(
               "Target Spread",
               "3.00%",
               "Property IRR above bank",
-              `The property IRR should ideally exceed the bank benchmark by about 3 percentage points. Below that, the extra property risk may not be adequately compensated.`
+              `Target spread = 3.00 percentage points above bank.
+
+Example:
+Bank = ${pct(rate)}%.
+Preferred property IRR should be about ${pct(num(rate) + 3)}% or higher.
+
+This compensates for illiquidity, vacancy, fees, maintenance, tenant risk and exit risk.`
             )}
 
             ${renderKpiMetric(
-              "Usage",
-              "IRR test",
-              "Not yield substitute",
-              `The bank rate is used to compare 5-year property IRR, not to replace net yield. Yield and IRR both need to be acceptable.`
+              "Purchase Cost",
+              `${pct(PURCHASE_COST_PERCENT)}%`,
+              "Estimated acquisition cost",
+              `Current dashboard estimate includes ${pct(PURCHASE_COST_PERCENT)}% purchase cost as a practical all-in capital reminder.
+
+This approximates DLD transfer fee, agency fee, trustee/conveyancing and other acquisition friction.`
             )}
           </div>
 
@@ -1080,23 +988,18 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
       `;
     }
 
-    function renderWatchlist(rows) {
-      const evidenceRows = sortByNetYield(getEvidenceRows(rows));
+    function renderWatchlist() {
+      const evidenceRows = sortByNetYield(getEvidenceRows(state.rows));
 
       if (!evidenceRows.length) {
-        return `
-          <section class="card">
-            <h2>Price Target Watchlist</h2>
-            <div class="banner bad">No evidence-based watchlist rows available.</div>
-          </section>
-        `;
+        return `<section class="card"><h2>Price Target Watchlist</h2><div class="banner bad">No evidence-based watchlist rows available.</div></section>`;
       }
 
       return `
         <section class="card">
           <h2>Price Target Watchlist</h2>
           <div class="note">
-            Ranked by net yield. The key commercial test is whether price can reach the risk-adjusted target.
+            Ranked by net yield. Includes estimated purchase costs and risk-adjusted target price.
           </div>
 
           <div class="toolbar">
@@ -1117,15 +1020,13 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
             </select>
           </div>
 
-          ${renderWatchlistTable(filteredRows(evidenceRows), true)}
+          ${renderWatchlistTable(filteredRows(evidenceRows))}
         </section>
       `;
     }
 
-    function renderWatchlistTable(rows, includeEvidence) {
-      if (!rows.length) {
-        return `<div class="banner warn">No rows match the selected filters.</div>`;
-      }
+    function renderWatchlistTable(rows) {
+      if (!rows.length) return `<div class="banner warn">No rows match the selected filters.</div>`;
 
       return `
         <div class="table-wrap">
@@ -1136,14 +1037,14 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
                 <th>Candidate</th>
                 <th>Status</th>
                 <th class="num">Price</th>
+                <th class="num">Est. Buy Costs</th>
+                <th class="num">All-in Cost</th>
                 <th class="num">Rent</th>
                 <th class="num">Net Yield</th>
-                <th class="num">IRR vs Bank</th>
                 <th class="num">Risk Target Price</th>
                 <th class="num">Required Cut</th>
                 <th>Negotiation</th>
-                <th>Action</th>
-                ${includeEvidence ? "<th>Evidence</th>" : ""}
+                <th>Evidence</th>
               </tr>
             </thead>
             <tbody>
@@ -1153,9 +1054,10 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
                   <td><span class="candidate-title">${escapeHtml(safe(r.tower))}</span><br><span class="small-text">${escapeHtml(safe(r.unit_type))}</span></td>
                   <td>${pill(readinessLabel(r.readiness_status))}</td>
                   <td class="num">AED ${money(r.asking_price_aed)}</td>
+                  <td class="num">AED ${money(estimatedPurchaseCosts(r.asking_price_aed))}<br><span class="small-text">${pct(PURCHASE_COST_PERCENT)}%</span></td>
+                  <td class="num">AED ${money(allInCost(r.asking_price_aed))}</td>
                   <td class="num">AED ${money(r.estimated_annual_rent_aed)}</td>
                   <td class="num">${pct(r.net_yield_percent)}%</td>
-                  <td class="num">${pct(r.irr_vs_bank_percent)}%</td>
                   <td class="num">AED ${money(r.risk_adjusted_target_price_aed)}</td>
                   <td class="num">AED ${money(r.risk_adjusted_required_cut_aed)}<br><span class="small-text">${pct(r.risk_adjusted_required_cut_percent)}%</span></td>
                   <td>
@@ -1165,21 +1067,16 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
                       <div class="details-box">${escapeHtml(negotiationExplanation(r))}</div>
                     </details>
                   </td>
-                  <td>${escapeHtml(dailyActionLabel(r.daily_action_category))}</td>
-                  ${includeEvidence ? `
-                    <td>
+                  <td>
+                    <details>
+                      <summary>View</summary>
+                      <div class="compact-detail">${escapeHtml(compactSourceNote(r))}</div>
                       <details>
-                        <summary>View</summary>
-                        <div class="compact-detail">
-                          ${escapeHtml(compactSourceNote(r))}
-                          <details>
-                            <summary>Raw source details</summary>
-                            <div class="details-box">${escapeHtml(fullEvidenceDetails(r))}</div>
-                          </details>
-                        </div>
+                        <summary>Raw source details</summary>
+                        <div class="details-box">${escapeHtml(fullEvidenceDetails(r))}</div>
                       </details>
-                    </td>
-                  ` : ""}
+                    </details>
+                  </td>
                 </tr>
               `).join("")}
             </tbody>
@@ -1188,17 +1085,8 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
       `;
     }
 
-    function renderEvidenceMap(rows) {
-      const nonDealRows = rows.filter(r => r.readiness_status !== "DEAL_TEST");
-
-      if (!nonDealRows.length) {
-        return `
-          <section class="card">
-            <h2>Evidence Coverage & Data Actions</h2>
-            <div class="banner">No rows available.</div>
-          </section>
-        `;
-      }
+    function renderEvidenceMap() {
+      const nonDealRows = state.rows.filter(r => r.readiness_status !== "DEAL_TEST");
 
       const order = {
         "DECISION_READY": 1,
@@ -1216,100 +1104,127 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
 
       return `
         <section class="card">
-          <h2>Evidence Coverage & Data Actions</h2>
-          <div class="note">
-            Shows what is available, what is missing, why it matters, and the next data action.
-          </div>
+          <details>
+            <summary><h2 style="display:inline;">Evidence Coverage & Data Actions</h2></summary>
+            <div class="note">
+              Kept collapsed because it is a QA section. Use it to see what is missing and why final decision cannot be made.
+            </div>
 
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Candidate</th>
-                  <th>Readiness</th>
-                  <th>Missing / Issue</th>
-                  <th>Why It Matters</th>
-                  <th>Next Data Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${sorted.map(r => `
+            <div class="table-wrap">
+              <table>
+                <thead>
                   <tr>
-                    <td><span class="candidate-title">${escapeHtml(safe(r.tower))}</span><br><span class="small-text">${escapeHtml(safe(r.unit_type))}</span></td>
-                    <td>${pill(readinessLabel(r.readiness_status))}</td>
-                    <td>${escapeHtml(safe(r.evidence_gap_reason, "N/A"))}</td>
-                    <td>${escapeHtml(whyItMatters(r))}</td>
-                    <td>${escapeHtml(safe(r.next_data_action, "N/A"))}</td>
+                    <th>Candidate</th>
+                    <th>Readiness</th>
+                    <th>Issue / Basis</th>
+                    <th>Why It Matters</th>
+                    <th>Next Data Action</th>
                   </tr>
-                `).join("")}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  ${sorted.map(r => `
+                    <tr>
+                      <td><span class="candidate-title">${escapeHtml(safe(r.tower))}</span><br><span class="small-text">${escapeHtml(safe(r.unit_type))}</span></td>
+                      <td>${pill(readinessLabel(r.readiness_status))}</td>
+                      <td>${escapeHtml(safe(r.evidence_gap_reason, "N/A"))}</td>
+                      <td>${escapeHtml(whyItMatters(r))}</td>
+                      <td>${escapeHtml(safe(r.next_data_action, "N/A"))}</td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            </div>
+          </details>
         </section>
       `;
     }
 
-    function renderDealTest(rows) {
-      const dealRows = rows.filter(r => r.readiness_status === "DEAL_TEST");
+    function renderDealTestCalculator() {
+      const candidates = sortByNetYield(getEvidenceRows(state.rows));
+      if (!candidates.length) return "";
 
-      if (!dealRows.length) {
-        return `
-          <section class="card">
-            <h2>Deal Test Scenario</h2>
-            <div class="banner">No active deal-test scenario.</div>
-          </section>
-        `;
-      }
-
-      const r = dealRows[0];
+      let selected = candidates[state.dealTest.selectedIndex] || candidates[0];
+      const ownerAsk = num(state.dealTest.ownerAsk, num(selected.asking_price_aed));
+      const targetYield = num(state.dealTest.targetYield, num(selected.risk_adjusted_target_yield_percent));
+      const netRent = netRentFromRow(selected);
+      const targetPrice = targetYield > 0 ? netRent / (targetYield / 100) : 0;
+      const requiredCut = ownerAsk - targetPrice;
+      const requiredCutPercent = ownerAsk > 0 ? requiredCut / ownerAsk * 100 : 0;
+      const buyCosts = estimatedPurchaseCosts(ownerAsk);
+      const totalCash = allInCost(ownerAsk);
 
       return `
         <section class="card">
-          <h2>Deal Test Scenario</h2>
-          <div class="note">Scenario only. Do not treat as validated candidate unless promoted through evidence workflow.</div>
+          <h2>Dynamic Deal Test Calculator</h2>
+          <div class="note">
+            Select a tower, enter actual owner asking price and required net yield. The calculator estimates target price and required cut.
+          </div>
+
+          <div class="toolbar">
+            <select id="dealTowerSelect">
+              ${candidates.map((r, idx) => `
+                <option value="${idx}" ${idx === state.dealTest.selectedIndex ? "selected" : ""}>${escapeHtml(rowName(r))}</option>
+              `).join("")}
+            </select>
+
+            <input id="dealOwnerAskInput" type="number" min="0" step="1000" value="${ownerAsk}" placeholder="Owner asking price AED" />
+            <input id="dealTargetYieldInput" type="number" min="0" step="0.05" value="${targetYield}" placeholder="Required net yield %" />
+          </div>
 
           <div class="grid-four">
-            ${renderKpiMetric(
-              "Scenario",
-              escapeHtml(safe(r.tower)),
-              escapeHtml(safe(r.unit_type)),
-              `This is a user-defined scenario, not a validated market candidate. It is excluded from investment ranking.`
-            )}
+            <div class="metric">
+              <div class="metric-label">Estimated Net Rent</div>
+              <div class="metric-value">AED ${money(netRent)}</div>
+              <div class="metric-small">From current model row</div>
+            </div>
 
-            ${renderKpiMetric(
-              "Net Yield",
-              `${pct(r.net_yield_percent)}%`,
-              "Scenario yield",
-              `This is calculated only for sensitivity testing. It should not be used for real action until evidence is promoted.`
-            )}
+            <div class="metric">
+              <div class="metric-label">Target Buy Price</div>
+              <div class="metric-value">AED ${money(targetPrice)}</div>
+              <div class="metric-small">Based on ${pct(targetYield)}% net yield</div>
+            </div>
 
-            ${renderKpiMetric(
-              "Risk Target Price",
-              `AED ${money(r.risk_adjusted_target_price_aed)}`,
-              "Current macro hurdle",
-              `Scenario price needed to satisfy the current risk-adjusted yield target.`
-            )}
+            <div class="metric">
+              <div class="metric-label">Required Cut</div>
+              <div class="metric-value">AED ${money(requiredCut)}</div>
+              <div class="metric-small">${pct(requiredCutPercent)}% vs owner ask</div>
+            </div>
 
-            ${renderKpiMetric(
-              "Required Cut",
-              `AED ${money(r.risk_adjusted_required_cut_aed)}`,
-              `${pct(r.risk_adjusted_required_cut_percent)}%`,
-              `Discount required from the scenario price to reach the current risk-adjusted target.`
-            )}
+            <div class="metric">
+              <div class="metric-label">All-in Cash Need</div>
+              <div class="metric-value">AED ${money(totalCash)}</div>
+              <div class="metric-small">Owner ask + ${pct(PURCHASE_COST_PERCENT)}% costs</div>
+            </div>
           </div>
+
+          <details>
+            <summary>How this is calculated</summary>
+            <div class="details-box">Net rent is taken from the selected model row:
+current price × current net yield.
+
+Target buy price = estimated net rent ÷ required net yield.
+
+Required cut = owner asking price − target buy price.
+
+Purchase-cost estimate = owner asking price × ${pct(PURCHASE_COST_PERCENT)}%.
+All-in cash need = owner asking price + estimated purchase costs.
+
+This is a screening calculator only. Confirm rent, service charge, unit condition, floor/view, parking, vacancy and transaction evidence before action.</div>
+          </details>
         </section>
       `;
     }
 
-    function renderFullTechnicalAudit(rows, contextRows, bankRows) {
+    function renderTechnicalAudit() {
       return `
         <section class="card">
-          <h2>Technical Audit</h2>
-          <div class="note">Collapsed by default. Use for model QA, evidence checking or pipeline troubleshooting.</div>
-
           <details>
-            <summary>Readiness rules</summary>
-            <div class="details-box">Decision-ready = strict / high-confidence direct evidence.
+            <summary><h2 style="display:inline;">Technical Audit</h2></summary>
+            <div class="note">Collapsed by default. Use for model QA, evidence checking or pipeline troubleshooting.</div>
+
+            <details>
+              <summary>Readiness rules</summary>
+              <div class="details-box">Decision-ready = strict / high-confidence direct evidence.
 
 Interim-screened = Property Finder DLD-derived transaction/rent evidence plus manually entered DLD Service Charge Index. Useful for screening and target pricing, not final offer.
 
@@ -1318,53 +1233,49 @@ Needs evidence = missing sale or rent evidence.
 Budget monitor = normal evidence suggests price is above AED 1.6m budget cap; monitor only for distressed / below-market cases.
 
 Deal test = scenario only.</div>
-          </details>
+            </details>
 
-          <details>
-            <summary>Raw watchlist view rows</summary>
-            <div class="details-box">${escapeHtml(JSON.stringify(rows, null, 2))}</div>
-          </details>
+            <details>
+              <summary>Raw watchlist view rows</summary>
+              <div class="details-box">${escapeHtml(JSON.stringify(state.rows, null, 2))}</div>
+            </details>
 
-          <details>
-            <summary>Raw macro context</summary>
-            <div class="details-box">${escapeHtml(JSON.stringify(contextRows[0] || {}, null, 2))}</div>
-          </details>
+            <details>
+              <summary>Raw macro context</summary>
+              <div class="details-box">${escapeHtml(JSON.stringify(state.contextRows[0] || {}, null, 2))}</div>
+            </details>
 
-          <details>
-            <summary>Raw bank context</summary>
-            <div class="details-box">${escapeHtml(JSON.stringify(bankRows[0] || {}, null, 2))}</div>
+            <details>
+              <summary>Raw bank context</summary>
+              <div class="details-box">${escapeHtml(JSON.stringify(state.bankRows[0] || {}, null, 2))}</div>
+            </details>
           </details>
         </section>
       `;
     }
 
     function renderDashboard() {
-      const rows = state.rows;
-      const contextRows = state.contextRows;
-      const bankRows = state.bankRows;
-
       document.getElementById("app").innerHTML = `
-        ${renderExecutiveDecision(rows, contextRows, bankRows)}
+        ${renderExecutiveDecision()}
 
-        <div class="layout-three">
-          ${renderAdvisorActionPanel(rows)}
-          ${renderMacroPanel(rows, contextRows)}
-          ${renderBankPanel(rows, bankRows)}
+        <div class="layout-two">
+          ${renderMacroPanel()}
+          ${renderBankPanel()}
         </div>
 
-        ${renderWatchlist(rows)}
+        ${renderWatchlist()}
 
-        ${renderEvidenceMap(rows)}
+        ${renderDealTestCalculator()}
 
-        ${renderDealTest(rows)}
+        ${renderEvidenceMap()}
 
-        ${renderFullTechnicalAudit(rows, contextRows, bankRows)}
+        ${renderTechnicalAudit()}
       `;
 
-      attachFilterEvents();
+      attachEvents();
     }
 
-    function attachFilterEvents() {
+    function attachEvents() {
       const searchInput = document.getElementById("searchInput");
       const readinessSelect = document.getElementById("readinessSelect");
       const realismSelect = document.getElementById("realismSelect");
@@ -1391,16 +1302,42 @@ Deal test = scenario only.</div>
           renderDashboard();
         });
       }
+
+      const dealTowerSelect = document.getElementById("dealTowerSelect");
+      const dealOwnerAskInput = document.getElementById("dealOwnerAskInput");
+      const dealTargetYieldInput = document.getElementById("dealTargetYieldInput");
+
+      if (dealTowerSelect) {
+        dealTowerSelect.addEventListener("change", (e) => {
+          state.dealTest.selectedIndex = Number(e.target.value);
+          const candidates = sortByNetYield(getEvidenceRows(state.rows));
+          const selected = candidates[state.dealTest.selectedIndex] || candidates[0];
+          state.dealTest.ownerAsk = selected ? selected.asking_price_aed : "";
+          state.dealTest.targetYield = selected ? selected.risk_adjusted_target_yield_percent : "";
+          renderDashboard();
+        });
+      }
+
+      if (dealOwnerAskInput) {
+        dealOwnerAskInput.addEventListener("input", (e) => {
+          state.dealTest.ownerAsk = e.target.value;
+          renderDashboard();
+        });
+      }
+
+      if (dealTargetYieldInput) {
+        dealTargetYieldInput.addEventListener("input", (e) => {
+          state.dealTest.targetYield = e.target.value;
+          renderDashboard();
+        });
+      }
     }
 
     async function loadDashboard() {
       const app = document.getElementById("app");
 
       try {
-        const watchlistRows = await restGet(
-          VIEW_WATCHLIST,
-          "select=*&order=created_at.desc"
-        );
+        const watchlistRows = await restGet(VIEW_WATCHLIST, "select=*&order=created_at.desc");
 
         if (!Array.isArray(watchlistRows) || watchlistRows.length === 0) {
           app.innerHTML = `
@@ -1421,42 +1358,35 @@ Deal test = scenario only.</div>
         let bankRows = [];
 
         try {
-          contextRows = await restGet(
-            TABLE_AGENT_CONTEXT,
-            `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=created_at.desc&limit=1`
-          );
+          contextRows = await restGet(TABLE_AGENT_CONTEXT, `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=created_at.desc&limit=1`);
         } catch (error) {
           contextRows = [];
         }
 
         try {
-          bankRows = await restGet(
-            TABLE_BANK_CONTEXT,
-            `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=created_at.desc&limit=1`
-          );
+          bankRows = await restGet(TABLE_BANK_CONTEXT, `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=created_at.desc&limit=1`);
         } catch (error) {
           bankRows = [];
         }
 
         if (!contextRows.length) {
-          try {
-            contextRows = await restGet(TABLE_AGENT_CONTEXT, "select=*&order=created_at.desc&limit=1");
-          } catch (error) {
-            contextRows = [];
-          }
+          try { contextRows = await restGet(TABLE_AGENT_CONTEXT, "select=*&order=created_at.desc&limit=1"); } catch { contextRows = []; }
         }
 
         if (!bankRows.length) {
-          try {
-            bankRows = await restGet(TABLE_BANK_CONTEXT, "select=*&order=created_at.desc&limit=1");
-          } catch (error) {
-            bankRows = [];
-          }
+          try { bankRows = await restGet(TABLE_BANK_CONTEXT, "select=*&order=created_at.desc&limit=1"); } catch { bankRows = []; }
         }
 
         state.rows = watchlistRows;
         state.contextRows = contextRows;
         state.bankRows = bankRows;
+
+        const candidates = sortByNetYield(getEvidenceRows(state.rows));
+        if (candidates.length) {
+          state.dealTest.selectedIndex = 0;
+          state.dealTest.ownerAsk = candidates[0].asking_price_aed;
+          state.dealTest.targetYield = candidates[0].risk_adjusted_target_yield_percent;
+        }
 
         renderDashboard();
 
@@ -1464,9 +1394,7 @@ Deal test = scenario only.</div>
         app.innerHTML = `
           <section class="card">
             <h2>Load Error</h2>
-            <div class="banner bad">
-              ${escapeHtml(error.message || "Unknown JavaScript or REST error.")}
-            </div>
+            <div class="banner bad">${escapeHtml(error.message || "Unknown JavaScript or REST error.")}</div>
             <div class="note">
               Check that <code>${VIEW_WATCHLIST}</code> exists, is exposed via REST,
               and that anon/publishable-key SELECT access is allowed.
