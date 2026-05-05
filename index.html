@@ -127,6 +127,8 @@
     .tag-low-medium { background: #fff0cc; color: #8a5a00; }
     .tag-medium { background: #fff0cc; color: #8a5a00; }
     .tag-high { background: #e2f5e2; color: #006600; }
+    .tag-used { background: #e2f5e2; color: #006600; }
+    .tag-not-used { background: #ffe0e0; color: #990000; }
 
     .metric-grid {
       display: grid;
@@ -265,6 +267,38 @@
     <div id="decision-reliability-warning" class="warning-box">
       Loading reliability note...
     </div>
+  </div>
+
+  <div class="card">
+    <h2>Property Evidence Log</h2>
+
+    <div class="small-note">
+      Raw evidence is stored separately from model inputs. Evidence marked “Used in Model” should support the selected values in <strong>property_inputs</strong>.
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Tower</th>
+          <th>Unit</th>
+          <th>Evidence Type</th>
+          <th>Source</th>
+          <th>Quality</th>
+          <th>Price AED</th>
+          <th>Rent AED/yr</th>
+          <th>Area sqft</th>
+          <th>SC AED/sqft</th>
+          <th>Used?</th>
+          <th>Evidence Note</th>
+        </tr>
+      </thead>
+      <tbody id="evidence-table">
+        <tr>
+          <td colspan="12">Loading evidence log...</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
   <div class="card">
@@ -463,6 +497,7 @@
     const CONTEXT_TABLE = "agent_run_context";
     const PROPERTY_SOURCE_TABLE = "property_source_context";
     const BANK_CONTEXT_TABLE = "bank_benchmark_context";
+    const EVIDENCE_TABLE = "property_evidence_log";
 
     function getSupabaseHeaders() {
       return {
@@ -475,6 +510,11 @@
     function formatDate(dateString) {
       if (!dateString) return "";
       return new Date(dateString).toLocaleString();
+    }
+
+    function formatShortDate(dateString) {
+      if (!dateString) return "";
+      return new Date(dateString).toLocaleDateString();
     }
 
     function formatNumber(value) {
@@ -543,6 +583,14 @@
       return `<span class="tag">${value}</span>`;
     }
 
+    function formatUsedTag(value) {
+      if (value === true || value === "true") {
+        return `<span class="tag tag-used">YES</span>`;
+      }
+
+      return `<span class="tag tag-not-used">NO</span>`;
+    }
+
     function formatInputSource(value) {
       if (!value) return "";
       if (String(value).toLowerCase().includes("manual")) return `<span class="tag tag-low">${value}</span>`;
@@ -563,6 +611,27 @@
             <div><strong>Rent:</strong> ${rentNote}</div>
             <div><strong>Service charge:</strong> ${serviceChargeNote}</div>
             <div><strong>Bank benchmark:</strong> ${bankNote}</div>
+          </div>
+        </details>
+      `;
+    }
+
+    function formatEvidenceNote(row) {
+      const note = row.evidence_note || "No evidence note.";
+      const relevance = row.relevance_to_model || "No relevance note.";
+      const url = row.evidence_url || "";
+
+      const urlLine = url
+        ? `<div><strong>URL:</strong> <a class="source-link" href="${url}" target="_blank">Open evidence</a></div>`
+        : "";
+
+      return `
+        <details>
+          <summary>View note</summary>
+          <div class="source-note-list">
+            <div><strong>Evidence:</strong> ${note}</div>
+            <div><strong>Relevance:</strong> ${relevance}</div>
+            ${urlLine}
           </div>
         </details>
       `;
@@ -658,11 +727,40 @@
       return data?.[0] || null;
     }
 
+    async function fetchEvidenceLog() {
+      const url =
+        `${SUPABASE_URL}/rest/v1/${EVIDENCE_TABLE}` +
+        `?select=created_at,evidence_date,tower,unit_type,evidence_type,evidence_source,source_quality,confidence_level,evidence_url,evidence_note,price_aed,rent_aed_year,area_sqft,service_charge_aed_sqft_year,relevance_to_model,used_in_model,is_active` +
+        `&is_active=eq.true` +
+        `&order=evidence_date.desc.nullslast,created_at.desc` +
+        `&limit=30`;
+
+      const response = await fetch(url, { method: "GET", headers: getSupabaseHeaders() });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Supabase evidence log error ${response.status}: ${errorText}`);
+      }
+
+      return await response.json();
+    }
+
     async function fetchDashboardData() {
       const latestRunId = await fetchLatestRunId();
 
+      const [evidenceLog] = await Promise.all([
+        fetchEvidenceLog()
+      ]);
+
       if (!latestRunId) {
-        return { runId: null, observations: [], context: null, propertySource: null, bankContext: null };
+        return {
+          runId: null,
+          observations: [],
+          context: null,
+          propertySource: null,
+          bankContext: null,
+          evidenceLog
+        };
       }
 
       const [observations, context, propertySource, bankContext] = await Promise.all([
@@ -672,7 +770,7 @@
         fetchBankContextByRunId(latestRunId)
       ]);
 
-      return { runId: latestRunId, observations, context, propertySource, bankContext };
+      return { runId: latestRunId, observations, context, propertySource, bankContext, evidenceLog };
     }
 
     function renderInvestmentTable(data) {
@@ -707,6 +805,36 @@
             <td>${formatInputSource(row.input_source_type)}</td>
             <td>${formatQualityTag(row.input_data_confidence || "LOW")}</td>
             <td>${formatSourceNotes(row)}</td>
+          </tr>
+        `;
+      });
+    }
+
+    function renderEvidenceLog(data) {
+      const tableBody = document.getElementById("evidence-table");
+
+      if (!data || data.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="12">No active evidence rows available.</td></tr>`;
+        return;
+      }
+
+      tableBody.innerHTML = "";
+
+      data.forEach(row => {
+        tableBody.innerHTML += `
+          <tr>
+            <td>${formatShortDate(row.evidence_date || row.created_at)}</td>
+            <td>${row.tower || ""}</td>
+            <td>${row.unit_type || ""}</td>
+            <td>${row.evidence_type || ""}</td>
+            <td>${row.evidence_source || ""}</td>
+            <td>${formatQualityTag(row.source_quality || "LOW")}</td>
+            <td>${formatNumber(row.price_aed)}</td>
+            <td>${formatNumber(row.rent_aed_year)}</td>
+            <td>${formatNumber(row.area_sqft)}</td>
+            <td>${formatNumber(row.service_charge_aed_sqft_year)}</td>
+            <td>${formatUsedTag(row.used_in_model)}</td>
+            <td>${formatEvidenceNote(row)}</td>
           </tr>
         `;
       });
@@ -830,12 +958,14 @@
       const context = payload.context || null;
       const propertySource = payload.propertySource || null;
       const bankContext = payload.bankContext || null;
+      const evidenceLog = payload.evidenceLog || [];
 
       if (!observations || observations.length === 0) {
         status.textContent = "Connected to Supabase, but no latest run rows found.";
         latestSummary.textContent = "No property observations available.";
         callScript.textContent = "No call script available.";
         renderInvestmentTable([]);
+        renderEvidenceLog(evidenceLog);
         renderMacroContext(context);
         renderPropertySourceContext(propertySource);
         renderBankContext(bankContext);
@@ -851,6 +981,7 @@
       callScript.textContent = latest.call_script || "No call script available.";
 
       renderInvestmentTable(observations);
+      renderEvidenceLog(evidenceLog);
       renderMacroContext(context);
       renderPropertySourceContext(propertySource);
       renderBankContext(bankContext);
@@ -870,6 +1001,9 @@
 
         document.getElementById("observations-table").innerHTML =
           `<tr><td colspan="19">${error.message}</td></tr>`;
+
+        document.getElementById("evidence-table").innerHTML =
+          `<tr><td colspan="12">${error.message}</td></tr>`;
 
         console.error(error);
       }
