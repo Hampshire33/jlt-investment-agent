@@ -179,11 +179,33 @@
   <div class="subtitle">Macro-aware, finance-driven JLT ready-apartment screening</div>
 
   <div class="card">
-    <h2>Latest Best Candidate</h2>
+    <h2>Latest Data Update</h2>
     <div id="status" class="status">Loading live data from Supabase...</div>
-    <p id="latest-summary">Loading...</p>
-    <div class="small-note">
-      Shows latest full n8n run using run_id. Ranking is based on final score, but verdict follows net yield, IRR vs bank, and entry-price discipline.
+
+    <div class="metric-grid">
+      <div class="metric-box">
+        <div class="metric-label">Last Run</div>
+        <div id="latest-run-time" class="metric-value">Loading...</div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Property Inputs</div>
+        <div id="latest-property-inputs" class="metric-value">Loading...</div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Bank Benchmark</div>
+        <div id="latest-bank-source" class="metric-value">Loading...</div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Macro Source</div>
+        <div id="latest-macro-source" class="metric-value">Loading...</div>
+      </div>
+    </div>
+
+    <div class="small-note" id="latest-data-note">
+      Loading source summary...
     </div>
   </div>
 
@@ -219,15 +241,21 @@
         </tr>
       </tbody>
     </table>
-    <div class="small-note">
-      Input confidence is per tower. Bank source confirms which benchmark was used for IRR vs Bank.
-    </div>
+
+    <details class="small-note">
+      <summary>Final score explanation</summary>
+      <div class="source-note-list">
+        <div><strong>Purpose:</strong> ranking only. It does not override the buy/hold/pass rules.</div>
+        <div><strong>Formula:</strong> 60% yield score + 40% tower quality score.</div>
+        <div><strong>Buy gates:</strong> net yield ≥ 6.5%, IRR spread over bank ≥ +3.0%, price at or below strong-buy price, and acceptable evidence confidence.</div>
+      </div>
+    </details>
   </div>
 
   <div class="card">
     <h2>Deal Input / Negotiation Targets</h2>
     <div class="small-note">
-      This table converts the ranking into live-call negotiation language. Strong-buy price is based on the 6.5% net-yield trigger.
+      Strong-buy price is based on the 6.5% net-yield trigger. Input confidence shows whether the price/rent assumptions are evidence-supported or still prototype/manual.
     </div>
 
     <table>
@@ -244,7 +272,7 @@
           <th>IRR vs Bank %</th>
           <th>Input Confidence</th>
           <th>Call Position</th>
-          <th>Negotiation Message</th>
+          <th>Notes</th>
         </tr>
       </thead>
       <tbody id="deal-targets-table">
@@ -256,8 +284,33 @@
   </div>
 
   <div class="card">
-    <h2>Call Script</h2>
-    <p id="call-script">Loading...</p>
+    <h2>Deal Diagnostics</h2>
+
+    <div class="metric-grid">
+      <div class="metric-box">
+        <div class="metric-label">Top Evidence-Supported Candidate</div>
+        <div id="diagnostic-top-evidence" class="metric-value">Loading...</div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Current Action</div>
+        <div id="diagnostic-action" class="metric-value">Loading...</div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Main Blocker</div>
+        <div id="diagnostic-blocker" class="metric-value">Loading...</div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Next Validation Priority</div>
+        <div id="diagnostic-next-validation" class="metric-value">Loading...</div>
+      </div>
+    </div>
+
+    <div id="diagnostic-note" class="warning-box">
+      Loading diagnostics...
+    </div>
   </div>
 
   <div class="card">
@@ -267,41 +320,55 @@
       <div class="metric-box">
         <div class="metric-label">Macro Confidence</div>
         <div id="confidence-level" class="metric-value">Loading...</div>
-      </div>
-
-      <div class="metric-box">
-        <div class="metric-label">Macro Data Quality</div>
-        <div id="data-quality-score" class="metric-value">Loading...</div>
+        <details class="small-note">
+          <summary>Why?</summary>
+          <div id="macro-confidence-note" class="source-note-list">Loading...</div>
+        </details>
       </div>
 
       <div class="metric-box">
         <div class="metric-label">Property Source Quality</div>
         <div id="property-source-quality" class="metric-value">Loading...</div>
-      </div>
-
-      <div class="metric-box">
-        <div class="metric-label">Property Source Confidence</div>
-        <div id="property-source-confidence" class="metric-value">Loading...</div>
+        <details class="small-note">
+          <summary>Why?</summary>
+          <div id="property-source-quality-note" class="source-note-list">Loading...</div>
+        </details>
       </div>
 
       <div class="metric-box">
         <div class="metric-label">Evidence-Supported Inputs</div>
         <div id="evidence-supported-count" class="metric-value">Loading...</div>
+        <details class="small-note">
+          <summary>Why?</summary>
+          <div id="evidence-supported-note" class="source-note-list">Loading...</div>
+        </details>
       </div>
 
       <div class="metric-box">
         <div class="metric-label">Manual Inputs</div>
         <div id="manual-input-count" class="metric-value">Loading...</div>
+        <details class="small-note">
+          <summary>Why?</summary>
+          <div id="manual-input-note" class="source-note-list">Loading...</div>
+        </details>
       </div>
 
       <div class="metric-box">
         <div class="metric-label">Bank Benchmark</div>
         <div id="bank-benchmark-rate" class="metric-value">Loading...</div>
+        <details class="small-note">
+          <summary>Why?</summary>
+          <div id="bank-benchmark-note" class="source-note-list">Loading...</div>
+        </details>
       </div>
 
       <div class="metric-box">
         <div class="metric-label">Bank Source Quality</div>
         <div id="bank-source-quality" class="metric-value">Loading...</div>
+        <details class="small-note">
+          <summary>Why?</summary>
+          <div id="bank-source-quality-note" class="source-note-list">Loading...</div>
+        </details>
       </div>
     </div>
 
@@ -314,7 +381,7 @@
     <h2>Property Evidence Log</h2>
 
     <div class="small-note">
-      Raw evidence is stored separately from model inputs. Evidence marked “Used in Model” should support the selected values in <strong>property_inputs</strong>.
+      Raw evidence is stored separately from model inputs. “Used in model” means the evidence supports the selected values in <strong>property_inputs</strong>.
     </div>
 
     <table>
@@ -323,15 +390,15 @@
           <th>Date</th>
           <th>Tower</th>
           <th>Unit</th>
-          <th>Evidence Type</th>
-          <th>Source</th>
-          <th>Quality</th>
+          <th>Evidence</th>
+          <th>Source / Basis</th>
+          <th>Confidence</th>
           <th>Price AED</th>
           <th>Rent AED/yr</th>
           <th>Area sqft</th>
           <th>SC AED/sqft</th>
-          <th>Used?</th>
-          <th>Evidence Note</th>
+          <th>Model Status</th>
+          <th>Basis Note</th>
         </tr>
       </thead>
       <tbody id="evidence-table">
@@ -343,40 +410,44 @@
   </div>
 
   <div class="card">
-    <h2>Bank Benchmark Context</h2>
+    <h2>Bank Benchmark</h2>
 
     <div class="metric-grid">
       <div class="metric-box">
-        <div class="metric-label">Bank Name</div>
-        <div id="bank-name" class="metric-value">Loading...</div>
+        <div class="metric-label">Rate Used</div>
+        <div id="bank-rate-used" class="metric-value">Loading...</div>
       </div>
 
       <div class="metric-box">
-        <div class="metric-label">Benchmark Type</div>
-        <div id="benchmark-type" class="metric-value">Loading...</div>
+        <div class="metric-label">Source</div>
+        <div id="bank-source-used" class="metric-value">Loading...</div>
       </div>
 
       <div class="metric-box">
         <div class="metric-label">Confidence</div>
         <div id="bank-confidence" class="metric-value">Loading...</div>
       </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Usage</div>
+        <div id="bank-usage" class="metric-value">Loading...</div>
+      </div>
     </div>
 
-    <h3>Benchmark Rate Status</h3>
-    <p id="benchmark-rate-status" class="context-text">Loading...</p>
+    <div class="small-note" id="bank-concise-note">Loading...</div>
 
-    <h3>Calculation Usage Status</h3>
-    <p id="calculation-usage-status" class="context-text">Loading...</p>
-
-    <h3>Bank Search Summary</h3>
-    <p id="bank-search-summary" class="context-text">Loading...</p>
-
-    <h3>Bank Source Notes</h3>
-    <p id="bank-source-notes" class="context-text">Loading...</p>
-
-    <details>
-      <summary>Returned Bank Source URLs</summary>
-      <p id="bank-source-urls" class="context-text">Loading...</p>
+    <details class="small-note">
+      <summary>View bank source details</summary>
+      <div class="source-note-list">
+        <div><strong>Status:</strong> <span id="benchmark-rate-status">Loading...</span></div>
+        <div><strong>Calculation usage:</strong> <span id="calculation-usage-status">Loading...</span></div>
+        <div><strong>Search summary:</strong></div>
+        <div id="bank-search-summary" class="context-text">Loading...</div>
+        <div><strong>Source notes:</strong></div>
+        <div id="bank-source-notes" class="context-text">Loading...</div>
+        <div><strong>Returned URLs:</strong></div>
+        <div id="bank-source-urls" class="context-text">Loading...</div>
+      </div>
     </details>
   </div>
 
@@ -398,8 +469,10 @@
     <h3>Macro Regime</h3>
     <p id="macro-regime" class="context-text">Loading...</p>
 
-    <h3>Market Pulse</h3>
-    <p id="market-pulse" class="context-text">Loading...</p>
+    <details>
+      <summary>View market pulse</summary>
+      <p id="market-pulse" class="context-text">Loading...</p>
+    </details>
 
     <h3>Risk Summary</h3>
     <p id="risk-summary" class="context-text">Loading...</p>
@@ -411,38 +484,42 @@
   </div>
 
   <div class="card">
-    <h2>Property & Rental Source Context</h2>
+    <h2>Model Evidence Status</h2>
 
-    <div class="metric-grid">
-      <div class="metric-box">
-        <div class="metric-label">Source Type</div>
-        <div id="property-source-type" class="metric-value">Loading...</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Tower</th>
+          <th>Input Source</th>
+          <th>Input Confidence</th>
+          <th>Price Basis</th>
+          <th>Rent Basis</th>
+          <th>Service Charge Basis</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="model-evidence-status-table">
+        <tr>
+          <td colspan="7">Loading model evidence status...</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <details class="small-note">
+      <summary>View web property-source search status</summary>
+      <div class="source-note-list">
+        <div><strong>Source type:</strong> <span id="property-source-type">Loading...</span></div>
+        <div><strong>Tower scope:</strong> <span id="tower-scope">Loading...</span></div>
+        <div><strong>Sale transaction status:</strong> <span id="transaction-source-status">Loading...</span></div>
+        <div><strong>Rental transaction status:</strong> <span id="rental-source-status">Loading...</span></div>
+        <div><strong>Listing status:</strong> <span id="listing-source-status">Loading...</span></div>
+        <div><strong>Summary:</strong></div>
+        <div id="property-search-summary" class="context-text">Loading...</div>
+        <div><strong>Notes:</strong></div>
+        <div id="property-source-notes" class="context-text">Loading...</div>
+        <div><strong>Returned URLs:</strong></div>
+        <div id="property-source-urls" class="context-text">Loading...</div>
       </div>
-
-      <div class="metric-box">
-        <div class="metric-label">Tower Scope</div>
-        <div id="tower-scope" class="metric-value">Loading...</div>
-      </div>
-    </div>
-
-    <h3>Transaction Source Status</h3>
-    <p id="transaction-source-status" class="context-text">Loading...</p>
-
-    <h3>Rental Source Status</h3>
-    <p id="rental-source-status" class="context-text">Loading...</p>
-
-    <h3>Listing Source Status</h3>
-    <p id="listing-source-status" class="context-text">Loading...</p>
-
-    <h3>Property Search Summary</h3>
-    <p id="property-search-summary" class="context-text">Loading...</p>
-
-    <h3>Property Source Notes</h3>
-    <p id="property-source-notes" class="context-text">Loading...</p>
-
-    <details>
-      <summary>Returned Property Source URLs</summary>
-      <p id="property-source-urls" class="context-text">Loading...</p>
     </details>
   </div>
 
@@ -518,16 +595,6 @@
         </tr>
       </tbody>
     </table>
-  </div>
-
-  <div class="card">
-    <h2>Dynamic Scoring Explanation</h2>
-    <p id="scoring-explanation" class="context-text">Loading...</p>
-
-    <p>
-      <strong>Master rule:</strong>
-      Alpha = entry price. The agent must not recommend buying based only on timing, hype, tower reputation, or gross yield.
-    </p>
   </div>
 
   <script>
@@ -624,35 +691,109 @@
       return `<span class="tag">${value}</span>`;
     }
 
-    function formatUsedTag(value) {
-      if (value === true || value === "true") {
-        return `<span class="tag tag-used">YES</span>`;
-      }
+    function formatModelStatus(row, observations) {
+      const used = row.used_in_model === true || row.used_in_model === "true";
+      const isManual = String(row.evidence_type || "").toLowerCase() === "manual_note";
 
-      return `<span class="tag tag-not-used">NO</span>`;
+      const evidenceSupportedTower = observations.some(obs =>
+        obs.tower === row.tower &&
+        isEvidenceSupportedObservation(obs)
+      );
+
+      if (used) return `<span class="tag tag-used">Used in model</span>`;
+      if (isManual && evidenceSupportedTower) return `<span class="tag tag-medium">Superseded</span>`;
+      if (isManual) return `<span class="tag tag-low">Prototype only</span>`;
+
+      return `<span class="tag tag-not-used">Not used</span>`;
     }
 
     function formatInputSource(value) {
       if (!value) return "";
-      if (String(value).toLowerCase().includes("manual")) return `<span class="tag tag-low">${value}</span>`;
-      if (String(value).toLowerCase().includes("evidence")) return `<span class="tag tag-high">${value}</span>`;
+      if (String(value).toLowerCase().includes("manual")) return `<span class="tag tag-low">Prototype input</span>`;
+      if (String(value).toLowerCase().includes("evidence")) return `<span class="tag tag-high">Evidence-supported</span>`;
       return `<span class="tag tag-medium">${value}</span>`;
     }
 
+    function isEvidenceSupportedObservation(row) {
+      const sourceType = String(row.input_source_type || "").toLowerCase();
+      const confidence = String(row.input_data_confidence || "").toUpperCase();
+
+      return sourceType.includes("evidence") || confidence === "HIGH";
+    }
+
+    function isManualObservation(row) {
+      return !isEvidenceSupportedObservation(row);
+    }
+
+    function sourceNoteText(row) {
+      const confidence = String(row.input_data_confidence || "LOW").toUpperCase();
+      const sourceType = String(row.input_source_type || "").toLowerCase();
+
+      const priceBasis = sourceType.includes("evidence")
+        ? `property_evidence_log / sale_transaction / ${confidence}`
+        : `manual prototype input / ${confidence}`;
+
+      const rentBasis = sourceType.includes("evidence")
+        ? `property_evidence_log / rental_transaction / ${confidence}`
+        : `manual prototype input / ${confidence}`;
+
+      const serviceBasis = row.service_charge_source_note || "manual service-charge input";
+      const bankBasis = row.bank_benchmark_source_note || "HSBC UAE bank benchmark";
+
+      return {
+        priceBasis,
+        rentBasis,
+        serviceBasis,
+        bankBasis
+      };
+    }
+
     function formatSourceNotes(row) {
-      const priceNote = row.price_source_note || "No price source note.";
-      const rentNote = row.rent_source_note || "No rent source note.";
-      const serviceChargeNote = row.service_charge_source_note || "No service charge source note.";
-      const bankNote = row.bank_benchmark_source_note || "No bank benchmark source note.";
+      const notes = sourceNoteText(row);
 
       return `
         <details>
           <summary>View notes</summary>
           <div class="source-note-list">
-            <div><strong>Price:</strong> ${priceNote}</div>
-            <div><strong>Rent:</strong> ${rentNote}</div>
-            <div><strong>Service charge:</strong> ${serviceChargeNote}</div>
-            <div><strong>Bank benchmark:</strong> ${bankNote}</div>
+            <div><strong>Price:</strong> ${notes.priceBasis}</div>
+            <div><strong>Rent:</strong> ${notes.rentBasis}</div>
+            <div><strong>Service charge:</strong> ${notes.serviceBasis}</div>
+            <div><strong>Bank:</strong> ${notes.bankBasis}</div>
+          </div>
+        </details>
+      `;
+    }
+
+    function formatDealNotes(row) {
+      const gap = Number(row.discount_to_6_5_target_aed || 0);
+      const netYield = Number(row.net_yield_percent || 0);
+      const irrVsBank = Number(row.irr_vs_bank_percent || 0);
+      const confidence = String(row.input_data_confidence || "LOW").toUpperCase();
+
+      let yieldNote = netYield >= 6.5
+        ? "Net yield meets the 6.5% trigger."
+        : "Net yield is below the 6.5% trigger.";
+
+      let irrNote = irrVsBank >= 3.0
+        ? "IRR spread meets the preferred +3.0% spread over bank."
+        : "IRR spread is below the preferred +3.0% spread over bank.";
+
+      let priceNote = gap > 1000
+        ? `Target entry is about AED ${formatNumber(row.strong_buy_price_aed)}.`
+        : "Price is near or below the strong-buy trigger.";
+
+      let confidenceNote = confidence === "HIGH"
+        ? "Input confidence is HIGH."
+        : "Input confidence is LOW; validate price/rent before action.";
+
+      return `
+        <details>
+          <summary>View notes</summary>
+          <div class="source-note-list">
+            <div>${yieldNote}</div>
+            <div>${irrNote}</div>
+            <div>${priceNote}</div>
+            <div>${confidenceNote}</div>
           </div>
         </details>
       `;
@@ -671,23 +812,12 @@
         <details>
           <summary>View note</summary>
           <div class="source-note-list">
-            <div><strong>Evidence:</strong> ${note}</div>
-            <div><strong>Relevance:</strong> ${relevance}</div>
+            <div><strong>Basis:</strong> ${note}</div>
+            <div><strong>Model relevance:</strong> ${relevance}</div>
             ${urlLine}
           </div>
         </details>
       `;
-    }
-
-    function isEvidenceSupportedObservation(row) {
-      const sourceType = String(row.input_source_type || "").toLowerCase();
-      const confidence = String(row.input_data_confidence || "").toUpperCase();
-
-      return sourceType.includes("evidence") || confidence === "HIGH";
-    }
-
-    function isManualObservation(row) {
-      return !isEvidenceSupportedObservation(row);
     }
 
     function getCallPosition(row) {
@@ -710,25 +840,18 @@
       return "Pass";
     }
 
-    function getNegotiationMessage(row) {
-      const tower = row.tower || "This unit";
-      const currentPrice = Number(row.asking_price_aed || 0);
-      const strongBuyPrice = Number(row.strong_buy_price_aed || 0);
-      const gap = Number(row.discount_to_6_5_target_aed || 0);
-      const gapPercent = Number(row.discount_to_6_5_target_percent || 0);
+    function getPrimaryBlocker(row) {
       const netYield = Number(row.net_yield_percent || 0);
       const irrVsBank = Number(row.irr_vs_bank_percent || 0);
-      const confidence = String(row.input_data_confidence || "").toUpperCase();
+      const gap = Number(row.discount_to_6_5_target_aed || 0);
+      const confidence = String(row.input_data_confidence || "LOW").toUpperCase();
 
-      if (gap > 1000) {
-        return `${tower}: current price AED ${formatNumber(currentPrice)} gives ${netYield.toFixed(2)}% net yield and ${irrVsBank.toFixed(2)}% IRR spread over bank. Target entry is around AED ${formatNumber(strongBuyPrice)}, requiring about AED ${formatNumber(gap)} (${gapPercent.toFixed(2)}%) reduction.`;
-      }
+      if (confidence !== "HIGH") return "Input evidence";
+      if (netYield < 6.5) return "Net yield";
+      if (irrVsBank < 3.0) return "IRR spread";
+      if (gap > 1000) return "Entry price";
 
-      if (confidence === "HIGH") {
-        return `${tower}: price is near the 6.5% net-yield trigger and inputs are evidence-supported. Proceed only after final unit-condition and transaction checks.`;
-      }
-
-      return `${tower}: price is near target, but input evidence is weak. Validate price and rent before treating this as a buy candidate.`;
+      return "None";
     }
 
     async function fetchLatestRunId() {
@@ -867,6 +990,29 @@
       return { runId: latestRunId, observations, context, propertySource, bankContext, evidenceLog };
     }
 
+    function renderLatestDataUpdate(observations, context, bankContext) {
+      const latest = observations?.[0];
+      const runTime = latest?.created_at ? formatDate(latest.created_at) : "N/A";
+
+      const evidenceCount = observations.filter(isEvidenceSupportedObservation).length;
+      const totalCount = observations.length;
+
+      const bankRate =
+        bankContext?.benchmark_rate_percent !== null && bankContext?.benchmark_rate_percent !== undefined
+          ? `${Number(bankContext.benchmark_rate_percent).toFixed(2)}%`
+          : "N/A";
+
+      document.getElementById("latest-run-time").textContent = runTime;
+      document.getElementById("latest-property-inputs").textContent = `${evidenceCount}/${totalCount} evidence-supported`;
+      document.getElementById("latest-bank-source").textContent = `${bankRate} / ${bankContext?.source_quality || "LOW"}`;
+      document.getElementById("latest-macro-source").textContent = context?.confidence_level || "LOW";
+
+      document.getElementById("latest-data-note").textContent =
+        `Property inputs are read from Supabase property_inputs and supported by property_evidence_log where available. ` +
+        `Bank benchmark is from the dedicated bank branch. Macro is from Perplexity/S&P Global PMI. ` +
+        `Public web property-source search remains separate and does not currently validate all tower-level inputs.`;
+    }
+
     function renderInvestmentTable(data) {
       const tableBody = document.getElementById("observations-table");
 
@@ -918,7 +1064,6 @@
         const gapAed = Number(row.discount_to_6_5_target_aed || 0);
         const gapPercent = Number(row.discount_to_6_5_target_percent || 0);
         const callPosition = getCallPosition(row);
-        const message = getNegotiationMessage(row);
 
         tableBody.innerHTML += `
           <tr>
@@ -933,13 +1078,41 @@
             <td>${formatPercent(row.irr_vs_bank_percent)}</td>
             <td>${formatQualityTag(row.input_data_confidence || "LOW")}</td>
             <td>${callPosition}</td>
-            <td>${message}</td>
+            <td>${formatDealNotes(row)}</td>
           </tr>
         `;
       });
     }
 
-    function renderEvidenceLog(data) {
+    function renderDealDiagnostics(observations) {
+      const evidenceRows = observations.filter(isEvidenceSupportedObservation);
+      const topEvidence = evidenceRows[0];
+      const topOverall = observations[0];
+
+      if (!topOverall) {
+        document.getElementById("diagnostic-top-evidence").textContent = "N/A";
+        document.getElementById("diagnostic-action").textContent = "N/A";
+        document.getElementById("diagnostic-blocker").textContent = "N/A";
+        document.getElementById("diagnostic-next-validation").textContent = "N/A";
+        document.getElementById("diagnostic-note").textContent = "No observations available.";
+        return;
+      }
+
+      const blocker = getPrimaryBlocker(topOverall);
+
+      document.getElementById("diagnostic-top-evidence").textContent = topEvidence?.tower || "None";
+      document.getElementById("diagnostic-action").textContent = getCallPosition(topOverall);
+      document.getElementById("diagnostic-blocker").textContent = blocker;
+      document.getElementById("diagnostic-next-validation").textContent = "Validate remaining manual towers";
+
+      document.getElementById("diagnostic-note").innerHTML =
+        `<strong>${topOverall.tower}</strong> is currently ranked first. ` +
+        `It remains a ${getCallPosition(topOverall).toLowerCase()} case because ` +
+        `net yield is ${Number(topOverall.net_yield_percent).toFixed(2)}% and IRR spread over bank is ${Number(topOverall.irr_vs_bank_percent).toFixed(2)}%. ` +
+        `Strong-buy entry is around AED ${formatNumber(topOverall.strong_buy_price_aed)}.`;
+    }
+
+    function renderEvidenceLog(data, observations) {
       const tableBody = document.getElementById("evidence-table");
 
       if (!data || data.length === 0) {
@@ -962,7 +1135,7 @@
             <td>${formatNumber(row.rent_aed_year)}</td>
             <td>${formatNumber(row.area_sqft)}</td>
             <td>${formatNumber(row.service_charge_aed_sqft_year)}</td>
-            <td>${formatUsedTag(row.used_in_model)}</td>
+            <td>${formatModelStatus(row, observations)}</td>
             <td>${formatEvidenceNote(row)}</td>
           </tr>
         `;
@@ -971,7 +1144,6 @@
 
     function renderMacroContext(context) {
       document.getElementById("confidence-level").innerHTML = formatQualityTag(context?.confidence_level || "LOW");
-      document.getElementById("data-quality-score").innerHTML = formatQualityTag(context?.data_quality_score || "LOW");
       document.getElementById("financial-stability-score").textContent = context?.financial_stability_score ?? "N/A";
       document.getElementById("proxy-lei-score").textContent = context?.proxy_lei_score ?? "N/A";
 
@@ -985,11 +1157,14 @@
         `Macro data: ${context?.macro_data_status || "N/A"}`;
 
       document.getElementById("source-notes").textContent = context?.source_notes || "No source notes available.";
-      document.getElementById("scoring-explanation").textContent = context?.scoring_explanation || "No scoring explanation available.";
 
       document.getElementById("property-data-status").textContent = context?.property_data_status || "N/A";
       document.getElementById("rental-data-status").textContent = context?.rental_data_status || "N/A";
       document.getElementById("macro-data-status").textContent = context?.macro_data_status || "N/A";
+
+      document.getElementById("macro-confidence-note").innerHTML =
+        `<div>S&P Global PMI evidence is available through the macro branch.</div>` +
+        `<div>DFMGI, oil/Hormuz, and broader financial-stability evidence may still be incomplete.</div>`;
 
       if (context?.dld_source_url) {
         document.getElementById("dld-source-link-1").href = context.dld_source_url;
@@ -1000,9 +1175,40 @@
       if (context?.dfmgi_source_url) document.getElementById("dfmgi-source-link").href = context.dfmgi_source_url;
     }
 
+    function renderModelEvidenceStatus(observations) {
+      const tableBody = document.getElementById("model-evidence-status-table");
+
+      if (!observations || observations.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="7">No model evidence status available.</td></tr>`;
+        return;
+      }
+
+      tableBody.innerHTML = "";
+
+      observations.forEach(row => {
+        const notes = sourceNoteText(row);
+        const evidenceSupported = isEvidenceSupportedObservation(row);
+
+        const status = evidenceSupported
+          ? `<span class="tag tag-high">Evidence-supported</span>`
+          : `<span class="tag tag-low">Prototype / needs validation</span>`;
+
+        tableBody.innerHTML += `
+          <tr>
+            <td>${row.tower || ""}</td>
+            <td>${formatInputSource(row.input_source_type)}</td>
+            <td>${formatQualityTag(row.input_data_confidence || "LOW")}</td>
+            <td>${notes.priceBasis}</td>
+            <td>${notes.rentBasis}</td>
+            <td>${notes.serviceBasis}</td>
+            <td>${status}</td>
+          </tr>
+        `;
+      });
+    }
+
     function renderPropertySourceContext(propertySource) {
       document.getElementById("property-source-quality").innerHTML = formatQualityTag(propertySource?.source_quality || "LOW");
-      document.getElementById("property-source-confidence").innerHTML = formatQualityTag(propertySource?.confidence_level || "LOW");
 
       document.getElementById("property-source-type").textContent = propertySource?.source_type || "N/A";
       document.getElementById("tower-scope").textContent = propertySource?.tower_scope || "N/A";
@@ -1015,6 +1221,10 @@
       document.getElementById("property-source-notes").textContent = propertySource?.source_notes || "No property source notes available.";
       document.getElementById("property-source-urls").textContent = propertySource?.source_urls || "No property source URLs available.";
       document.getElementById("listing-data-status").textContent = propertySource?.listing_source_status || "N/A";
+
+      document.getElementById("property-source-quality-note").innerHTML =
+        `<div>Public web search did not find reliable tower-level DLD/rental evidence for all focus towers.</div>` +
+        `<div>Manual evidence in property_evidence_log is treated separately from web search.</div>`;
     }
 
     function renderBankContext(bankContext) {
@@ -1028,10 +1238,13 @@
 
       document.getElementById("bank-benchmark-rate").textContent = rateText;
       document.getElementById("bank-source-quality").innerHTML = formatQualityTag(sourceQuality);
-
-      document.getElementById("bank-name").textContent = bankContext?.bank_name || "N/A";
-      document.getElementById("benchmark-type").textContent = bankContext?.benchmark_type || "N/A";
+      document.getElementById("bank-rate-used").textContent = rateText;
+      document.getElementById("bank-source-used").textContent = "HSBC UAE";
       document.getElementById("bank-confidence").innerHTML = formatQualityTag(confidence);
+      document.getElementById("bank-usage").textContent = "IRR spread";
+
+      document.getElementById("bank-concise-note").textContent =
+        `Rate varies by tenor and balance. ${rateText} is selected as the conservative property-comparison benchmark.`;
 
       document.getElementById("benchmark-rate-status").textContent = bankContext?.benchmark_rate_status || "No bank benchmark status available.";
       document.getElementById("calculation-usage-status").textContent = bankContext?.calculation_usage_status || "No calculation usage status available.";
@@ -1046,18 +1259,20 @@
 
       document.getElementById("bank-source-note").textContent = bankStatusForSourceTable;
       document.getElementById("bank-source-reliability").innerHTML = formatQualityTag(sourceQuality);
+
+      document.getElementById("bank-benchmark-note").innerHTML =
+        `<div>Rate used in model: ${rateText}</div>` +
+        `<div>Source: HSBC UAE bank benchmark branch.</div>`;
+
+      document.getElementById("bank-source-quality-note").innerHTML =
+        `<div>Dedicated bank branch found HSBC UAE AED term-deposit evidence.</div>` +
+        `<div>The model avoids selecting the first returned percentage blindly and uses the explicit 3.50% benchmark.</div>`;
     }
 
     function renderReliabilityWarning(observations, propertySource, bankContext) {
       const reliabilityWarning = document.getElementById("decision-reliability-warning");
 
-      const propertySourceQuality = String(propertySource?.source_quality || "LOW").toUpperCase();
-      const transactionStatus = String(propertySource?.transaction_source_status || "").toLowerCase();
-      const rentalStatus = String(propertySource?.rental_source_status || "").toLowerCase();
       const bankSourceQuality = String(bankContext?.source_quality || "LOW").toUpperCase();
-
-      const transactionMissing = transactionStatus.includes("not found");
-      const rentalMissing = rentalStatus.includes("not found");
 
       const evidenceSupportedRows = observations.filter(isEvidenceSupportedObservation);
       const manualRows = observations.filter(isManualObservation);
@@ -1072,7 +1287,20 @@
       const evidenceTowerNames = evidenceSupportedRows
         .map(row => row.tower)
         .filter(Boolean)
-        .join(", ");
+        .join(", ") || "None";
+
+      const manualTowerNames = manualRows
+        .map(row => row.tower)
+        .filter(Boolean)
+        .join(", ") || "None";
+
+      document.getElementById("evidence-supported-note").innerHTML =
+        `<div>${evidenceCount}/${totalCount} tower(s) use evidence-supported inputs.</div>` +
+        `<div>Evidence-supported: ${evidenceTowerNames}.</div>`;
+
+      document.getElementById("manual-input-note").innerHTML =
+        `<div>${manualCount}/${totalCount} tower(s) still use manual/prototype inputs.</div>` +
+        `<div>Manual/prototype: ${manualTowerNames}.</div>`;
 
       if (totalCount > 0 && evidenceCount === totalCount && bankSourceQuality === "HIGH") {
         reliabilityWarning.className = "ok-box";
@@ -1083,29 +1311,15 @@
         reliabilityWarning.innerHTML =
           `<strong>Decision reliability warning:</strong> Bank benchmark evidence is strong. ${evidenceCount}/${totalCount} tower(s) have HIGH-confidence evidence-supported inputs (${evidenceTowerNames}). ` +
           `${manualCount}/${totalCount} tower(s) still use manual/prototype inputs. Treat evidence-supported towers with higher confidence, but do not treat the full ranking as investment-ready until all key price/rent inputs are validated.`;
-      } else if (propertySourceQuality === "HIGH" && !transactionMissing && !rentalMissing && bankSourceQuality === "HIGH") {
-        reliabilityWarning.className = "ok-box";
-        reliabilityWarning.innerHTML =
-          "<strong>Decision reliability:</strong> Bank benchmark evidence is strong and property/rental source quality is high. Ranking can be interpreted with higher confidence, subject to normal investment review.";
-      } else if (bankSourceQuality === "HIGH" && propertySourceQuality === "LOW") {
-        reliabilityWarning.className = "danger-box";
-        reliabilityWarning.innerHTML =
-          "<strong>Decision reliability warning:</strong> Bank benchmark evidence is strong, but property/rental source quality is LOW. Current prices and rents are static/manual prototype inputs. Do not treat BUY/WATCH results as investment-ready until DLD sale/rental data or verified tower-level evidence is connected.";
-      } else if (propertySourceQuality === "MEDIUM" || propertySourceQuality === "LOW-MEDIUM") {
-        reliabilityWarning.className = "warning-box";
-        reliabilityWarning.innerHTML =
-          "<strong>Decision reliability warning:</strong> Property/rental evidence is partial. Use ranking for screening only; validate transaction and rental data before negotiation.";
       } else {
         reliabilityWarning.className = "danger-box";
         reliabilityWarning.innerHTML =
-          "<strong>Decision reliability warning:</strong> Property/rental source quality is LOW. Current prices and rents are static/manual prototype inputs. Do not treat BUY/WATCH results as investment-ready until DLD sale/rental data or verified tower-level evidence is connected.";
+          "<strong>Decision reliability warning:</strong> Most or all property/rental inputs remain manual/prototype. Use results as screening only until evidence is connected.";
       }
     }
 
     function renderDashboard(payload) {
       const status = document.getElementById("status");
-      const latestSummary = document.getElementById("latest-summary");
-      const callScript = document.getElementById("call-script");
 
       const observations = payload.observations || [];
       const context = payload.context || null;
@@ -1115,12 +1329,13 @@
 
       if (!observations || observations.length === 0) {
         status.textContent = "Connected to Supabase, but no latest run rows found.";
-        latestSummary.textContent = "No property observations available.";
-        callScript.textContent = "No call script available.";
+        renderLatestDataUpdate([], context, bankContext);
         renderInvestmentTable([]);
         renderDealTargets([]);
-        renderEvidenceLog(evidenceLog);
+        renderDealDiagnostics([]);
+        renderEvidenceLog(evidenceLog, []);
         renderMacroContext(context);
+        renderModelEvidenceStatus([]);
         renderPropertySourceContext(propertySource);
         renderBankContext(bankContext);
         renderReliabilityWarning([], propertySource, bankContext);
@@ -1131,13 +1346,14 @@
       const runTime = latest.created_at ? formatDate(latest.created_at) : "unknown time";
 
       status.textContent = `Loaded latest full run: ${observations.length} row(s). Run time: ${runTime}. Run ID: ${payload.runId}.`;
-      latestSummary.textContent = latest.summary || "No summary available.";
-      callScript.textContent = latest.call_script || "No call script available.";
 
+      renderLatestDataUpdate(observations, context, bankContext);
       renderInvestmentTable(observations);
       renderDealTargets(observations);
-      renderEvidenceLog(evidenceLog);
+      renderDealDiagnostics(observations);
+      renderEvidenceLog(evidenceLog, observations);
       renderMacroContext(context);
+      renderModelEvidenceStatus(observations);
       renderPropertySourceContext(propertySource);
       renderBankContext(bankContext);
       renderReliabilityWarning(observations, propertySource, bankContext);
@@ -1150,9 +1366,6 @@
       } catch (error) {
         document.getElementById("status").innerHTML =
           `<span class="error">Failed to load Supabase data.</span>`;
-
-        document.getElementById("latest-summary").textContent = error.message;
-        document.getElementById("call-script").textContent = error.message;
 
         document.getElementById("observations-table").innerHTML =
           `<tr><td colspan="19">${error.message}</td></tr>`;
