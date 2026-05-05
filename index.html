@@ -8,20 +8,20 @@
 
   <style>
     :root {
-      --bg: #f6f7f9;
+      --bg: #f5f6f8;
       --card: #ffffff;
-      --text: #17202a;
-      --muted: #5d6d7e;
-      --border: #dfe4ea;
-      --good: #0b7a3b;
-      --warn: #b26a00;
-      --bad: #a12626;
+      --text: #16202a;
+      --muted: #65717f;
+      --border: #dde3ea;
       --blue: #1f5fbf;
+      --green: #0b7a3b;
+      --amber: #b26a00;
+      --red: #a12626;
       --soft-blue: #eef4ff;
-      --soft-warn: #fff6e5;
-      --soft-bad: #fff0f0;
-      --soft-good: #eefaf2;
-      --shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+      --soft-green: #eefaf2;
+      --soft-amber: #fff6e5;
+      --soft-red: #fff0f0;
+      --shadow: 0 8px 22px rgba(0, 0, 0, 0.055);
     }
 
     * {
@@ -37,7 +37,7 @@
     }
 
     .container {
-      max-width: 1500px;
+      max-width: 1420px;
       margin: 0 auto;
       padding: 24px;
     }
@@ -50,12 +50,12 @@
 
     h2 {
       margin: 0 0 10px;
-      font-size: 22px;
+      font-size: 21px;
     }
 
     h3 {
       margin: 0 0 8px;
-      font-size: 17px;
+      font-size: 16px;
     }
 
     code {
@@ -79,10 +79,37 @@
       margin-top: 18px;
     }
 
+    .decision-card {
+      border-left: 7px solid var(--red);
+    }
+
+    .decision-card.watch {
+      border-left-color: var(--amber);
+    }
+
+    .decision-card.buy {
+      border-left-color: var(--green);
+    }
+
+    .layout-two {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 16px;
+      margin-top: 18px;
+    }
+
     .grid {
       display: grid;
-      grid-template-columns: repeat(6, minmax(160px, 1fr));
+      grid-template-columns: repeat(6, minmax(140px, 1fr));
       gap: 12px;
+      margin-top: 14px;
+    }
+
+    .grid-four {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
     }
 
     .metric {
@@ -90,7 +117,7 @@
       border: 1px solid var(--border);
       border-radius: 14px;
       padding: 14px;
-      min-height: 88px;
+      min-height: 86px;
     }
 
     .metric-label {
@@ -106,10 +133,27 @@
       font-weight: 700;
     }
 
+    .metric-small {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
     .note {
       color: var(--muted);
       font-size: 14px;
       margin-top: 8px;
+    }
+
+    .decision-title {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .decision-subtitle {
+      font-size: 16px;
+      color: var(--muted);
     }
 
     .banner {
@@ -120,19 +164,19 @@
       background: #fafbfc;
     }
 
+    .banner.good {
+      background: var(--soft-green);
+      border-color: #b7e5c7;
+    }
+
     .banner.warn {
-      background: var(--soft-warn);
+      background: var(--soft-amber);
       border-color: #ffd38a;
     }
 
     .banner.bad {
-      background: var(--soft-bad);
+      background: var(--soft-red);
       border-color: #ffb4b4;
-    }
-
-    .banner.good {
-      background: var(--soft-good);
-      border-color: #b7e5c7;
     }
 
     .pill {
@@ -147,20 +191,20 @@
     }
 
     .pill.good {
-      color: var(--good);
-      background: var(--soft-good);
+      color: var(--green);
+      background: var(--soft-green);
       border-color: #b7e5c7;
     }
 
     .pill.warn {
-      color: var(--warn);
-      background: var(--soft-warn);
+      color: var(--amber);
+      background: var(--soft-amber);
       border-color: #ffd38a;
     }
 
     .pill.bad {
-      color: var(--bad);
-      background: var(--soft-bad);
+      color: var(--red);
+      background: var(--soft-red);
       border-color: #ffb4b4;
     }
 
@@ -181,7 +225,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 1180px;
+      min-width: 980px;
     }
 
     th, td {
@@ -214,6 +258,7 @@
 
     details {
       cursor: pointer;
+      margin-top: 10px;
     }
 
     summary {
@@ -225,9 +270,10 @@
     .details-box {
       margin-top: 8px;
       color: var(--muted);
-      max-width: 850px;
+      max-width: 1050px;
       white-space: pre-wrap;
       word-break: break-word;
+      font-size: 13px;
     }
 
     a {
@@ -241,11 +287,6 @@
       gap: 12px;
       align-items: flex-start;
       flex-wrap: wrap;
-    }
-
-    .small {
-      font-size: 12px;
-      color: var(--muted);
     }
 
     .loading {
@@ -269,9 +310,48 @@
       to { transform: rotate(360deg); }
     }
 
+    .compact-list {
+      margin: 8px 0 0 0;
+      padding-left: 18px;
+    }
+
+    .compact-list li {
+      margin: 4px 0;
+    }
+
+    .hidden-row {
+      display: none;
+    }
+
+    .button-row {
+      margin-top: 12px;
+    }
+
+    button {
+      border: 1px solid var(--border);
+      background: #fff;
+      padding: 9px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--blue);
+    }
+
+    button:hover {
+      background: var(--soft-blue);
+    }
+
     @media (max-width: 1100px) {
+      .layout-two {
+        grid-template-columns: 1fr;
+      }
+
       .grid {
-        grid-template-columns: repeat(2, minmax(160px, 1fr));
+        grid-template-columns: repeat(2, minmax(150px, 1fr));
+      }
+
+      .grid-four {
+        grid-template-columns: repeat(2, minmax(150px, 1fr));
       }
     }
 
@@ -280,12 +360,17 @@
         padding: 14px;
       }
 
-      .grid {
+      .grid,
+      .grid-four {
         grid-template-columns: 1fr;
       }
 
       h1 {
         font-size: 24px;
+      }
+
+      .decision-title {
+        font-size: 23px;
       }
     }
   </style>
@@ -305,23 +390,17 @@
 
   <script>
     // =========================================================
-    // SUPABASE REST CONFIG
-    // You provided the REST endpoint, so this page uses fetch()
-    // directly rather than supabase-js.
+    // CONFIG
     // =========================================================
     const SUPABASE_REST_URL = "https://cndyxfprqpfkzypxhrxl.supabase.co/rest/v1";
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_VOIytNYEBG7FyZzQqqW66w_nJWK37TC";
 
-    const VIEW_NAME = "dashboard_latest_candidate_classification";
+    const VIEW_CLASSIFICATION = "dashboard_latest_candidate_classification";
+    const TABLE_AGENT_CONTEXT = "agent_run_context";
+    const TABLE_BANK_CONTEXT = "bank_benchmark_context";
 
-    const AED = new Intl.NumberFormat("en-AE", {
-      maximumFractionDigits: 0
-    });
-
-    const NUM = new Intl.NumberFormat("en-AE", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
+    const AED = new Intl.NumberFormat("en-AE", { maximumFractionDigits: 0 });
+    const NUM = new Intl.NumberFormat("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     function safe(v, fallback = "") {
       return v === null || v === undefined || v === "" ? fallback : v;
@@ -333,8 +412,7 @@
     }
 
     function pct(v) {
-      const n = Number(v || 0);
-      return NUM.format(n);
+      return NUM.format(Number(v || 0));
     }
 
     function dateTime(v) {
@@ -359,95 +437,367 @@
       return `<span class="pill">${safe(text, "N/A")}</span>`;
     }
 
-    function sourceDetails(row) {
-      const parts = [
-        `Price source: ${safe(row.price_source_note, "N/A")}`,
-        `Rent source: ${safe(row.rent_source_note, "N/A")}`,
-        `Service charge source: ${safe(row.service_charge_source_note, "N/A")}`,
-        `Bank benchmark: ${safe(row.bank_benchmark_source_note, "N/A")}`,
-        `Bucket: ${safe(row.dashboard_bucket, "N/A")}`,
-        `Bucket note: ${safe(row.dashboard_bucket_note, "N/A")}`,
-        `Decision reason: ${safe(row.decision_reason, "N/A")}`
-      ];
+    function displayDecisionLabel(row) {
+      const raw = String(row.final_decision || "").toUpperCase();
 
-      return parts.join("\n\n");
-    }
+      if (raw === "INTERIM PASS") return "WATCHLIST ONLY";
+      if (raw === "INTERIM WATCH") return "NEGOTIATE WATCH";
+      if (raw === "INTERIM BUY CANDIDATE") return "INTERIM BUY CANDIDATE";
+      if (raw === "DATA GAP") return "DATA GAP";
+      if (raw === "DEAL TEST ONLY") return "DEAL TEST ONLY";
 
-    function rowUnit(row) {
-      return `${safe(row.tower)} ${safe(row.unit_type)}`;
-    }
-
-    function getLatestRun(rows) {
-      if (!rows.length) return null;
-      return rows[0].run_id;
+      return row.final_decision || "N/A";
     }
 
     function sortByNetYieldDesc(rows) {
       return [...rows].sort((a, b) => Number(b.net_yield_percent || 0) - Number(a.net_yield_percent || 0));
     }
 
-    function sortByFinalScoreDesc(rows) {
-      return [...rows].sort((a, b) => Number(b.final_score || 0) - Number(a.final_score || 0));
+    function sortByRequiredCutAsc(rows) {
+      return [...rows].sort((a, b) => Number(a.discount_to_6_5_target_percent || 999) - Number(b.discount_to_6_5_target_percent || 999));
     }
 
-    function renderRankingTable(rows, options = {}) {
-      const showEvidence = options.showEvidence !== false;
+    function rowName(row) {
+      return `${safe(row.tower)} ${safe(row.unit_type)}`;
+    }
 
-      if (!rows.length) {
-        return `<div class="banner">No rows available.</div>`;
+    function sourceDetails(row) {
+      return [
+        `Price source: ${safe(row.price_source_note, "N/A")}`,
+        `Rent source: ${safe(row.rent_source_note, "N/A")}`,
+        `Service charge source: ${safe(row.service_charge_source_note, "N/A")}`,
+        `Bank benchmark: ${safe(row.bank_benchmark_source_note, "N/A")}`,
+        `Bucket: ${safe(row.dashboard_bucket, "N/A")}`,
+        `Bucket note: ${safe(row.dashboard_bucket_note, "N/A")}`,
+        `Decision reason: ${safe(row.decision_reason, "N/A")}`,
+        `Technical verdict: ${safe(row.final_decision, "N/A")}`
+      ].join("\n\n");
+    }
+
+    function normalizeTextBlock(text) {
+      const s = String(text || "").trim();
+      if (!s) return "No text available.";
+      return s;
+    }
+
+    async function fetchWithTimeout(url, options, timeoutMs = 15000) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(timeout);
+        return response;
+      } catch (error) {
+        clearTimeout(timeout);
+        throw error;
+      }
+    }
+
+    async function restGet(path, query = "select=*") {
+      const url = `${SUPABASE_REST_URL}/${path}?${query}`;
+
+      const response = await fetchWithTimeout(url, {
+        method: "GET",
+        headers: {
+          "apikey": SUPABASE_PUBLISHABLE_KEY,
+          "Authorization": `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+          "Accept": "application/json"
+        }
+      });
+
+      const text = await response.text();
+
+      if (!response.ok) {
+        throw new Error(`REST ${path} failed: ${response.status} ${text}`);
       }
 
-      const sorted = options.sortBy === "final_score"
-        ? sortByFinalScoreDesc(rows)
-        : sortByNetYieldDesc(rows);
+      try {
+        return JSON.parse(text);
+      } catch {
+        throw new Error(`REST ${path} returned non-JSON response: ${text}`);
+      }
+    }
+
+    function classifyRows(rows) {
+      return {
+        strictRows: rows.filter(r => r.dashboard_bucket === "STRICT_EVIDENCE"),
+        interimRows: rows.filter(r => r.dashboard_bucket === "INTERIM_EVIDENCE"),
+        dataGapRows: rows.filter(r => r.dashboard_bucket === "DATA_GAP"),
+        dealRows: rows.filter(r => r.dashboard_bucket === "DEAL_TEST"),
+        reviewRows: rows.filter(r => r.dashboard_bucket === "REVIEW_REQUIRED")
+      };
+    }
+
+    function getBest(rows) {
+      if (!rows.length) return null;
+      return sortByNetYieldDesc(rows)[0];
+    }
+
+    function getLatestRunId(rows) {
+      return rows.length ? rows[0].run_id : null;
+    }
+
+    function getLatestCreatedAt(rows) {
+      return rows.length ? rows[0].created_at : null;
+    }
+
+    function renderExecutiveDecision(rows, contextRows, bankRows) {
+      const { strictRows, interimRows, dataGapRows, dealRows } = classifyRows(rows);
+      const evidenceRows = [...strictRows, ...interimRows];
+      const best = getBest(evidenceRows);
+      const latestRun = getLatestRunId(rows);
+      const latestTime = getLatestCreatedAt(rows);
+
+      const buyLike = evidenceRows.filter(r => String(r.final_decision || "").includes("BUY"));
+      const decisionClass = buyLike.length ? "buy" : "watch";
+
+      const latestContext = contextRows[0] || {};
+      const latestBank = bankRows[0] || rows.find(r => r.bank_yield_percent !== null) || {};
+
+      const financialStability = safe(latestContext.financial_stability_score, "N/A");
+      const proxyLei = safe(latestContext.proxy_lei_score, "N/A");
+      const macroConfidence = safe(latestContext.confidence_level, "MEDIUM");
+      const macroQuality = safe(latestContext.data_quality_score, "MEDIUM");
+      const bankRate = latestBank.benchmark_rate_percent || best?.bank_yield_percent || 3.5;
+      const bankQuality = latestBank.source_quality || best?.bank_source_quality || "HIGH";
+
+      return `
+        <section class="card decision-card ${decisionClass}">
+          <div class="decision-title">${buyLike.length ? "Buy gate triggered — validate before action" : "Do not buy now"}</div>
+          <div class="decision-subtitle">
+            ${best
+              ? `Best current watch item is <strong>${rowName(best)}</strong>, but it is still below the 6.5% strong-buy net-yield trigger.`
+              : `No evidence-based candidate is available yet.`
+            }
+          </div>
+
+          <div class="grid">
+            <div class="metric">
+              <div class="metric-label">Best Watch Item</div>
+              <div class="metric-value">${best ? rowName(best) : "None"}</div>
+              <div class="metric-small">${best ? displayDecisionLabel(best) : "N/A"}</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Best Net Yield</div>
+              <div class="metric-value">${best ? pct(best.net_yield_percent) + "%" : "N/A"}</div>
+              <div class="metric-small">Trigger: 6.50%</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Strong-Buy Price</div>
+              <div class="metric-value">AED ${best ? money(best.strong_buy_price_aed) : "N/A"}</div>
+              <div class="metric-small">Target entry price</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Required Cut</div>
+              <div class="metric-value">AED ${best ? money(best.discount_to_6_5_target_aed) : "N/A"}</div>
+              <div class="metric-small">${best ? pct(best.discount_to_6_5_target_percent) + "%" : "N/A"}</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Macro Overlay</div>
+              <div class="metric-value">FS ${financialStability} / LEI ${proxyLei}</div>
+              <div class="metric-small">${macroConfidence} confidence</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Bank Benchmark</div>
+              <div class="metric-value">${pct(bankRate)}%</div>
+              <div class="metric-small">${bankQuality}</div>
+            </div>
+          </div>
+
+          <div class="banner warn">
+            <strong>Decision discipline:</strong>
+            No current candidate meets the buy gate at current median transaction economics.
+            Use this dashboard for watchlist monitoring, evidence quality control and negotiation targets.
+          </div>
+
+          <div class="note">
+            Loaded run <strong>${safe(latestRun, "N/A")}</strong> at ${dateTime(latestTime)}.
+            Strict evidence: <strong>${strictRows.length}</strong>.
+            Interim evidence: <strong>${interimRows.length}</strong>.
+            Data gaps/excluded rows: <strong>${dataGapRows.length}</strong>.
+            Deal tests: <strong>${dealRows.length}</strong>.
+          </div>
+        </section>
+      `;
+    }
+
+    function renderMacroOverlay(contextRows) {
+      const c = contextRows[0] || {};
+
+      const financialStability = safe(c.financial_stability_score, "N/A");
+      const proxyLei = safe(c.proxy_lei_score, "N/A");
+      const confidence = safe(c.confidence_level, "MEDIUM");
+      const quality = safe(c.data_quality_score, "MEDIUM");
+
+      return `
+        <section class="card">
+          <h2>Market / Macro Risk Overlay</h2>
+          <div class="note">
+            Macro is an overlay only. It should not override poor property economics or weak evidence.
+          </div>
+
+          <div class="grid-four">
+            <div class="metric">
+              <div class="metric-label">Financial Stability</div>
+              <div class="metric-value">${financialStability}</div>
+              <div class="metric-small">Higher is better</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Proxy LEI</div>
+              <div class="metric-value">${proxyLei}</div>
+              <div class="metric-small">Forward indicator signal</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Macro Confidence</div>
+              <div class="metric-value">${confidence}</div>
+              <div class="metric-small">Source confidence</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Macro Data Quality</div>
+              <div class="metric-value">${quality}</div>
+              <div class="metric-small">Returned-source quality</div>
+            </div>
+          </div>
+
+          <div class="banner ${Number(financialStability) < 0 || Number(proxyLei) < 0 ? "warn" : "good"}">
+            <strong>Current read:</strong>
+            ${Number(financialStability) < 0 || Number(proxyLei) < 0
+              ? "Macro overlay is soft/negative. This supports patience and stricter entry-price discipline."
+              : "Macro overlay is not negative. Continue to rely on property-level economics and evidence quality."
+            }
+          </div>
+
+          <details>
+            <summary>View market pulse</summary>
+            <div class="details-box">${normalizeTextBlock(c.market_pulse_preview || c.market_pulse || c.macro_regime)}</div>
+          </details>
+
+          <details>
+            <summary>View risk summary</summary>
+            <div class="details-box">${normalizeTextBlock(c.risk_summary)}</div>
+          </details>
+
+          <details>
+            <summary>View macro data status</summary>
+            <div class="details-box">Property data: ${safe(c.property_data_status, "N/A")}
+
+Rental data: ${safe(c.rental_data_status, "N/A")}
+
+Macro data: ${safe(c.macro_data_status, "N/A")}</div>
+          </details>
+        </section>
+      `;
+    }
+
+    function renderWatchlist(rows) {
+      const { interimRows, strictRows } = classifyRows(rows);
+      const evidenceRows = sortByNetYieldDesc([...strictRows, ...interimRows]);
+      const topRows = evidenceRows.slice(0, 7);
+
+      if (!topRows.length) {
+        return `
+          <section class="card">
+            <h2>Price Target Watchlist</h2>
+            <div class="banner bad">No evidence-based rows available.</div>
+          </section>
+        `;
+      }
+
+      return `
+        <section class="card">
+          <div class="section-header">
+            <div>
+              <h2>Price Target Watchlist</h2>
+              <div class="note">
+                Ranked by net yield. Buy discipline uses the 6.5% net-yield trigger and AED 1.6m budget cap.
+              </div>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Candidate</th>
+                  <th class="num">Current Price</th>
+                  <th class="num">Rent</th>
+                  <th class="num">Net Yield</th>
+                  <th class="num">IRR vs Bank</th>
+                  <th class="num">Target Buy Price</th>
+                  <th class="num">Required Cut</th>
+                  <th class="num">Cut %</th>
+                  <th>Decision</th>
+                  <th>Evidence</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${topRows.map((r, i) => `
+                  <tr>
+                    <td>${i + 1}</td>
+                    <td><strong>${safe(r.tower)}</strong><br><span class="note">${safe(r.unit_type)}</span></td>
+                    <td class="num">AED ${money(r.asking_price_aed)}</td>
+                    <td class="num">AED ${money(r.estimated_annual_rent_aed)}</td>
+                    <td class="num">${pct(r.net_yield_percent)}%</td>
+                    <td class="num">${pct(r.irr_vs_bank_percent)}%</td>
+                    <td class="num">AED ${money(r.strong_buy_price_aed)}</td>
+                    <td class="num">AED ${money(r.discount_to_6_5_target_aed)}</td>
+                    <td class="num">${pct(r.discount_to_6_5_target_percent)}%</td>
+                    <td>${pill(displayDecisionLabel(r))}</td>
+                    <td>
+                      <details>
+                        <summary>View</summary>
+                        <div class="details-box">${sourceDetails(r)}</div>
+                      </details>
+                    </td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+
+          <details>
+            <summary>Show full evidence-based table</summary>
+            ${renderFullEvidenceTable(evidenceRows)}
+          </details>
+        </section>
+      `;
+    }
+
+    function renderFullEvidenceTable(rows) {
+      if (!rows.length) return `<div class="banner">No rows.</div>`;
 
       return `
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Rank</th>
-                <th>Tower</th>
-                <th>Unit</th>
-                <th class="num">Price AED</th>
-                <th class="num">Rent AED/yr</th>
-                <th class="num">SC AED/sqft</th>
-                <th class="num">Net Yield %</th>
-                <th class="num">5Y IRR %</th>
-                <th class="num">IRR vs Bank %</th>
-                <th class="num">Strong-Buy Price</th>
+                <th>Candidate</th>
+                <th class="num">Price</th>
+                <th class="num">Area</th>
+                <th class="num">Rent</th>
+                <th class="num">SC</th>
+                <th class="num">Net Yield</th>
+                <th class="num">5Y IRR</th>
                 <th class="num">Required Cut</th>
-                <th class="num">Required Cut %</th>
                 <th>Verdict</th>
-                <th>Action</th>
-                ${showEvidence ? "<th>Evidence</th>" : ""}
+                <th>Confidence</th>
               </tr>
             </thead>
             <tbody>
-              ${sorted.map((r, i) => `
+              ${rows.map(r => `
                 <tr>
-                  <td>${i + 1}</td>
-                  <td>${safe(r.tower)}</td>
-                  <td>${safe(r.unit_type)}</td>
-                  <td class="num">${money(r.asking_price_aed)}</td>
-                  <td class="num">${money(r.estimated_annual_rent_aed)}</td>
+                  <td>${safe(r.tower)} ${safe(r.unit_type)}</td>
+                  <td class="num">AED ${money(r.asking_price_aed)}</td>
+                  <td class="num">${money(r.area_sqft)}</td>
+                  <td class="num">AED ${money(r.estimated_annual_rent_aed)}</td>
                   <td class="num">${pct(r.service_charge_aed_sqft_year)}</td>
-                  <td class="num">${pct(r.net_yield_percent)}</td>
-                  <td class="num">${pct(r.irr_5y_percent)}</td>
-                  <td class="num">${pct(r.irr_vs_bank_percent)}</td>
-                  <td class="num">${money(r.strong_buy_price_aed)}</td>
-                  <td class="num">${money(r.discount_to_6_5_target_aed)}</td>
-                  <td class="num">${pct(r.discount_to_6_5_target_percent)}%</td>
-                  <td>${pill(r.final_decision)}</td>
-                  <td>${safe(r.action_label)}</td>
-                  ${showEvidence ? `
-                    <td>
-                      <details>
-                        <summary>View notes</summary>
-                        <div class="details-box">${sourceDetails(r)}</div>
-                      </details>
-                    </td>
-                  ` : ""}
+                  <td class="num">${pct(r.net_yield_percent)}%</td>
+                  <td class="num">${pct(r.irr_5y_percent)}%</td>
+                  <td class="num">AED ${money(r.discount_to_6_5_target_aed)}</td>
+                  <td>${pill(displayDecisionLabel(r))}</td>
+                  <td>${safe(r.input_data_confidence)}</td>
                 </tr>
               `).join("")}
             </tbody>
@@ -456,10 +806,64 @@
       `;
     }
 
+    function renderDataQuality(rows, bankRows) {
+      const { strictRows, interimRows, dataGapRows, dealRows } = classifyRows(rows);
+      const latestBank = bankRows[0] || {};
+      const bankRate = latestBank.benchmark_rate_percent || rows[0]?.bank_yield_percent || 3.5;
+      const bankQuality = latestBank.source_quality || rows[0]?.bank_source_quality || "HIGH";
+
+      return `
+        <section class="card">
+          <h2>Data Quality Status</h2>
+          <div class="grid-four">
+            <div class="metric">
+              <div class="metric-label">Strict Evidence</div>
+              <div class="metric-value">${strictRows.length}</div>
+              <div class="metric-small">Direct DLD/Ejari/HIGH only</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Interim Evidence</div>
+              <div class="metric-value">${interimRows.length}</div>
+              <div class="metric-small">DLD-derived screening</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Data Gaps</div>
+              <div class="metric-value">${dataGapRows.length}</div>
+              <div class="metric-small">Excluded rows</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Bank Benchmark</div>
+              <div class="metric-value">${pct(bankRate)}%</div>
+              <div class="metric-small">${bankQuality}</div>
+            </div>
+          </div>
+
+          <div class="banner warn">
+            <strong>Reliability note:</strong>
+            Interim evidence is suitable for screening, watchlist ranking and negotiation target setting.
+            It is not final purchase evidence until reconciled against direct DLD/Ejari or equivalent primary source.
+          </div>
+
+          <details>
+            <summary>Show data-gap / excluded rows</summary>
+            ${renderDataGapTable(dataGapRows)}
+          </details>
+
+          <details>
+            <summary>Show bank benchmark details</summary>
+            <div class="details-box">Bank name: ${safe(latestBank.bank_name, "HSBC UAE / UAE bank benchmark")}
+Rate used: ${pct(bankRate)}%
+Confidence: ${safe(latestBank.confidence_level || bankQuality, "N/A")}
+Status: ${safe(latestBank.benchmark_rate_status, "N/A")}
+Usage: ${safe(latestBank.calculation_usage_status, "N/A")}
+Notes: ${safe(latestBank.source_notes, "N/A")}</div>
+          </details>
+        </section>
+      `;
+    }
+
     function renderDataGapTable(rows) {
-      if (!rows.length) {
-        return `<div class="banner good">No data-gap rows in latest run.</div>`;
-      }
+      if (!rows.length) return `<div class="banner good">No data-gap rows.</div>`;
 
       const sorted = [...rows].sort((a, b) =>
         String(a.tower).localeCompare(String(b.tower)) ||
@@ -471,11 +875,10 @@
           <table>
             <thead>
               <tr>
-                <th>Tower</th>
-                <th>Unit</th>
-                <th class="num">Price AED</th>
-                <th class="num">Rent AED/yr</th>
-                <th class="num">SC AED/sqft</th>
+                <th>Candidate</th>
+                <th class="num">Price</th>
+                <th class="num">Rent</th>
+                <th class="num">SC</th>
                 <th>Status</th>
                 <th>Required Action</th>
                 <th>Notes</th>
@@ -484,16 +887,15 @@
             <tbody>
               ${sorted.map(r => `
                 <tr>
-                  <td>${safe(r.tower)}</td>
-                  <td>${safe(r.unit_type)}</td>
-                  <td class="num">${money(r.asking_price_aed)}</td>
-                  <td class="num">${money(r.estimated_annual_rent_aed)}</td>
+                  <td>${safe(r.tower)} ${safe(r.unit_type)}</td>
+                  <td class="num">AED ${money(r.asking_price_aed)}</td>
+                  <td class="num">AED ${money(r.estimated_annual_rent_aed)}</td>
                   <td class="num">${pct(r.service_charge_aed_sqft_year)}</td>
-                  <td>${pill(r.final_decision)}</td>
+                  <td>${pill(displayDecisionLabel(r))}</td>
                   <td>${safe(r.action_label)}</td>
                   <td>
                     <details>
-                      <summary>View notes</summary>
+                      <summary>View</summary>
                       <div class="details-box">${sourceDetails(r)}</div>
                     </details>
                   </td>
@@ -505,199 +907,67 @@
       `;
     }
 
-    function renderTopCandidate(interimRows, strictRows) {
-      const available = [...strictRows, ...interimRows];
+    function renderDealTest(rows) {
+      const { dealRows } = classifyRows(rows);
 
-      if (!available.length) {
+      if (!dealRows.length) {
         return `
-          <div class="banner bad">
-            <strong>No evidence-based candidate available.</strong><br>
-            Add sale/rent evidence or promote interim evidence rows before analysis.
-          </div>
+          <section class="card">
+            <h2>Deal Test Scenario</h2>
+            <div class="banner">No active deal-test rows.</div>
+          </section>
         `;
       }
 
-      const best = sortByNetYieldDesc(available)[0];
-
-      return `
-        <div class="banner warn">
-          <strong>Best current evidence-based candidate:</strong>
-          ${rowUnit(best)} — net yield ${pct(best.net_yield_percent)}%, 5Y IRR ${pct(best.irr_5y_percent)}%,
-          IRR vs bank ${pct(best.irr_vs_bank_percent)}%.
-          Verdict: <strong>${safe(best.final_decision)}</strong>.
-          Strong-buy price is about AED ${money(best.strong_buy_price_aed)}.
-          Required cut is AED ${money(best.discount_to_6_5_target_aed)}
-          (${pct(best.discount_to_6_5_target_percent)}%).
-        </div>
-      `;
-    }
-
-    function renderExecutiveSummary(rows) {
-      const strictRows = rows.filter(r => r.dashboard_bucket === "STRICT_EVIDENCE");
-      const interimRows = rows.filter(r => r.dashboard_bucket === "INTERIM_EVIDENCE");
-      const dataGapRows = rows.filter(r => r.dashboard_bucket === "DATA_GAP");
-      const dealRows = rows.filter(r => r.dashboard_bucket === "DEAL_TEST");
-
-      const latestRun = getLatestRun(rows);
-      const latestTime = rows.length ? dateTime(rows[0].created_at) : "N/A";
-      const bankRow = rows.find(r => r.bank_yield_percent !== null && r.bank_yield_percent !== undefined) || {};
-      const bankRate = bankRow.bank_yield_percent ?? 3.5;
-      const bankQuality = bankRow.bank_source_quality || "N/A";
-
-      const buyLike = [...strictRows, ...interimRows].filter(r =>
-        String(r.final_decision || "").includes("BUY")
-      );
-
-      const best = sortByNetYieldDesc([...strictRows, ...interimRows])[0];
+      const r = sortByNetYieldDesc(dealRows)[0];
 
       return `
         <section class="card">
-          <div class="section-header">
-            <div>
-              <h2>Latest Data Update</h2>
-              <div class="note">
-                Loaded latest run from <code>${VIEW_NAME}</code>.
-                Run ID: <strong>${safe(latestRun, "N/A")}</strong>
-              </div>
+          <h2>Deal Test Scenario</h2>
+          <div class="note">
+            Scenario only. Excluded from ranking unless promoted through evidence workflow.
+          </div>
+
+          <div class="grid-four">
+            <div class="metric">
+              <div class="metric-label">Scenario</div>
+              <div class="metric-value">${safe(r.tower)}</div>
+              <div class="metric-small">${safe(r.unit_type)}</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Net Yield</div>
+              <div class="metric-value">${pct(r.net_yield_percent)}%</div>
+              <div class="metric-small">Scenario yield</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Strong-Buy Price</div>
+              <div class="metric-value">AED ${money(r.strong_buy_price_aed)}</div>
+              <div class="metric-small">6.5% net-yield target</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Required Cut</div>
+              <div class="metric-value">AED ${money(r.discount_to_6_5_target_aed)}</div>
+              <div class="metric-small">${pct(r.discount_to_6_5_target_percent)}%</div>
             </div>
           </div>
 
-          <div class="grid" style="margin-top: 14px;">
-            <div class="metric">
-              <div class="metric-label">Last Run</div>
-              <div class="metric-value">${latestTime}</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Strict Evidence</div>
-              <div class="metric-value">${strictRows.length}</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Interim Evidence</div>
-              <div class="metric-value">${interimRows.length}</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Data-Gap Rows</div>
-              <div class="metric-value">${dataGapRows.length}</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Deal Tests</div>
-              <div class="metric-value">${dealRows.length}</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Bank Benchmark</div>
-              <div class="metric-value">${pct(bankRate)}% / ${bankQuality}</div>
-            </div>
-          </div>
-
-          ${renderTopCandidate(interimRows, strictRows)}
-
-          <div class="banner ${buyLike.length ? "good" : "warn"}">
-            <strong>Decision status:</strong>
-            ${buyLike.length
-              ? `${buyLike.length} candidate(s) meet a buy-type gate. Validate source evidence before action.`
-              : `No current candidate meets the buy gate at current median transaction economics. Use the dashboard for price-target monitoring and negotiation discipline.`
-            }
-          </div>
-
-          ${best ? `
-            <div class="note">
-              Best current evidence-based screening result is <strong>${rowUnit(best)}</strong>.
-              It remains below the 6.5% strong-buy net-yield trigger unless the price moves closer to AED ${money(best.strong_buy_price_aed)}.
-            </div>
-          ` : ""}
+          <details>
+            <summary>Show deal-test details</summary>
+            ${renderFullEvidenceTable(dealRows)}
+          </details>
         </section>
       `;
     }
 
-    function renderDashboard(rows) {
-      const strictRows = rows.filter(r => r.dashboard_bucket === "STRICT_EVIDENCE");
-      const interimRows = rows.filter(r => r.dashboard_bucket === "INTERIM_EVIDENCE");
-      const dataGapRows = rows.filter(r => r.dashboard_bucket === "DATA_GAP");
-      const dealRows = rows.filter(r => r.dashboard_bucket === "DEAL_TEST");
-      const reviewRows = rows.filter(r => r.dashboard_bucket === "REVIEW_REQUIRED");
-
+    function renderTechnicalAudit(rows, contextRows, bankRows) {
       return `
-        ${renderExecutiveSummary(rows)}
-
         <section class="card">
-          <h2>Deal Test Results</h2>
+          <h2>Technical Audit</h2>
           <div class="note">
-            Deal-test rows are scenario checks only. They are excluded from ranking and should not be treated as validated candidates unless promoted through the evidence register.
-          </div>
-          ${renderRankingTable(dealRows, { showEvidence: true })}
-        </section>
-
-        <section class="card">
-          <h2>Strict Evidence-Based Ranking</h2>
-          <div class="note">
-            Direct DLD/Ejari/HIGH-confidence rows only. Current count: <strong>${strictRows.length}</strong>.
-          </div>
-          ${strictRows.length
-            ? renderRankingTable(strictRows, { showEvidence: true, sortBy: "final_score" })
-            : `<div class="banner">No strict HIGH-confidence / direct-DLD candidates available yet.</div>`
-          }
-        </section>
-
-        <section class="card">
-          <h2>Interim Evidence-Based Screening</h2>
-          <div class="note">
-            Property Finder DLD-derived transaction/rent evidence plus user-entered 2026 DLD Service Charge Index readings.
-            Use this section for screening and negotiation targets only. Validate with direct DLD/Ejari before purchase action.
-          </div>
-          ${renderRankingTable(interimRows, { showEvidence: true })}
-        </section>
-
-        <section class="card">
-          <h2>Interim Negotiation Targets</h2>
-          <div class="note">
-            Strong-buy price is based on the 6.5% net-yield trigger. A positive required cut means the current evidence price is too high.
-          </div>
-          ${renderRankingTable(interimRows, { showEvidence: false })}
-        </section>
-
-        <section class="card">
-          <h2>Data Hygiene Queue</h2>
-          <div class="note">
-            These rows are excluded from evidence-based analysis because they are missing sale/rent evidence, are above budget, or remain unvalidated.
-          </div>
-          ${renderDataGapTable(dataGapRows)}
-        </section>
-
-        ${reviewRows.length ? `
-          <section class="card">
-            <h2>Manual Review Required</h2>
-            ${renderDataGapTable(reviewRows)}
-          </section>
-        ` : ""}
-
-        <section class="card">
-          <h2>Decision Reliability</h2>
-          <div class="grid">
-            <div class="metric">
-              <div class="metric-label">Strict Evidence Candidates</div>
-              <div class="metric-value">${strictRows.length}</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Interim Evidence Candidates</div>
-              <div class="metric-value">${interimRows.length}</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Data Gaps</div>
-              <div class="metric-value">${dataGapRows.length}</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Deal Tests</div>
-              <div class="metric-value">${dealRows.length}</div>
-            </div>
+            Collapsed by default. Use this only when checking sources, model logic or data pipeline health.
           </div>
 
-          <div class="banner warn">
-            <strong>Reliability note:</strong>
-            Interim evidence is suitable for screening, watchlist ranking and negotiation target setting.
-            It is not final investment evidence until reconciled against direct DLD/Ejari or equivalent primary data.
-          </div>
-
-          <details style="margin-top: 10px;">
+          <details>
             <summary>Evidence rules</summary>
             <div class="details-box">Strict evidence = direct DLD/Ejari/HIGH-confidence source.
 
@@ -707,105 +977,130 @@ Data gap = missing sale/rent evidence, zero placeholder values, out-of-budget ca
 
 Deal test = scenario only and excluded from ranking.</div>
           </details>
+
+          <details>
+            <summary>Raw latest classification rows</summary>
+            <div class="details-box">${escapeHtml(JSON.stringify(rows, null, 2))}</div>
+          </details>
+
+          <details>
+            <summary>Raw macro context</summary>
+            <div class="details-box">${escapeHtml(JSON.stringify(contextRows[0] || {}, null, 2))}</div>
+          </details>
+
+          <details>
+            <summary>Raw bank context</summary>
+            <div class="details-box">${escapeHtml(JSON.stringify(bankRows[0] || {}, null, 2))}</div>
+          </details>
         </section>
       `;
     }
 
-    async function fetchWithTimeout(url, options, timeoutMs = 15000) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
 
-      try {
-        const response = await fetch(url, {
-          ...options,
-          signal: controller.signal
-        });
-        clearTimeout(timeout);
-        return response;
-      } catch (error) {
-        clearTimeout(timeout);
-        throw error;
-      }
+    function renderDashboard(rows, contextRows, bankRows) {
+      return `
+        ${renderExecutiveDecision(rows, contextRows, bankRows)}
+
+        <div class="layout-two">
+          ${renderMacroOverlay(contextRows)}
+          ${renderDealTest(rows)}
+        </div>
+
+        ${renderWatchlist(rows)}
+
+        ${renderDataQuality(rows, bankRows)}
+
+        ${renderTechnicalAudit(rows, contextRows, bankRows)}
+      `;
     }
 
     async function loadDashboard() {
       const app = document.getElementById("app");
 
       try {
-        const url =
-          `${SUPABASE_REST_URL}/${VIEW_NAME}` +
-          `?select=*` +
-          `&order=created_at.desc`;
+        const classificationRows = await restGet(
+          VIEW_CLASSIFICATION,
+          "select=*&order=created_at.desc"
+        );
 
-        const response = await fetchWithTimeout(url, {
-          method: "GET",
-          headers: {
-            "apikey": SUPABASE_PUBLISHABLE_KEY,
-            "Authorization": `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-            "Accept": "application/json"
-          }
-        }, 15000);
-
-        const text = await response.text();
-
-        if (!response.ok) {
-          app.innerHTML = `
-            <section class="card">
-              <h2>Load Error</h2>
-              <div class="banner bad">
-                REST request failed with status <strong>${response.status}</strong>.
-              </div>
-              <div class="details-box">${text}</div>
-              <div class="note">
-                Check that <code>public.${VIEW_NAME}</code> exists and anon/publishable-key SELECT access is allowed.
-              </div>
-            </section>
-          `;
-          return;
-        }
-
-        let data;
-
-        try {
-          data = JSON.parse(text);
-        } catch (parseError) {
-          app.innerHTML = `
-            <section class="card">
-              <h2>Parse Error</h2>
-              <div class="banner bad">
-                Response was not valid JSON.
-              </div>
-              <div class="details-box">${text}</div>
-            </section>
-          `;
-          return;
-        }
-
-        if (!Array.isArray(data) || data.length === 0) {
+        if (!Array.isArray(classificationRows) || classificationRows.length === 0) {
           app.innerHTML = `
             <section class="card">
               <h2>No Data</h2>
               <div class="banner warn">
-                No rows returned from <code>${VIEW_NAME}</code>.
-                Run the full n8n workflow first and verify the view in Supabase SQL Editor.
+                No rows returned from <code>${VIEW_CLASSIFICATION}</code>.
+                Run the full n8n workflow and verify the Supabase view.
               </div>
             </section>
           `;
           return;
         }
 
-        app.innerHTML = renderDashboard(data);
+        const latestRunId = classificationRows[0].run_id;
+
+        let contextRows = [];
+        let bankRows = [];
+
+        try {
+          contextRows = await restGet(
+            TABLE_AGENT_CONTEXT,
+            `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=created_at.desc&limit=1`
+          );
+        } catch (e) {
+          contextRows = [];
+        }
+
+        try {
+          bankRows = await restGet(
+            TABLE_BANK_CONTEXT,
+            `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=created_at.desc&limit=1`
+          );
+        } catch (e) {
+          bankRows = [];
+        }
+
+        if (!contextRows.length) {
+          try {
+            contextRows = await restGet(
+              TABLE_AGENT_CONTEXT,
+              "select=*&order=created_at.desc&limit=1"
+            );
+          } catch (e) {
+            contextRows = [];
+          }
+        }
+
+        if (!bankRows.length) {
+          try {
+            bankRows = await restGet(
+              TABLE_BANK_CONTEXT,
+              "select=*&order=created_at.desc&limit=1"
+            );
+          } catch (e) {
+            bankRows = [];
+          }
+        }
+
+        app.innerHTML = renderDashboard(classificationRows, contextRows, bankRows);
 
       } catch (error) {
         app.innerHTML = `
           <section class="card">
             <h2>Load Error</h2>
             <div class="banner bad">
-              ${safe(error.message, "Unknown JavaScript or network error.")}
+              ${escapeHtml(error.message || "Unknown JavaScript or REST error.")}
             </div>
             <div class="note">
-              If this stays on GitHub Pages, open browser Developer Tools → Console.
-              Common causes: view not exposed to REST, RLS SELECT blocked, wrong project/key, or network/CORS issue.
+              Check that <code>${VIEW_CLASSIFICATION}</code> exists, is exposed via REST,
+              and that anon/publishable-key SELECT access is allowed.
             </div>
           </section>
         `;
