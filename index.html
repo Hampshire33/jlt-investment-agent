@@ -6,8 +6,6 @@
 
   <title>JLT Investment Agent</title>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <style>
     :root {
       --bg: #f6f7f9;
@@ -24,6 +22,10 @@
       --soft-bad: #fff0f0;
       --soft-good: #eefaf2;
       --shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
     }
 
     body {
@@ -56,6 +58,12 @@
       font-size: 17px;
     }
 
+    code {
+      background: #eef1f4;
+      padding: 2px 5px;
+      border-radius: 6px;
+    }
+
     .subtitle {
       color: var(--muted);
       margin-top: 4px;
@@ -82,6 +90,7 @@
       border: 1px solid var(--border);
       border-radius: 14px;
       padding: 14px;
+      min-height: 88px;
     }
 
     .metric-label {
@@ -172,7 +181,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 1150px;
+      min-width: 1180px;
     }
 
     th, td {
@@ -216,7 +225,7 @@
     .details-box {
       margin-top: 8px;
       color: var(--muted);
-      max-width: 800px;
+      max-width: 850px;
       white-space: pre-wrap;
       word-break: break-word;
     }
@@ -242,6 +251,22 @@
     .loading {
       padding: 20px;
       color: var(--muted);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #cfd6df;
+      border-top: 2px solid var(--blue);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin-right: 8px;
+      vertical-align: -2px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
 
     @media (max-width: 1100px) {
@@ -273,17 +298,21 @@
       <div class="subtitle">Macro-aware, finance-driven JLT ready-apartment screening</div>
     </header>
 
-    <div id="app" class="loading">Loading latest run...</div>
+    <div id="app" class="loading">
+      <span class="spinner"></span>Loading latest run...
+    </div>
   </div>
 
   <script>
     // =========================================================
-    // CONFIG — update these two values only
+    // SUPABASE REST CONFIG
+    // You provided the REST endpoint, so this page uses fetch()
+    // directly rather than supabase-js.
     // =========================================================
-    const SUPABASE_URL = "https://cndyxfprqpfkzypxhrxl.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_VOIytNYEBG7FyZzQqqW66w_nJWK37TC";
+    const SUPABASE_REST_URL = "https://cndyxfprqpfkzypxhrxl.supabase.co/rest/v1";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_VOIytNYEBG7FyZzQqqW66w_nJWK37TC";
 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const VIEW_NAME = "dashboard_latest_candidate_classification";
 
     const AED = new Intl.NumberFormat("en-AE", {
       maximumFractionDigits: 0
@@ -327,7 +356,7 @@
       if (t.includes("DEAL")) return `<span class="pill blue">${text}</span>`;
       if (t.includes("OUT")) return `<span class="pill bad">${text}</span>`;
 
-      return `<span class="pill">${text}</span>`;
+      return `<span class="pill">${safe(text, "N/A")}</span>`;
     }
 
     function sourceDetails(row) {
@@ -336,6 +365,7 @@
         `Rent source: ${safe(row.rent_source_note, "N/A")}`,
         `Service charge source: ${safe(row.service_charge_source_note, "N/A")}`,
         `Bank benchmark: ${safe(row.bank_benchmark_source_note, "N/A")}`,
+        `Bucket: ${safe(row.dashboard_bucket, "N/A")}`,
         `Bucket note: ${safe(row.dashboard_bucket_note, "N/A")}`,
         `Decision reason: ${safe(row.decision_reason, "N/A")}`
       ];
@@ -350,10 +380,6 @@
     function getLatestRun(rows) {
       if (!rows.length) return null;
       return rows[0].run_id;
-    }
-
-    function countBy(rows, bucket) {
-      return rows.filter(r => r.dashboard_bucket === bucket).length;
     }
 
     function sortByNetYieldDesc(rows) {
@@ -479,14 +505,6 @@
       `;
     }
 
-    function renderDealTest(rows) {
-      if (!rows.length) {
-        return `<div class="banner">No deal-test rows in latest run.</div>`;
-      }
-
-      return renderRankingTable(rows, { showEvidence: true });
-    }
-
     function renderTopCandidate(interimRows, strictRows) {
       const available = [...strictRows, ...interimRows];
 
@@ -538,7 +556,7 @@
             <div>
               <h2>Latest Data Update</h2>
               <div class="note">
-                Loaded latest run from <code>dashboard_latest_candidate_classification</code>.
+                Loaded latest run from <code>${VIEW_NAME}</code>.
                 Run ID: <strong>${safe(latestRun, "N/A")}</strong>
               </div>
             </div>
@@ -606,7 +624,7 @@
           <div class="note">
             Deal-test rows are scenario checks only. They are excluded from ranking and should not be treated as validated candidates unless promoted through the evidence register.
           </div>
-          ${renderDealTest(dealRows)}
+          ${renderRankingTable(dealRows, { showEvidence: true })}
         </section>
 
         <section class="card">
@@ -681,68 +699,117 @@
 
           <details style="margin-top: 10px;">
             <summary>Evidence rules</summary>
-            <div class="details-box">
-Strict evidence = direct DLD/Ejari/HIGH-confidence source.
+            <div class="details-box">Strict evidence = direct DLD/Ejari/HIGH-confidence source.
 
 Interim evidence = Property Finder DLD-derived transaction/rent evidence plus user-entered DLD Service Charge Index readings.
 
 Data gap = missing sale/rent evidence, zero placeholder values, out-of-budget candidate, or unvalidated/manual input.
 
-Deal test = scenario only and excluded from ranking.
-            </div>
+Deal test = scenario only and excluded from ranking.</div>
           </details>
         </section>
       `;
     }
 
+    async function fetchWithTimeout(url, options, timeoutMs = 15000) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+        return response;
+      } catch (error) {
+        clearTimeout(timeout);
+        throw error;
+      }
+    }
+
     async function loadDashboard() {
       const app = document.getElementById("app");
 
-      if (SUPABASE_URL.includes("PASTE_") || SUPABASE_ANON_KEY.includes("PASTE_")) {
-        app.innerHTML = `
-          <section class="card">
-            <h2>Configuration Required</h2>
-            <div class="banner bad">
-              Update <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> in <code>index.html</code>.
-            </div>
-          </section>
-        `;
-        return;
-      }
+      try {
+        const url =
+          `${SUPABASE_REST_URL}/${VIEW_NAME}` +
+          `?select=*` +
+          `&order=created_at.desc`;
 
-      const { data, error } = await supabase
-        .from("dashboard_latest_candidate_classification")
-        .select("*")
-        .order("created_at", { ascending: false });
+        const response = await fetchWithTimeout(url, {
+          method: "GET",
+          headers: {
+            "apikey": SUPABASE_PUBLISHABLE_KEY,
+            "Authorization": `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+            "Accept": "application/json"
+          }
+        }, 15000);
 
-      if (error) {
+        const text = await response.text();
+
+        if (!response.ok) {
+          app.innerHTML = `
+            <section class="card">
+              <h2>Load Error</h2>
+              <div class="banner bad">
+                REST request failed with status <strong>${response.status}</strong>.
+              </div>
+              <div class="details-box">${text}</div>
+              <div class="note">
+                Check that <code>public.${VIEW_NAME}</code> exists and anon/publishable-key SELECT access is allowed.
+              </div>
+            </section>
+          `;
+          return;
+        }
+
+        let data;
+
+        try {
+          data = JSON.parse(text);
+        } catch (parseError) {
+          app.innerHTML = `
+            <section class="card">
+              <h2>Parse Error</h2>
+              <div class="banner bad">
+                Response was not valid JSON.
+              </div>
+              <div class="details-box">${text}</div>
+            </section>
+          `;
+          return;
+        }
+
+        if (!Array.isArray(data) || data.length === 0) {
+          app.innerHTML = `
+            <section class="card">
+              <h2>No Data</h2>
+              <div class="banner warn">
+                No rows returned from <code>${VIEW_NAME}</code>.
+                Run the full n8n workflow first and verify the view in Supabase SQL Editor.
+              </div>
+            </section>
+          `;
+          return;
+        }
+
+        app.innerHTML = renderDashboard(data);
+
+      } catch (error) {
         app.innerHTML = `
           <section class="card">
             <h2>Load Error</h2>
-            <div class="banner bad">${error.message}</div>
+            <div class="banner bad">
+              ${safe(error.message, "Unknown JavaScript or network error.")}
+            </div>
             <div class="note">
-              Check that the view <code>public.dashboard_latest_candidate_classification</code> exists
-              and that anon read access/RLS policy permits SELECT.
+              If this stays on GitHub Pages, open browser Developer Tools → Console.
+              Common causes: view not exposed to REST, RLS SELECT blocked, wrong project/key, or network/CORS issue.
             </div>
           </section>
         `;
-        return;
       }
-
-      if (!data || data.length === 0) {
-        app.innerHTML = `
-          <section class="card">
-            <h2>No Data</h2>
-            <div class="banner warn">
-              No rows returned from <code>dashboard_latest_candidate_classification</code>.
-              Run the full n8n workflow first.
-            </div>
-          </section>
-        `;
-        return;
-      }
-
-      app.innerHTML = renderDashboard(data);
     }
 
     loadDashboard();
