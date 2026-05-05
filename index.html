@@ -438,7 +438,7 @@
           <td>Bank benchmark</td>
           <td>HSBC UAE AED term-deposit reference</td>
           <td id="bank-source-note">Loading...</td>
-          <td><span class="tag tag-medium">MEDIUM</span></td>
+          <td id="bank-source-reliability">Loading...</td>
           <td>Compare 5Y property IRR vs low-risk cash return.</td>
         </tr>
       </tbody>
@@ -733,7 +733,6 @@
       document.getElementById("property-data-status").textContent = context?.property_data_status || "N/A";
       document.getElementById("rental-data-status").textContent = context?.rental_data_status || "N/A";
       document.getElementById("macro-data-status").textContent = context?.macro_data_status || "N/A";
-      document.getElementById("bank-source-note").textContent = context?.bank_source_note || "N/A";
 
       if (context?.dld_source_url) {
         document.getElementById("dld-source-link-1").href = context.dld_source_url;
@@ -762,21 +761,34 @@
     }
 
     function renderBankContext(bankContext) {
-      document.getElementById("bank-benchmark-rate").textContent =
+      const rateText =
         bankContext?.benchmark_rate_percent !== null && bankContext?.benchmark_rate_percent !== undefined
           ? `${Number(bankContext.benchmark_rate_percent).toFixed(2)}%`
           : "N/A";
 
-      document.getElementById("bank-source-quality").innerHTML = formatQualityTag(bankContext?.source_quality || "LOW");
+      const sourceQuality = bankContext?.source_quality || "LOW";
+      const confidence = bankContext?.confidence_level || "LOW";
+
+      document.getElementById("bank-benchmark-rate").textContent = rateText;
+      document.getElementById("bank-source-quality").innerHTML = formatQualityTag(sourceQuality);
+
       document.getElementById("bank-name").textContent = bankContext?.bank_name || "N/A";
       document.getElementById("benchmark-type").textContent = bankContext?.benchmark_type || "N/A";
-      document.getElementById("bank-confidence").innerHTML = formatQualityTag(bankContext?.confidence_level || "LOW");
+      document.getElementById("bank-confidence").innerHTML = formatQualityTag(confidence);
 
       document.getElementById("benchmark-rate-status").textContent = bankContext?.benchmark_rate_status || "No bank benchmark status available.";
       document.getElementById("calculation-usage-status").textContent = bankContext?.calculation_usage_status || "No calculation usage status available.";
       document.getElementById("bank-search-summary").textContent = bankContext?.bank_search_summary || "No bank search summary available.";
       document.getElementById("bank-source-notes").textContent = bankContext?.source_notes || "No bank source notes available.";
       document.getElementById("bank-source-urls").textContent = bankContext?.source_urls || "No bank source URLs available.";
+
+      const bankStatusForSourceTable =
+        bankContext
+          ? `Dedicated bank branch found ${bankContext.bank_name || "bank"} evidence. ${rateText} is used in the property model. Source quality: ${sourceQuality}.`
+          : "No dedicated bank benchmark context found.";
+
+      document.getElementById("bank-source-note").textContent = bankStatusForSourceTable;
+      document.getElementById("bank-source-reliability").innerHTML = formatQualityTag(sourceQuality);
     }
 
     function renderReliabilityWarning(propertySource, bankContext) {
