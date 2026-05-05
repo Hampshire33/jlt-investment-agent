@@ -254,6 +254,16 @@
       </div>
 
       <div class="metric-box">
+        <div class="metric-label">Evidence-Supported Inputs</div>
+        <div id="evidence-supported-count" class="metric-value">Loading...</div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Manual Inputs</div>
+        <div id="manual-input-count" class="metric-value">Loading...</div>
+      </div>
+
+      <div class="metric-box">
         <div class="metric-label">Bank Benchmark</div>
         <div id="bank-benchmark-rate" class="metric-value">Loading...</div>
       </div>
@@ -594,6 +604,7 @@
     function formatInputSource(value) {
       if (!value) return "";
       if (String(value).toLowerCase().includes("manual")) return `<span class="tag tag-low">${value}</span>`;
+      if (String(value).toLowerCase().includes("evidence")) return `<span class="tag tag-high">${value}</span>`;
       return `<span class="tag tag-medium">${value}</span>`;
     }
 
@@ -635,6 +646,17 @@
           </div>
         </details>
       `;
+    }
+
+    function isEvidenceSupportedObservation(row) {
+      const sourceType = String(row.input_source_type || "").toLowerCase();
+      const confidence = String(row.input_data_confidence || "").toUpperCase();
+
+      return sourceType.includes("evidence") || confidence === "HIGH";
+    }
+
+    function isManualObservation(row) {
+      return !isEvidenceSupportedObservation(row);
     }
 
     async function fetchLatestRunId() {
@@ -919,7 +941,7 @@
       document.getElementById("bank-source-reliability").innerHTML = formatQualityTag(sourceQuality);
     }
 
-    function renderReliabilityWarning(propertySource, bankContext) {
+    function renderReliabilityWarning(observations, propertySource, bankContext) {
       const reliabilityWarning = document.getElementById("decision-reliability-warning");
 
       const propertySourceQuality = String(propertySource?.source_quality || "LOW").toUpperCase();
@@ -930,7 +952,31 @@
       const transactionMissing = transactionStatus.includes("not found");
       const rentalMissing = rentalStatus.includes("not found");
 
-      if (propertySourceQuality === "HIGH" && !transactionMissing && !rentalMissing && bankSourceQuality === "HIGH") {
+      const evidenceSupportedRows = observations.filter(isEvidenceSupportedObservation);
+      const manualRows = observations.filter(isManualObservation);
+
+      const evidenceCount = evidenceSupportedRows.length;
+      const manualCount = manualRows.length;
+      const totalCount = observations.length;
+
+      document.getElementById("evidence-supported-count").textContent = `${evidenceCount}/${totalCount}`;
+      document.getElementById("manual-input-count").textContent = `${manualCount}/${totalCount}`;
+
+      const evidenceTowerNames = evidenceSupportedRows
+        .map(row => row.tower)
+        .filter(Boolean)
+        .join(", ");
+
+      if (totalCount > 0 && evidenceCount === totalCount && bankSourceQuality === "HIGH") {
+        reliabilityWarning.className = "ok-box";
+        reliabilityWarning.innerHTML =
+          "<strong>Decision reliability:</strong> Bank benchmark evidence is strong and all property inputs are evidence-supported. Ranking can be interpreted with higher confidence, subject to normal investment review.";
+      } else if (evidenceCount > 0 && manualCount > 0 && bankSourceQuality === "HIGH") {
+        reliabilityWarning.className = "warning-box";
+        reliabilityWarning.innerHTML =
+          `<strong>Decision reliability warning:</strong> Bank benchmark evidence is strong. ${evidenceCount}/${totalCount} tower(s) have HIGH-confidence evidence-supported inputs (${evidenceTowerNames}). ` +
+          `${manualCount}/${totalCount} tower(s) still use manual/prototype inputs. Treat evidence-supported towers with higher confidence, but do not treat the full ranking as investment-ready until all key price/rent inputs are validated.`;
+      } else if (propertySourceQuality === "HIGH" && !transactionMissing && !rentalMissing && bankSourceQuality === "HIGH") {
         reliabilityWarning.className = "ok-box";
         reliabilityWarning.innerHTML =
           "<strong>Decision reliability:</strong> Bank benchmark evidence is strong and property/rental source quality is high. Ranking can be interpreted with higher confidence, subject to normal investment review.";
@@ -969,7 +1015,7 @@
         renderMacroContext(context);
         renderPropertySourceContext(propertySource);
         renderBankContext(bankContext);
-        renderReliabilityWarning(propertySource, bankContext);
+        renderReliabilityWarning([], propertySource, bankContext);
         return;
       }
 
@@ -985,7 +1031,7 @@
       renderMacroContext(context);
       renderPropertySourceContext(propertySource);
       renderBankContext(bankContext);
-      renderReliabilityWarning(propertySource, bankContext);
+      renderReliabilityWarning(observations, propertySource, bankContext);
     }
 
     async function main() {
