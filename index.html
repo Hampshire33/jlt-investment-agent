@@ -55,13 +55,12 @@
       background: #eef1f5;
     }
 
-    ul {
-      margin-top: 8px;
-      padding-left: 22px;
+    details {
+      cursor: pointer;
     }
 
-    li {
-      margin-bottom: 6px;
+    summary {
+      font-weight: bold;
     }
 
     .verdict-buy {
@@ -179,6 +178,7 @@
       font-weight: bold;
       background: #eef1f5;
       color: #333;
+      white-space: nowrap;
     }
 
     .tag-low {
@@ -231,10 +231,15 @@
       white-space: pre-wrap;
     }
 
-    .section-separator {
-      height: 1px;
-      background: #e0e3e8;
-      margin: 18px 0;
+    .source-note-list {
+      margin-top: 8px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #333;
+    }
+
+    .source-note-list div {
+      margin-bottom: 5px;
     }
   </style>
 </head>
@@ -272,14 +277,20 @@
           <th>Gap to 6.5%</th>
           <th>Verdict</th>
           <th>Action</th>
+          <th>Input Source</th>
+          <th>Input Confidence</th>
+          <th>Source Notes</th>
         </tr>
       </thead>
       <tbody id="observations-table">
         <tr>
-          <td colspan="14">Loading...</td>
+          <td colspan="17">Loading...</td>
         </tr>
       </tbody>
     </table>
+    <div class="small-note">
+      Input confidence is per tower. It reflects the source of price/rent/service-charge assumptions used in the financial calculation.
+    </div>
   </div>
 
   <div class="card">
@@ -378,7 +389,7 @@
     <p id="property-source-notes" class="context-text">Loading...</p>
 
     <details>
-      <summary><strong>Returned Property Source URLs</strong></summary>
+      <summary>Returned Property Source URLs</summary>
       <p id="property-source-urls" class="context-text">Loading...</p>
     </details>
   </div>
@@ -603,6 +614,33 @@
       return `<span class="tag">${value}</span>`;
     }
 
+    function formatInputSource(value) {
+      if (!value) return "";
+
+      if (String(value).toLowerCase().includes("manual")) {
+        return `<span class="tag tag-low">${value}</span>`;
+      }
+
+      return `<span class="tag tag-medium">${value}</span>`;
+    }
+
+    function formatSourceNotes(row) {
+      const priceNote = row.price_source_note || "No price source note.";
+      const rentNote = row.rent_source_note || "No rent source note.";
+      const serviceChargeNote = row.service_charge_source_note || "No service charge source note.";
+
+      return `
+        <details>
+          <summary>View notes</summary>
+          <div class="source-note-list">
+            <div><strong>Price:</strong> ${priceNote}</div>
+            <div><strong>Rent:</strong> ${rentNote}</div>
+            <div><strong>Service charge:</strong> ${serviceChargeNote}</div>
+          </div>
+        </details>
+      `;
+    }
+
     async function fetchLatestRunId() {
       const url =
         `${SUPABASE_URL}/rest/v1/${PROPERTY_TABLE}` +
@@ -633,7 +671,7 @@
     async function fetchObservationsByRunId(runId) {
       const url =
         `${SUPABASE_URL}/rest/v1/${PROPERTY_TABLE}` +
-        `?select=created_at,run_id,tower,unit_type,asking_price_aed,net_yield_percent,irr_5y_percent,irr_vs_bank_percent,npv_5y_aed,final_score,strong_buy_price_aed,fair_price_aed,discount_to_6_5_target_aed,discount_to_6_5_target_percent,final_decision,action_label,summary,call_script` +
+        `?select=created_at,run_id,tower,unit_type,asking_price_aed,net_yield_percent,irr_5y_percent,irr_vs_bank_percent,npv_5y_aed,final_score,strong_buy_price_aed,fair_price_aed,discount_to_6_5_target_aed,discount_to_6_5_target_percent,final_decision,action_label,summary,call_script,input_source_type,input_data_confidence,price_source_note,rent_source_note,service_charge_source_note` +
         `&run_id=eq.${encodeURIComponent(runId)}` +
         `&order=final_score.desc`;
 
@@ -732,7 +770,7 @@
       const tableBody = document.getElementById("observations-table");
 
       if (!data || data.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="14">No data available</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="17">No data available</td></tr>`;
         return;
       }
 
@@ -755,6 +793,9 @@
             <td>${formatGap(row.discount_to_6_5_target_aed, row.discount_to_6_5_target_percent)}</td>
             <td>${formatVerdict(row.final_decision)}</td>
             <td>${row.action_label || ""}</td>
+            <td>${formatInputSource(row.input_source_type)}</td>
+            <td>${formatQualityTag(row.input_data_confidence || "LOW")}</td>
+            <td>${formatSourceNotes(row)}</td>
           </tr>
         `;
       });
@@ -911,7 +952,7 @@
       } else {
         reliabilityWarning.className = "danger-box";
         reliabilityWarning.innerHTML =
-          "<strong>Decision reliability warning:</strong> Property/rental source quality is LOW. Current prices and rents are static prototype inputs. Do not treat BUY/WATCH results as investment-ready until DLD sale/rental data or verified tower-level evidence is connected.";
+          "<strong>Decision reliability warning:</strong> Property/rental source quality is LOW. Current prices and rents are static/manual prototype inputs. Do not treat BUY/WATCH results as investment-ready until DLD sale/rental data or verified tower-level evidence is connected.";
       }
     }
 
@@ -958,7 +999,7 @@
         document.getElementById("call-script").textContent = error.message;
 
         document.getElementById("observations-table").innerHTML =
-          `<tr><td colspan="14">${error.message}</td></tr>`;
+          `<tr><td colspan="17">${error.message}</td></tr>`;
 
         console.error(error);
       }
