@@ -14,9 +14,7 @@
       color: #222;
     }
 
-    h1 {
-      margin-bottom: 5px;
-    }
+    h1 { margin-bottom: 5px; }
 
     .subtitle {
       color: #666;
@@ -51,82 +49,28 @@
       vertical-align: top;
     }
 
-    th {
-      background: #eef1f5;
-    }
+    th { background: #eef1f5; }
 
-    details {
-      cursor: pointer;
-    }
+    details { cursor: pointer; }
+    summary { font-weight: bold; }
 
-    summary {
-      font-weight: bold;
-    }
+    .verdict-buy { color: green; font-weight: bold; }
+    .verdict-selective { color: orange; font-weight: bold; }
+    .verdict-watch { color: #996600; font-weight: bold; }
+    .verdict-pass { color: red; font-weight: bold; }
 
-    .verdict-buy {
-      color: green;
-      font-weight: bold;
-    }
+    .positive-gap { color: red; font-weight: bold; }
+    .negative-gap { color: green; font-weight: bold; }
+    .neutral-gap { color: #555; font-weight: bold; }
 
-    .verdict-selective {
-      color: orange;
-      font-weight: bold;
-    }
+    .score-strong { color: green; font-weight: bold; }
+    .score-medium { color: orange; font-weight: bold; }
+    .score-weak { color: red; font-weight: bold; }
 
-    .verdict-watch {
-      color: #996600;
-      font-weight: bold;
-    }
+    .negative-npv { color: red; font-weight: bold; }
+    .positive-npv { color: green; font-weight: bold; }
 
-    .verdict-pass {
-      color: red;
-      font-weight: bold;
-    }
-
-    .positive-gap {
-      color: red;
-      font-weight: bold;
-    }
-
-    .negative-gap {
-      color: green;
-      font-weight: bold;
-    }
-
-    .neutral-gap {
-      color: #555;
-      font-weight: bold;
-    }
-
-    .score-strong {
-      color: green;
-      font-weight: bold;
-    }
-
-    .score-medium {
-      color: orange;
-      font-weight: bold;
-    }
-
-    .score-weak {
-      color: red;
-      font-weight: bold;
-    }
-
-    .negative-npv {
-      color: red;
-      font-weight: bold;
-    }
-
-    .positive-npv {
-      color: green;
-      font-weight: bold;
-    }
-
-    .error {
-      color: red;
-      font-weight: bold;
-    }
+    .error { color: red; font-weight: bold; }
 
     .small-note {
       font-size: 13px;
@@ -166,9 +110,7 @@
       text-decoration: none;
     }
 
-    .source-link:hover {
-      text-decoration: underline;
-    }
+    .source-link:hover { text-decoration: underline; }
 
     .tag {
       display: inline-block;
@@ -181,25 +123,10 @@
       white-space: nowrap;
     }
 
-    .tag-low {
-      background: #ffe0e0;
-      color: #990000;
-    }
-
-    .tag-low-medium {
-      background: #fff0cc;
-      color: #8a5a00;
-    }
-
-    .tag-medium {
-      background: #fff0cc;
-      color: #8a5a00;
-    }
-
-    .tag-high {
-      background: #e2f5e2;
-      color: #006600;
-    }
+    .tag-low { background: #ffe0e0; color: #990000; }
+    .tag-low-medium { background: #fff0cc; color: #8a5a00; }
+    .tag-medium { background: #fff0cc; color: #8a5a00; }
+    .tag-high { background: #e2f5e2; color: #006600; }
 
     .metric-grid {
       display: grid;
@@ -321,11 +248,59 @@
         <div class="metric-label">Property Source Confidence</div>
         <div id="property-source-confidence" class="metric-value">Loading...</div>
       </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Bank Benchmark</div>
+        <div id="bank-benchmark-rate" class="metric-value">Loading...</div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Bank Source Quality</div>
+        <div id="bank-source-quality" class="metric-value">Loading...</div>
+      </div>
     </div>
 
     <div id="decision-reliability-warning" class="warning-box">
       Loading reliability note...
     </div>
+  </div>
+
+  <div class="card">
+    <h2>Bank Benchmark Context</h2>
+
+    <div class="metric-grid">
+      <div class="metric-box">
+        <div class="metric-label">Bank Name</div>
+        <div id="bank-name" class="metric-value">Loading...</div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Benchmark Type</div>
+        <div id="benchmark-type" class="metric-value">Loading...</div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">Confidence</div>
+        <div id="bank-confidence" class="metric-value">Loading...</div>
+      </div>
+    </div>
+
+    <h3>Benchmark Rate Status</h3>
+    <p id="benchmark-rate-status" class="context-text">Loading...</p>
+
+    <h3>Calculation Usage Status</h3>
+    <p id="calculation-usage-status" class="context-text">Loading...</p>
+
+    <h3>Bank Search Summary</h3>
+    <p id="bank-search-summary" class="context-text">Loading...</p>
+
+    <h3>Bank Source Notes</h3>
+    <p id="bank-source-notes" class="context-text">Loading...</p>
+
+    <details>
+      <summary>Returned Bank Source URLs</summary>
+      <p id="bank-source-urls" class="context-text">Loading...</p>
+    </details>
   </div>
 
   <div class="card">
@@ -411,11 +386,7 @@
       <tbody>
         <tr>
           <td>Sale transactions</td>
-          <td>
-            <a id="dld-source-link-1" class="source-link" href="#" target="_blank">
-              Dubai Land Department Open Data
-            </a>
-          </td>
+          <td><a id="dld-source-link-1" class="source-link" href="#" target="_blank">Dubai Land Department Open Data</a></td>
           <td id="property-data-status">Loading...</td>
           <td><span class="tag tag-high">HIGH</span></td>
           <td>Primary source for fair value and entry-price zones.</td>
@@ -423,11 +394,7 @@
 
         <tr>
           <td>Rental transactions</td>
-          <td>
-            <a id="dld-source-link-2" class="source-link" href="#" target="_blank">
-              Dubai Land Department Rents
-            </a>
-          </td>
+          <td><a id="dld-source-link-2" class="source-link" href="#" target="_blank">Dubai Land Department Rents</a></td>
           <td id="rental-data-status">Loading...</td>
           <td><span class="tag tag-high">HIGH</span></td>
           <td>Primary source for rent assumptions and net-yield calculation.</td>
@@ -451,11 +418,7 @@
 
         <tr>
           <td>PMI / business cycle</td>
-          <td>
-            <a id="pmi-source-link" class="source-link" href="#" target="_blank">
-              S&amp;P Global PMI
-            </a>
-          </td>
+          <td><a id="pmi-source-link" class="source-link" href="#" target="_blank">S&amp;P Global PMI</a></td>
           <td id="macro-data-status">Loading...</td>
           <td><span class="tag tag-high">HIGH</span></td>
           <td>Macro-regime and proxy-LEI scoring.</td>
@@ -463,11 +426,7 @@
 
         <tr>
           <td>Dubai equity sentiment</td>
-          <td>
-            <a id="dfmgi-source-link" class="source-link" href="#" target="_blank">
-              DFMGI
-            </a>
-          </td>
+          <td><a id="dfmgi-source-link" class="source-link" href="#" target="_blank">DFMGI</a></td>
           <td>Manual note only / not always found in Perplexity macro run</td>
           <td><span class="tag tag-medium">MEDIUM</span></td>
           <td>Risk appetite / local sentiment overlay.</td>
@@ -501,6 +460,7 @@
     const PROPERTY_TABLE = "property_observations";
     const CONTEXT_TABLE = "agent_run_context";
     const PROPERTY_SOURCE_TABLE = "property_source_context";
+    const BANK_CONTEXT_TABLE = "bank_benchmark_context";
 
     function getSupabaseHeaders() {
       return {
@@ -531,44 +491,27 @@
       const score = Number(value);
       let cssClass = "score-weak";
 
-      if (score >= 8.5) {
-        cssClass = "score-strong";
-      } else if (score >= 7.0) {
-        cssClass = "score-medium";
-      }
+      if (score >= 8.5) cssClass = "score-strong";
+      else if (score >= 7.0) cssClass = "score-medium";
 
       return `<span class="${cssClass}">${score.toFixed(2)}</span>`;
     }
 
     function formatNpv(value) {
       if (value === null || value === undefined || value === "") return "";
-
       const npv = Number(value);
       const cssClass = npv >= 0 ? "positive-npv" : "negative-npv";
-
       return `<span class="${cssClass}">${formatNumber(npv)}</span>`;
     }
 
     function formatVerdict(verdict) {
       if (!verdict) return "";
-
       const upper = verdict.toUpperCase();
 
-      if (upper.includes("STRONG BUY") || upper === "BUY") {
-        return `<span class="verdict-buy">${verdict}</span>`;
-      }
-
-      if (upper.includes("SELECTIVE")) {
-        return `<span class="verdict-selective">${verdict}</span>`;
-      }
-
-      if (upper.includes("WATCH")) {
-        return `<span class="verdict-watch">${verdict}</span>`;
-      }
-
-      if (upper.includes("PASS")) {
-        return `<span class="verdict-pass">${verdict}</span>`;
-      }
+      if (upper.includes("STRONG BUY") || upper === "BUY") return `<span class="verdict-buy">${verdict}</span>`;
+      if (upper.includes("SELECTIVE")) return `<span class="verdict-selective">${verdict}</span>`;
+      if (upper.includes("WATCH")) return `<span class="verdict-watch">${verdict}</span>`;
+      if (upper.includes("PASS")) return `<span class="verdict-pass">${verdict}</span>`;
 
       return verdict;
     }
@@ -579,13 +522,8 @@
       const gapAed = Number(valueAed);
       const gapPercent = Number(valuePercent);
 
-      if (Math.abs(gapAed) < 1000) {
-        return `<span class="neutral-gap">At trigger</span>`;
-      }
-
-      if (gapAed > 0) {
-        return `<span class="positive-gap">Needs AED ${formatNumber(gapAed)} reduction (${gapPercent}%)</span>`;
-      }
+      if (Math.abs(gapAed) < 1000) return `<span class="neutral-gap">At trigger</span>`;
+      if (gapAed > 0) return `<span class="positive-gap">Needs AED ${formatNumber(gapAed)} reduction (${gapPercent}%)</span>`;
 
       return `<span class="negative-gap">Below trigger by AED ${formatNumber(Math.abs(gapAed))} (${Math.abs(gapPercent)}%)</span>`;
     }
@@ -595,32 +533,17 @@
 
       const upper = String(value).toUpperCase();
 
-      if (upper === "HIGH") {
-        return `<span class="tag tag-high">${value}</span>`;
-      }
-
-      if (upper === "MEDIUM") {
-        return `<span class="tag tag-medium">${value}</span>`;
-      }
-
-      if (upper === "LOW-MEDIUM") {
-        return `<span class="tag tag-low-medium">${value}</span>`;
-      }
-
-      if (upper === "LOW") {
-        return `<span class="tag tag-low">${value}</span>`;
-      }
+      if (upper === "HIGH") return `<span class="tag tag-high">${value}</span>`;
+      if (upper === "MEDIUM") return `<span class="tag tag-medium">${value}</span>`;
+      if (upper === "LOW-MEDIUM") return `<span class="tag tag-low-medium">${value}</span>`;
+      if (upper === "LOW") return `<span class="tag tag-low">${value}</span>`;
 
       return `<span class="tag">${value}</span>`;
     }
 
     function formatInputSource(value) {
       if (!value) return "";
-
-      if (String(value).toLowerCase().includes("manual")) {
-        return `<span class="tag tag-low">${value}</span>`;
-      }
-
+      if (String(value).toLowerCase().includes("manual")) return `<span class="tag tag-low">${value}</span>`;
       return `<span class="tag tag-medium">${value}</span>`;
     }
 
@@ -649,10 +572,7 @@
         `&order=created_at.desc` +
         `&limit=1`;
 
-      const response = await fetch(url, {
-        method: "GET",
-        headers: getSupabaseHeaders()
-      });
+      const response = await fetch(url, { method: "GET", headers: getSupabaseHeaders() });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -660,12 +580,7 @@
       }
 
       const data = await response.json();
-
-      if (!data || data.length === 0) {
-        return null;
-      }
-
-      return data[0].run_id;
+      return data?.[0]?.run_id || null;
     }
 
     async function fetchObservationsByRunId(runId) {
@@ -675,10 +590,7 @@
         `&run_id=eq.${encodeURIComponent(runId)}` +
         `&order=final_score.desc`;
 
-      const response = await fetch(url, {
-        method: "GET",
-        headers: getSupabaseHeaders()
-      });
+      const response = await fetch(url, { method: "GET", headers: getSupabaseHeaders() });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -695,10 +607,7 @@
         `&run_id=eq.${encodeURIComponent(runId)}` +
         `&limit=1`;
 
-      const response = await fetch(url, {
-        method: "GET",
-        headers: getSupabaseHeaders()
-      });
+      const response = await fetch(url, { method: "GET", headers: getSupabaseHeaders() });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -706,12 +615,7 @@
       }
 
       const data = await response.json();
-
-      if (!data || data.length === 0) {
-        return null;
-      }
-
-      return data[0];
+      return data?.[0] || null;
     }
 
     async function fetchPropertySourceByRunId(runId) {
@@ -721,10 +625,7 @@
         `&run_id=eq.${encodeURIComponent(runId)}` +
         `&limit=1`;
 
-      const response = await fetch(url, {
-        method: "GET",
-        headers: getSupabaseHeaders()
-      });
+      const response = await fetch(url, { method: "GET", headers: getSupabaseHeaders() });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -732,38 +633,42 @@
       }
 
       const data = await response.json();
+      return data?.[0] || null;
+    }
 
-      if (!data || data.length === 0) {
-        return null;
+    async function fetchBankContextByRunId(runId) {
+      const url =
+        `${SUPABASE_URL}/rest/v1/${BANK_CONTEXT_TABLE}` +
+        `?select=run_id,created_at,bank_name,benchmark_type,benchmark_rate_percent,benchmark_rate_status,confidence_level,source_quality,bank_search_summary,source_notes,source_urls,calculation_usage_status` +
+        `&run_id=eq.${encodeURIComponent(runId)}` +
+        `&limit=1`;
+
+      const response = await fetch(url, { method: "GET", headers: getSupabaseHeaders() });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Supabase bank context error ${response.status}: ${errorText}`);
       }
 
-      return data[0];
+      const data = await response.json();
+      return data?.[0] || null;
     }
 
     async function fetchDashboardData() {
       const latestRunId = await fetchLatestRunId();
 
       if (!latestRunId) {
-        return {
-          runId: null,
-          observations: [],
-          context: null,
-          propertySource: null
-        };
+        return { runId: null, observations: [], context: null, propertySource: null, bankContext: null };
       }
 
-      const [observations, context, propertySource] = await Promise.all([
+      const [observations, context, propertySource, bankContext] = await Promise.all([
         fetchObservationsByRunId(latestRunId),
         fetchContextByRunId(latestRunId),
-        fetchPropertySourceByRunId(latestRunId)
+        fetchPropertySourceByRunId(latestRunId),
+        fetchBankContextByRunId(latestRunId)
       ]);
 
-      return {
-        runId: latestRunId,
-        observations,
-        context,
-        propertySource
-      };
+      return { runId: latestRunId, observations, context, propertySource, bankContext };
     }
 
     function renderInvestmentTable(data) {
@@ -802,150 +707,92 @@
     }
 
     function renderMacroContext(context) {
-      const confidenceLevel = document.getElementById("confidence-level");
-      const dataQualityScore = document.getElementById("data-quality-score");
-      const financialStabilityScore = document.getElementById("financial-stability-score");
-      const proxyLeiScore = document.getElementById("proxy-lei-score");
+      document.getElementById("confidence-level").innerHTML = formatQualityTag(context?.confidence_level || "LOW");
+      document.getElementById("data-quality-score").innerHTML = formatQualityTag(context?.data_quality_score || "LOW");
+      document.getElementById("financial-stability-score").textContent = context?.financial_stability_score ?? "N/A";
+      document.getElementById("proxy-lei-score").textContent = context?.proxy_lei_score ?? "N/A";
 
-      const macroRegime = document.getElementById("macro-regime");
-      const marketPulse = document.getElementById("market-pulse");
-      const riskSummary = document.getElementById("risk-summary");
-      const macroDataStatusBox = document.getElementById("macro-data-status-box");
-      const sourceNotes = document.getElementById("source-notes");
-      const scoringExplanation = document.getElementById("scoring-explanation");
+      document.getElementById("macro-regime").textContent = context?.macro_regime || "No macro regime available.";
+      document.getElementById("market-pulse").textContent = context?.market_pulse || "No market pulse available.";
+      document.getElementById("risk-summary").textContent = context?.risk_summary || "No risk summary available.";
 
-      const propertyDataStatus = document.getElementById("property-data-status");
-      const rentalDataStatus = document.getElementById("rental-data-status");
-      const macroDataStatus = document.getElementById("macro-data-status");
-      const bankSourceNote = document.getElementById("bank-source-note");
+      document.getElementById("macro-data-status-box").textContent =
+        `Property data: ${context?.property_data_status || "N/A"}\n` +
+        `Rental data: ${context?.rental_data_status || "N/A"}\n` +
+        `Macro data: ${context?.macro_data_status || "N/A"}`;
 
-      const dldSourceLink1 = document.getElementById("dld-source-link-1");
-      const dldSourceLink2 = document.getElementById("dld-source-link-2");
-      const pmiSourceLink = document.getElementById("pmi-source-link");
-      const dfmgiSourceLink = document.getElementById("dfmgi-source-link");
+      document.getElementById("source-notes").textContent = context?.source_notes || "No source notes available.";
+      document.getElementById("scoring-explanation").textContent = context?.scoring_explanation || "No scoring explanation available.";
 
-      if (!context) {
-        confidenceLevel.innerHTML = formatQualityTag("LOW");
-        dataQualityScore.innerHTML = formatQualityTag("LOW");
-        financialStabilityScore.textContent = "N/A";
-        proxyLeiScore.textContent = "N/A";
+      document.getElementById("property-data-status").textContent = context?.property_data_status || "N/A";
+      document.getElementById("rental-data-status").textContent = context?.rental_data_status || "N/A";
+      document.getElementById("macro-data-status").textContent = context?.macro_data_status || "N/A";
+      document.getElementById("bank-source-note").textContent = context?.bank_source_note || "N/A";
 
-        macroRegime.textContent = "No run context found for latest run_id.";
-        marketPulse.textContent = "No dynamic market pulse available.";
-        riskSummary.textContent = "No dynamic risk summary available.";
-        macroDataStatusBox.textContent = "Context row missing. Check n8n agent_run_context branch.";
-        sourceNotes.textContent = "No dynamic source notes available.";
-        scoringExplanation.textContent = "No dynamic scoring explanation available.";
-
-        propertyDataStatus.textContent = "Unknown";
-        rentalDataStatus.textContent = "Unknown";
-        macroDataStatus.textContent = "Unknown";
-        bankSourceNote.textContent = "Unknown";
-
-        return;
+      if (context?.dld_source_url) {
+        document.getElementById("dld-source-link-1").href = context.dld_source_url;
+        document.getElementById("dld-source-link-2").href = context.dld_source_url;
       }
 
-      confidenceLevel.innerHTML = formatQualityTag(context.confidence_level || "LOW");
-      dataQualityScore.innerHTML = formatQualityTag(context.data_quality_score || "LOW");
-      financialStabilityScore.textContent = context.financial_stability_score ?? "N/A";
-      proxyLeiScore.textContent = context.proxy_lei_score ?? "N/A";
-
-      macroRegime.textContent = context.macro_regime || "No macro regime available.";
-      marketPulse.textContent = context.market_pulse || "No market pulse available.";
-      riskSummary.textContent = context.risk_summary || "No risk summary available.";
-
-      macroDataStatusBox.textContent =
-        `Property data: ${context.property_data_status || "N/A"}\n` +
-        `Rental data: ${context.rental_data_status || "N/A"}\n` +
-        `Macro data: ${context.macro_data_status || "N/A"}`;
-
-      sourceNotes.textContent = context.source_notes || "No source notes available.";
-      scoringExplanation.textContent = context.scoring_explanation || "No scoring explanation available.";
-
-      propertyDataStatus.textContent = context.property_data_status || "N/A";
-      rentalDataStatus.textContent = context.rental_data_status || "N/A";
-      macroDataStatus.textContent = context.macro_data_status || "N/A";
-      bankSourceNote.textContent = context.bank_source_note || "N/A";
-
-      if (context.dld_source_url) {
-        dldSourceLink1.href = context.dld_source_url;
-        dldSourceLink2.href = context.dld_source_url;
-      }
-
-      if (context.pmi_source_url) {
-        pmiSourceLink.href = context.pmi_source_url;
-      }
-
-      if (context.dfmgi_source_url) {
-        dfmgiSourceLink.href = context.dfmgi_source_url;
-      }
+      if (context?.pmi_source_url) document.getElementById("pmi-source-link").href = context.pmi_source_url;
+      if (context?.dfmgi_source_url) document.getElementById("dfmgi-source-link").href = context.dfmgi_source_url;
     }
 
     function renderPropertySourceContext(propertySource) {
-      const propertySourceQuality = document.getElementById("property-source-quality");
-      const propertySourceConfidence = document.getElementById("property-source-confidence");
-      const propertySourceType = document.getElementById("property-source-type");
-      const towerScope = document.getElementById("tower-scope");
+      document.getElementById("property-source-quality").innerHTML = formatQualityTag(propertySource?.source_quality || "LOW");
+      document.getElementById("property-source-confidence").innerHTML = formatQualityTag(propertySource?.confidence_level || "LOW");
 
-      const transactionSourceStatus = document.getElementById("transaction-source-status");
-      const rentalSourceStatus = document.getElementById("rental-source-status");
-      const listingSourceStatus = document.getElementById("listing-source-status");
+      document.getElementById("property-source-type").textContent = propertySource?.source_type || "N/A";
+      document.getElementById("tower-scope").textContent = propertySource?.tower_scope || "N/A";
 
-      const propertySearchSummary = document.getElementById("property-search-summary");
-      const propertySourceNotes = document.getElementById("property-source-notes");
-      const propertySourceUrls = document.getElementById("property-source-urls");
-      const listingDataStatus = document.getElementById("listing-data-status");
+      document.getElementById("transaction-source-status").textContent = propertySource?.transaction_source_status || "N/A";
+      document.getElementById("rental-source-status").textContent = propertySource?.rental_source_status || "N/A";
+      document.getElementById("listing-source-status").textContent = propertySource?.listing_source_status || "N/A";
+
+      document.getElementById("property-search-summary").textContent = propertySource?.property_search_summary || "No property search summary available.";
+      document.getElementById("property-source-notes").textContent = propertySource?.source_notes || "No property source notes available.";
+      document.getElementById("property-source-urls").textContent = propertySource?.source_urls || "No property source URLs available.";
+      document.getElementById("listing-data-status").textContent = propertySource?.listing_source_status || "N/A";
+    }
+
+    function renderBankContext(bankContext) {
+      document.getElementById("bank-benchmark-rate").textContent =
+        bankContext?.benchmark_rate_percent !== null && bankContext?.benchmark_rate_percent !== undefined
+          ? `${Number(bankContext.benchmark_rate_percent).toFixed(2)}%`
+          : "N/A";
+
+      document.getElementById("bank-source-quality").innerHTML = formatQualityTag(bankContext?.source_quality || "LOW");
+      document.getElementById("bank-name").textContent = bankContext?.bank_name || "N/A";
+      document.getElementById("benchmark-type").textContent = bankContext?.benchmark_type || "N/A";
+      document.getElementById("bank-confidence").innerHTML = formatQualityTag(bankContext?.confidence_level || "LOW");
+
+      document.getElementById("benchmark-rate-status").textContent = bankContext?.benchmark_rate_status || "No bank benchmark status available.";
+      document.getElementById("calculation-usage-status").textContent = bankContext?.calculation_usage_status || "No calculation usage status available.";
+      document.getElementById("bank-search-summary").textContent = bankContext?.bank_search_summary || "No bank search summary available.";
+      document.getElementById("bank-source-notes").textContent = bankContext?.source_notes || "No bank source notes available.";
+      document.getElementById("bank-source-urls").textContent = bankContext?.source_urls || "No bank source URLs available.";
+    }
+
+    function renderReliabilityWarning(propertySource, bankContext) {
       const reliabilityWarning = document.getElementById("decision-reliability-warning");
 
-      if (!propertySource) {
-        propertySourceQuality.innerHTML = formatQualityTag("LOW");
-        propertySourceConfidence.innerHTML = formatQualityTag("LOW");
-        propertySourceType.textContent = "N/A";
-        towerScope.textContent = "N/A";
-
-        transactionSourceStatus.textContent = "No property source context found.";
-        rentalSourceStatus.textContent = "No property source context found.";
-        listingSourceStatus.textContent = "No property source context found.";
-
-        propertySearchSummary.textContent = "No property source summary available.";
-        propertySourceNotes.textContent = "No property source notes available.";
-        propertySourceUrls.textContent = "No property source URLs available.";
-        listingDataStatus.textContent = "Unknown";
-
-        reliabilityWarning.className = "danger-box";
-        reliabilityWarning.innerHTML =
-          "<strong>Decision reliability warning:</strong> Property source context is missing. Do not treat ranking as investment-ready.";
-        return;
-      }
-
-      propertySourceQuality.innerHTML = formatQualityTag(propertySource.source_quality || "LOW");
-      propertySourceConfidence.innerHTML = formatQualityTag(propertySource.confidence_level || "LOW");
-
-      propertySourceType.textContent = propertySource.source_type || "N/A";
-      towerScope.textContent = propertySource.tower_scope || "N/A";
-
-      transactionSourceStatus.textContent = propertySource.transaction_source_status || "N/A";
-      rentalSourceStatus.textContent = propertySource.rental_source_status || "N/A";
-      listingSourceStatus.textContent = propertySource.listing_source_status || "N/A";
-
-      propertySearchSummary.textContent = propertySource.property_search_summary || "No property search summary available.";
-      propertySourceNotes.textContent = propertySource.source_notes || "No property source notes available.";
-      propertySourceUrls.textContent = propertySource.source_urls || "No property source URLs available.";
-
-      listingDataStatus.textContent = propertySource.listing_source_status || "N/A";
-
-      const sourceQuality = String(propertySource.source_quality || "LOW").toUpperCase();
-      const transactionStatus = String(propertySource.transaction_source_status || "").toLowerCase();
-      const rentalStatus = String(propertySource.rental_source_status || "").toLowerCase();
+      const propertySourceQuality = String(propertySource?.source_quality || "LOW").toUpperCase();
+      const transactionStatus = String(propertySource?.transaction_source_status || "").toLowerCase();
+      const rentalStatus = String(propertySource?.rental_source_status || "").toLowerCase();
+      const bankSourceQuality = String(bankContext?.source_quality || "LOW").toUpperCase();
 
       const transactionMissing = transactionStatus.includes("not found");
       const rentalMissing = rentalStatus.includes("not found");
 
-      if (sourceQuality === "HIGH" && !transactionMissing && !rentalMissing) {
+      if (propertySourceQuality === "HIGH" && !transactionMissing && !rentalMissing && bankSourceQuality === "HIGH") {
         reliabilityWarning.className = "ok-box";
         reliabilityWarning.innerHTML =
-          "<strong>Decision reliability:</strong> Property/rental source quality is high. Ranking can be interpreted with higher confidence, subject to normal investment review.";
-      } else if (sourceQuality === "MEDIUM" || sourceQuality === "LOW-MEDIUM") {
+          "<strong>Decision reliability:</strong> Bank benchmark evidence is strong and property/rental source quality is high. Ranking can be interpreted with higher confidence, subject to normal investment review.";
+      } else if (bankSourceQuality === "HIGH" && propertySourceQuality === "LOW") {
+        reliabilityWarning.className = "danger-box";
+        reliabilityWarning.innerHTML =
+          "<strong>Decision reliability warning:</strong> Bank benchmark evidence is strong, but property/rental source quality is LOW. Current prices and rents are static/manual prototype inputs. Do not treat BUY/WATCH results as investment-ready until DLD sale/rental data or verified tower-level evidence is connected.";
+      } else if (propertySourceQuality === "MEDIUM" || propertySourceQuality === "LOW-MEDIUM") {
         reliabilityWarning.className = "warning-box";
         reliabilityWarning.innerHTML =
           "<strong>Decision reliability warning:</strong> Property/rental evidence is partial. Use ranking for screening only; validate transaction and rental data before negotiation.";
@@ -964,6 +811,7 @@
       const observations = payload.observations || [];
       const context = payload.context || null;
       const propertySource = payload.propertySource || null;
+      const bankContext = payload.bankContext || null;
 
       if (!observations || observations.length === 0) {
         status.textContent = "Connected to Supabase, but no latest run rows found.";
@@ -972,6 +820,8 @@
         renderInvestmentTable([]);
         renderMacroContext(context);
         renderPropertySourceContext(propertySource);
+        renderBankContext(bankContext);
+        renderReliabilityWarning(propertySource, bankContext);
         return;
       }
 
@@ -985,6 +835,8 @@
       renderInvestmentTable(observations);
       renderMacroContext(context);
       renderPropertySourceContext(propertySource);
+      renderBankContext(bankContext);
+      renderReliabilityWarning(propertySource, bankContext);
     }
 
     async function main() {
