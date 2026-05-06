@@ -187,8 +187,8 @@
     }
 
     .form-field input[readonly] {
-      background: #f3f6f9;
-      color: var(--muted);
+      background: #f1f4f7;
+      color: #3a4653;
       cursor: not-allowed;
     }
 
@@ -459,22 +459,6 @@
     const DEFAULT_MAX_BUDGET_AED = 1600000;
     const DEFAULT_PURCHASE_COST_PERCENT = 6.6;
 
-    const DEAL_ASK_MIN = 500000;
-    const DEAL_ASK_MAX = 2000000;
-    const DEAL_ASK_STEP = 100000;
-
-    const DEAL_RENT_MIN = 60000;
-    const DEAL_RENT_MAX = 140000;
-    const DEAL_RENT_STEP = 5000;
-
-    const DEAL_SERVICE_CHARGE_MIN = 12;
-    const DEAL_SERVICE_CHARGE_MAX = 20;
-    const DEAL_SERVICE_CHARGE_STEP = 0.5;
-
-    const DEAL_REQUIRED_YIELD_MIN = 5;
-    const DEAL_REQUIRED_YIELD_MAX = 8;
-    const DEAL_REQUIRED_YIELD_STEP = 0.25;
-
     const AED = new Intl.NumberFormat("en-AE", { maximumFractionDigits: 0 });
     const NUM = new Intl.NumberFormat("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -539,56 +523,6 @@
       return `${safe(row.tower)} ${safe(row.unit_type)}`.trim();
     }
 
-    function decimalPlaces(step) {
-      const s = String(step);
-      return s.includes(".") ? s.split(".")[1].length : 0;
-    }
-
-    function clampToStep(value, min, max, step) {
-      const raw = num(value, min);
-      const clamped = Math.min(max, Math.max(min, raw));
-      const stepped = Math.round((clamped - min) / step) * step + min;
-      return Number(stepped.toFixed(decimalPlaces(step)));
-    }
-
-    function getRangeOptions(min, max, step, selected, formatter) {
-      let html = "";
-      const selectedValue = clampToStep(selected, min, max, step);
-      const dp = decimalPlaces(step);
-
-      for (let v = min; v <= max + step / 10; v += step) {
-        const value = Number(v.toFixed(dp));
-        const label = formatter ? formatter(value) : value;
-        html += `<option value="${value}" ${value === selectedValue ? "selected" : ""}>${label}</option>`;
-      }
-
-      return html;
-    }
-
-    function getAedOptions(min, max, step, selected) {
-      return getRangeOptions(min, max, step, selected, (v) => `AED ${money(v)}`);
-    }
-
-    function getServiceChargeOptions(selected) {
-      return getRangeOptions(
-        DEAL_SERVICE_CHARGE_MIN,
-        DEAL_SERVICE_CHARGE_MAX,
-        DEAL_SERVICE_CHARGE_STEP,
-        selected,
-        (v) => `${v.toFixed(1)}`
-      );
-    }
-
-    function getRequiredYieldOptions(selected) {
-      return getRangeOptions(
-        DEAL_REQUIRED_YIELD_MIN,
-        DEAL_REQUIRED_YIELD_MAX,
-        DEAL_REQUIRED_YIELD_STEP,
-        selected,
-        (v) => `${v.toFixed(2)}%`
-      );
-    }
-
     function pill(text, tone = null) {
       const t = String(text || "").toUpperCase();
       let cls = tone;
@@ -615,12 +549,87 @@
       return "Review";
     }
 
-    function getBudgetOptions(selected) {
-      let html = "";
-      for (let v = 500000; v <= 2000000; v += 100000) {
-        html += `<option value="${v}" ${v === selected ? "selected" : ""}>AED ${money(v)}</option>`;
+    function optionListFromRange({
+      start,
+      end,
+      step,
+      selected,
+      formatter,
+      decimals = 0,
+      includeExactSelected = true
+    }) {
+      const values = [];
+      for (let v = start; v <= end + 1e-9; v += step) {
+        values.push(Number(v.toFixed(decimals)));
       }
-      return html;
+
+      const selectedNumber = Number(Number(selected).toFixed(decimals));
+      const hasSelected = values.some(v => Math.abs(v - selectedNumber) < 1e-9);
+
+      if (includeExactSelected && Number.isFinite(selectedNumber) && selectedNumber > 0 && !hasSelected) {
+        values.push(selectedNumber);
+        values.sort((a, b) => a - b);
+      }
+
+      return values.map(v => {
+        const selectedAttr = Math.abs(v - selectedNumber) < 1e-9 ? "selected" : "";
+        return `<option value="${v}" ${selectedAttr}>${formatter(v)}</option>`;
+      }).join("");
+    }
+
+    function getBudgetOptions(selected) {
+      return optionListFromRange({
+        start: 500000,
+        end: 2000000,
+        step: 100000,
+        selected,
+        formatter: v => `AED ${money(v)}`,
+        decimals: 0
+      });
+    }
+
+    function getOwnerAskOptions(selected) {
+      return optionListFromRange({
+        start: 500000,
+        end: 2000000,
+        step: 100000,
+        selected,
+        formatter: v => `AED ${money(v)}`,
+        decimals: 0
+      });
+    }
+
+    function getAnnualRentOptions(selected) {
+      return optionListFromRange({
+        start: 60000,
+        end: 140000,
+        step: 5000,
+        selected,
+        formatter: v => `AED ${money(v)}`,
+        decimals: 0
+      });
+    }
+
+    function getServiceChargeOptions(selected) {
+      return optionListFromRange({
+        start: 12,
+        end: 20,
+        step: 0.5,
+        selected,
+        formatter: v => `${pct(v)} AED/sqft/year`,
+        decimals: 2
+      });
+    }
+
+    function getRequiredYieldOptions(selected) {
+      return optionListFromRange({
+        start: 5,
+        end: 8,
+        step: 0.25,
+        selected,
+        formatter: v => `${pct(v)}%`,
+        decimals: 2
+      });
     }
 
     function sortByNetYield(rows) {
@@ -1320,38 +1329,12 @@ Target price is a screening entry-price discipline. Final action still needs uni
       if (!row) return;
 
       state.dealTest.selectedIndex = index;
-
-      state.dealTest.ownerAsk = clampToStep(
-        row.asking_price_aed,
-        DEAL_ASK_MIN,
-        DEAL_ASK_MAX,
-        DEAL_ASK_STEP
-      );
-
+      state.dealTest.ownerAsk = num(row.asking_price_aed);
       state.dealTest.areaSqft = num(row.area_sqft);
-
       state.dealTest.purchaseCostPercent = DEFAULT_PURCHASE_COST_PERCENT;
-
-      state.dealTest.serviceChargeAedSqftYear = clampToStep(
-        row.service_charge_aed_sqft_year,
-        DEAL_SERVICE_CHARGE_MIN,
-        DEAL_SERVICE_CHARGE_MAX,
-        DEAL_SERVICE_CHARGE_STEP
-      );
-
-      state.dealTest.annualRentAed = clampToStep(
-        row.estimated_annual_rent_aed,
-        DEAL_RENT_MIN,
-        DEAL_RENT_MAX,
-        DEAL_RENT_STEP
-      );
-
-      state.dealTest.requiredNetYield = clampToStep(
-        row.risk_adjusted_target_yield_percent || 6.75,
-        DEAL_REQUIRED_YIELD_MIN,
-        DEAL_REQUIRED_YIELD_MAX,
-        DEAL_REQUIRED_YIELD_STEP
-      );
+      state.dealTest.serviceChargeAedSqftYear = num(row.service_charge_aed_sqft_year);
+      state.dealTest.annualRentAed = num(row.estimated_annual_rent_aed);
+      state.dealTest.requiredNetYield = num(row.risk_adjusted_target_yield_percent, 6.75);
     }
 
     function getDealCalcValues() {
@@ -1400,7 +1383,7 @@ Target price is a screening entry-price discipline. Final action still needs uni
 
       return `
         <div class="note">
-          Select a tower to pull real model values. Controlled dropdowns are used to avoid false precision. Area is locked from the selected DB row.
+          Select a tower to pull model values. Change price, rent, service charge or required yield using controlled dropdowns.
         </div>
 
         <div class="form-grid">
@@ -1415,28 +1398,22 @@ Target price is a screening entry-price discipline. Final action still needs uni
 
           <div class="form-field">
             <label for="dealOwnerAskInput">Owner asking price, AED</label>
-            <select id="dealOwnerAskInput">
-              ${getAedOptions(DEAL_ASK_MIN, DEAL_ASK_MAX, DEAL_ASK_STEP, c.ask)}
-            </select>
+            <select id="dealOwnerAskInput">${getOwnerAskOptions(c.ask)}</select>
           </div>
 
           <div class="form-field">
             <label for="dealAreaInput">Area, sqft</label>
-            <input id="dealAreaInput" type="text" value="${NUM.format(c.area)}" readonly />
+            <input id="dealAreaInput" type="text" value="${pct(c.area)}" readonly />
           </div>
 
           <div class="form-field">
             <label for="dealAnnualRentInput">Estimated annual rent, AED/year</label>
-            <select id="dealAnnualRentInput">
-              ${getAedOptions(DEAL_RENT_MIN, DEAL_RENT_MAX, DEAL_RENT_STEP, c.annualRent)}
-            </select>
+            <select id="dealAnnualRentInput">${getAnnualRentOptions(c.annualRent)}</select>
           </div>
 
           <div class="form-field">
             <label for="dealServiceChargeInput">Service charge, AED/sqft/year</label>
-            <select id="dealServiceChargeInput">
-              ${getServiceChargeOptions(c.serviceCharge)}
-            </select>
+            <select id="dealServiceChargeInput">${getServiceChargeOptions(c.serviceCharge)}</select>
           </div>
 
           <div class="form-field">
@@ -1446,9 +1423,7 @@ Target price is a screening entry-price discipline. Final action still needs uni
 
           <div class="form-field">
             <label for="dealRequiredYieldInput">Required net yield, %</label>
-            <select id="dealRequiredYieldInput">
-              ${getRequiredYieldOptions(c.requiredYield)}
-            </select>
+            <select id="dealRequiredYieldInput">${getRequiredYieldOptions(c.requiredYield)}</select>
           </div>
         </div>
 
@@ -1456,7 +1431,7 @@ Target price is a screening entry-price discipline. Final action still needs uni
           <div class="metric">
             <div class="metric-label">Selected model row</div>
             <div class="metric-value">${escapeHtml(rowName(selected))}</div>
-            <div class="metric-small">Pre-filled from DB view. Dropdown values use controlled steps.</div>
+            <div class="metric-small">Pre-filled from DB view</div>
           </div>
 
           <div class="metric">
@@ -1505,34 +1480,27 @@ Target price is a screening entry-price discipline. Final action still needs uni
         <details class="inline-detail">
           <summary>Linked calculation logic</summary>
           <div class="details-box">When tower changes:
-All inputs reset from the DB view. Dropdown fields are rounded to the nearest allowed controlled step.
+All inputs reset from the DB view.
 
 Owner asking price:
-Dropdown from AED 500,000 to AED 2,000,000 in AED 100,000 steps.
+Controlled dropdown from AED 500k to AED 2.0m in AED 100k steps. If the model value is not on the step, the exact model value is also included.
 
 Area:
-Locked from the selected tower/unit row and cannot be manually changed.
+Read-only. Comes only from selected tower/unit.
 
-Estimated annual rent:
-Dropdown from AED 60,000 to AED 140,000 in AED 5,000 steps.
+Annual rent:
+Controlled dropdown from AED 60k to AED 140k in AED 5k steps. If the model value is not on the step, the exact model value is also included.
 
 Service charge:
-Dropdown from AED 12.0 to AED 20.0 per sqft/year in 0.5 steps.
+Controlled dropdown from AED 12 to AED 20/sqft/year in AED 0.5 steps. If the model value is not on the step, the exact model value is also included.
 
-Required net yield:
-Dropdown from 5.00% to 8.00% in 0.25% steps.
+Required yield:
+Controlled dropdown from 5.00% to 8.00% in 0.25% steps. If the model value is not on the step, the exact model value is also included.
 
-When asking price changes:
-Expected yield, purchase fees, all-in cash, target price gap and required cut update.
+Purchase-cost %:
+Editable because actual transaction fees may vary.
 
-When annual rent or service charge changes:
-Annual service charge, net rent, expected yield, target price and required cut update.
-
-When purchase-cost % changes:
-Purchase fees and all-in cash update. Yield is not changed because purchase costs are acquisition cash impact, not rent economics.
-
-When required net yield changes:
-Target buy price and required cut update. Owner asking price is not overwritten because it represents the seller's price.</div>
+Owner asking price is not overwritten by required yield. Target buy price is recalculated instead, because seller ask and target entry price are different things.</div>
         </details>
       `;
     }
@@ -1745,7 +1713,7 @@ Deal test = scenario only.</div>
 
       if (dealOwnerAskInput) {
         dealOwnerAskInput.addEventListener("change", (e) => {
-          state.dealTest.ownerAsk = num(e.target.value);
+          state.dealTest.ownerAsk = e.target.value;
           renderDashboard();
         });
       }
@@ -1759,21 +1727,21 @@ Deal test = scenario only.</div>
 
       if (dealServiceChargeInput) {
         dealServiceChargeInput.addEventListener("change", (e) => {
-          state.dealTest.serviceChargeAedSqftYear = num(e.target.value);
+          state.dealTest.serviceChargeAedSqftYear = e.target.value;
           renderDashboard();
         });
       }
 
       if (dealAnnualRentInput) {
         dealAnnualRentInput.addEventListener("change", (e) => {
-          state.dealTest.annualRentAed = num(e.target.value);
+          state.dealTest.annualRentAed = e.target.value;
           renderDashboard();
         });
       }
 
       if (dealRequiredYieldInput) {
         dealRequiredYieldInput.addEventListener("change", (e) => {
-          state.dealTest.requiredNetYield = num(e.target.value);
+          state.dealTest.requiredNetYield = e.target.value;
           renderDashboard();
         });
       }
