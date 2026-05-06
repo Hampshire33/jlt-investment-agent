@@ -1,0 +1,86 @@
+JLT INVESTMENT AGENT — FRONTEND HANDOVER
+
+Continue from the user’s last stable `index.html`, not from the later over-inferred version.
+
+Frontend stack:
+- Static GitHub Pages.
+- Vanilla HTML/CSS/JS only.
+- Supabase REST endpoint:
+  https://cndyxfprqpfkzypxhrxl.supabase.co/rest/v1
+- Publishable key:
+  sb_publishable_VOIytNYEBG7FyZzQqqW66w_nJWK37TC
+
+Main frontend data source:
+- public.dashboard_decision_watchlist_v
+
+Context sources:
+- public.agent_run_context
+- public.bank_benchmark_context
+
+Important frontend rule:
+- Do not classify `REVIEW_REQUIRED` rows as `Screened`.
+- Only `readiness_status = INTERIM_SCREENED` or `DECISION_READY` should appear in the Price Target Watchlist and Manual Deal Test Calculator.
+- `REVIEW_REQUIRED` rows should appear only as review-required / QA rows.
+
+Current frontend sections:
+1. Active Investment Limits
+2. Executive Decision
+3. Market / Macro Overlay + Bank Benchmark
+4. Price Target Watchlist
+5. Manual Deal Test Calculator
+6. Evidence Coverage & Data Actions
+7. Technical Audit
+
+Default open:
+- Active Investment Limits
+- Executive Decision
+- Market / Macro Overlay + Bank Benchmark
+- Price Target Watchlist
+- Manual Deal Test Calculator
+
+Default collapsed:
+- Evidence Coverage & Data Actions
+- Technical Audit
+
+Active Investment Limits:
+- Min cash budget dropdown: AED 500k to AED 2.0m, step AED 100k.
+- Max cash budget dropdown: AED 500k to AED 2.0m, step AED 100k.
+- Default: min AED 500k, max AED 1.6m.
+- If min > max, swap automatically.
+- Rows outside range are monitored, not rejected.
+
+Manual Deal Test Calculator required behavior:
+- Tower/unit dropdown loads values from selected row.
+- Owner asking price dropdown: AED 500k to AED 2.0m, step AED 50k.
+- Area is read-only and comes from selected tower/unit.
+- Annual rent dropdown: AED 60k to AED 140k, step AED 5k.
+- Service charge dropdown: AED 12 to AED 20/sqft/year, step 0.5.
+- Required net yield dropdown: 5.00% to 8.00%, step 0.25%.
+- Purchase-cost % remains editable number input.
+- If a model value is not on a dropdown step, include the exact value in the dropdown.
+- Owner asking price must not be overwritten by required yield.
+- Target buy price recalculates from required yield.
+- Purchase-cost % affects only fees and all-in cash, not net yield.
+
+Frontend formulas:
+- Annual service charge = area_sqft × service_charge_aed_sqft_year.
+- Net rent = estimated_annual_rent_aed − annual service charge.
+- Expected net yield = net rent ÷ owner asking price × 100.
+- Target buy price = net rent ÷ required net yield.
+- Required cut = owner asking price − target buy price.
+- Required cut % = required cut ÷ owner asking price × 100.
+- Purchase fees = owner asking price × purchase-cost %.
+- All-in cash need = owner asking price + purchase fees.
+
+Fallback functions to keep:
+- If `risk_adjusted_target_price_aed` is null/0, calculate it using net rent / target yield.
+- If `risk_adjusted_required_cut_aed` is null/0, calculate asking price − target price.
+- If `risk_adjusted_required_cut_percent` is null/0, calculate required cut / asking price.
+- But fallback calculations must not promote REVIEW_REQUIRED rows to Screened.
+
+Avoid:
+- Do not use permissive readiness inference.
+- Do not classify rows as screened just because they have price/rent/service charge.
+- Do not allow old 5-row REVIEW_REQUIRED dataset to appear as investable evidence.
+- Do not rewrite the whole layout unless specifically asked.
+- When user asks for HTML, provide full copy/paste `index.html`, not code fragments.
