@@ -1,0 +1,928 @@
+{
+  "name": "JLT Investment Agent v0",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -496,
+        48
+      ],
+      "id": "b016ea75-4b34-4121-9dde-92abf92dfec9",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst runId = now.toISOString();\n\nreturn [\n  {\n    json: {\n      run_id: runId,\n      run_date: runId\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -304,
+        48
+      ],
+      "id": "cc397e3c-d7ae-4f37-aabb-e9a98a27a420",
+      "name": "Create Run Metadata"
+    },
+    {
+      "parameters": {
+        "jsCode": "const runId = $('Create Run Metadata').first().json.run_id;\n\n// -----------------------------\n// 1) Read macro / Perplexity input\n// -----------------------------\nconst inputItems = $input.all();\nconst rawItems = inputItems.map(item => item.json);\nconst rawText = JSON.stringify(rawItems, null, 2);\nconst lowerText = rawText.toLowerCase();\n\nlet marketPulse = \"\";\n\ntry {\n  marketPulse = rawItems\n    .map(item => {\n      if (item?.choices?.[0]?.message?.content) return item.choices[0].message.content;\n      if (item?.message?.content) return item.message.content;\n      if (item?.content) return item.content;\n      return \"\";\n    })\n    .filter(Boolean)\n    .join(\"\\n\\n\");\n} catch (error) {\n  marketPulse = \"\";\n}\n\nif (!marketPulse) {\n  marketPulse =\n    \"Macro branch returned no usable market-pulse text. Treat macro overlay as incomplete for this run.\";\n}\n\n// -----------------------------\n// 2) Extract source URLs\n// -----------------------------\nlet sourceUrls = [];\n\ntry {\n  for (const item of rawItems) {\n    if (Array.isArray(item?.citations)) {\n      sourceUrls.push(...item.citations);\n    }\n\n    if (Array.isArray(item?.search_results)) {\n      for (const result of item.search_results) {\n        if (result?.url) sourceUrls.push(result.url);\n      }\n    }\n  }\n} catch (error) {\n  sourceUrls = [];\n}\n\nsourceUrls = [...new Set(sourceUrls)].filter(Boolean);\n\nconst sourceUrlText = sourceUrls.length > 0\n  ? sourceUrls.slice(0, 8).map((url, index) => `${index + 1}. ${url}`).join(\"\\n\")\n  : \"No macro source URLs returned.\";\n\n// -----------------------------\n// 3) Read latest calculated property rows from workflow\n// -----------------------------\nlet calculatedRows = [];\n\ntry {\n  calculatedRows = $('Calculate yields').all().map(item => item.json);\n} catch (error) {\n  try {\n    calculatedRows = $('Prepare Property Inputs').all().map(item => item.json);\n  } catch (innerError) {\n    calculatedRows = [];\n  }\n}\n\nfunction isDealTest(row) {\n  const sourceType = String(row.input_source_type || row.source_type || \"\").toLowerCase();\n  return sourceType.includes(\"deal_test\");\n}\n\nfunction isEvidenceSupported(row) {\n  if (isDealTest(row)) return false;\n\n  const sourceType = String(row.input_source_type || row.source_type || \"\").toLowerCase();\n  const confidence = String(row.input_data_confidence || row.data_confidence || \"\").toUpperCase();\n\n  return sourceType.includes(\"evidence\") || confidence === \"HIGH\";\n}\n\nconst coreRows = calculatedRows.filter(row => !isDealTest(row));\nconst dealTestRows = calculatedRows.filter(isDealTest);\nconst evidenceSupportedRows = coreRows.filter(isEvidenceSupported);\nconst manualRows = coreRows.filter(row => !isEvidenceSupported(row));\n\nconst coreCount = coreRows.length;\nconst testCount = dealTestRows.length;\nconst evidenceCount = evidenceSupportedRows.length;\nconst manualCount = manualRows.length;\n\nconst evidenceTowerNames = evidenceSupportedRows\n  .map(row => row.tower)\n  .filter(Boolean)\n  .join(\", \") || \"None\";\n\nconst manualTowerNames = manualRows\n  .map(row => row.tower)\n  .filter(Boolean)\n  .join(\", \") || \"None\";\n\n// -----------------------------\n// 4) Read bank benchmark context, if available\n// -----------------------------\nlet bankContext = {};\ntry {\n  bankContext = $('Create Bank Benchmark Context').first().json;\n} catch (error) {\n  bankContext = {};\n}\n\nconst bankRate =\n  bankContext?.benchmark_rate_percent !== undefined && bankContext?.benchmark_rate_percent !== null\n    ? Number(bankContext.benchmark_rate_percent)\n    : 3.5;\n\nconst bankQuality = bankContext?.source_quality || \"MEDIUM\";\n\nconst bankSourceNote =\n  bankQuality === \"HIGH\"\n    ? `Dedicated bank benchmark branch found HSBC UAE AED term-deposit evidence. ${bankRate.toFixed(2)}% is used in the property model. Source quality: HIGH.`\n    : `Bank benchmark retained at ${bankRate.toFixed(2)}%. Source quality: ${bankQuality}.`;\n\n// -----------------------------\n// 5) Macro scoring rules\n// -----------------------------\nlet financialStabilityScore = 0;\nlet proxyLeiScore = 0;\n\nconst hasPmiEvidence =\n  lowerText.includes(\"pmi\") ||\n  lowerText.includes(\"s&p global\") ||\n  lowerText.includes(\"purchasing managers\");\n\nconst hasExpansion =\n  lowerText.includes(\"above 50\") ||\n  lowerText.includes(\"expansion\") ||\n  lowerText.includes(\"output growth\") ||\n  lowerText.includes(\"new business\");\n\nconst hasSlowdown =\n  lowerText.includes(\"fell\") ||\n  lowerText.includes(\"slowed\") ||\n  lowerText.includes(\"weakest\") ||\n  lowerText.includes(\"moderated\") ||\n  lowerText.includes(\"curbing demand\");\n\nconst hasGeopoliticalStress =\n  lowerText.includes(\"war\") ||\n  lowerText.includes(\"geopolitical\") ||\n  lowerText.includes(\"middle east\") ||\n  lowerText.includes(\"iran\") ||\n  lowerText.includes(\"hormuz\") ||\n  lowerText.includes(\"supply-chain\") ||\n  lowerText.includes(\"supply chain\") ||\n  lowerText.includes(\"delivery times\");\n\nconst hasStrongStress =\n  lowerText.includes(\"financial stress\") ||\n  lowerText.includes(\"external support\") ||\n  lowerText.includes(\"liquidity stress\") ||\n  lowerText.includes(\"downturn\") ||\n  lowerText.includes(\"crisis\");\n\nif (hasExpansion) proxyLeiScore += 1;\nif (hasSlowdown) proxyLeiScore -= 1;\nif (hasGeopoliticalStress) proxyLeiScore -= 1;\n\nif (hasExpansion) financialStabilityScore += 1;\nif (hasGeopoliticalStress) financialStabilityScore -= 1;\nif (hasStrongStress) financialStabilityScore -= 1;\n\n// Keep scores conservative and bounded\nfinancialStabilityScore = Math.max(-3, Math.min(3, financialStabilityScore));\nproxyLeiScore = Math.max(-3, Math.min(3, proxyLeiScore));\n\n// Existing dashboard convention expects current macro to be conservative.\n// If PMI expansion and stress both exist, keep financial stability neutral.\nif (hasExpansion && hasGeopoliticalStress && !hasStrongStress) {\n  financialStabilityScore = 0;\n}\n\n// -----------------------------\n// 6) Data quality / confidence\n// -----------------------------\nlet confidenceLevel = \"LOW\";\nlet dataQualityScore = \"LOW\";\n\nif (hasPmiEvidence && sourceUrls.length > 0) {\n  confidenceLevel = \"MEDIUM\";\n  dataQualityScore = \"MEDIUM\";\n}\n\nif (\n  hasPmiEvidence &&\n  sourceUrls.some(url => String(url).toLowerCase().includes(\"pmi.spglobal\"))\n) {\n  confidenceLevel = \"MEDIUM\";\n  dataQualityScore = \"MEDIUM\";\n}\n\n// Property-source confidence is intentionally not upgraded here.\n// Property evidence is handled separately through property_evidence_log.\n\n// -----------------------------\n// 7) Dynamic context wording\n// -----------------------------\nconst evidenceStatusText =\n  coreCount > 0\n    ? `${evidenceCount}/${coreCount} core towers are evidence-supported (${evidenceTowerNames}); ${manualCount}/${coreCount} remain prototype/manual (${manualTowerNames}).`\n    : \"No core property rows were available in this run.\";\n\nconst dealTestStatusText =\n  testCount > 0\n    ? `${testCount} deal-test row(s) were included and excluded from core ranking.`\n    : \"No active deal-test rows were included in this run.\";\n\nconst propertyDataStatus =\n  `Property inputs: ${evidenceStatusText} Public DLD transaction engine is not yet connected.`;\n\nconst rentalDataStatus =\n  `Rental inputs: ${evidenceStatusText} Public DLD rental engine is not yet connected.`;\n\nconst macroDataStatus =\n  hasPmiEvidence\n    ? \"Live macro context connected via Perplexity/S&P Global PMI. Source coverage depends on returned allowed-domain results.\"\n    : \"Macro branch connected, but this run did not return strong PMI evidence.\";\n\nconst macroRegime =\n  \"Live macro context connected via Perplexity. PMI evidence is available where returned by allowed sources. Macro is used as an overlay only and does not directly override property economics.\";\n\nconst riskSummary =\n  `Macro context is live-connected and should be treated as an overlay. ` +\n  `${evidenceStatusText} ` +\n  `${dealTestStatusText} ` +\n  `Do not treat manual/prototype tower outputs as investment-ready until sale/rental evidence is connected and promoted into property_inputs.`;\n\nconst scoringExplanation =\n  `Current property verdict is calculated from asking price, rent, service charge, vacancy, entry/exit costs, IRR, bank spread, NPV, and quality score. ` +\n  `Final Score is for ranking only: 60% yield score + 40% tower quality score. ` +\n  `Hard gates remain: net yield ≥ 6.5%, IRR spread over bank ≥ +3.0%, price at or below strong-buy price, and acceptable input confidence. ` +\n  `Deal-test rows are scenario checks only and are excluded from core ranking.`;\n\nconst sourceNotes =\n  `Perplexity macro search results:\\n${sourceUrlText}\\n\\n` +\n  `Preferred hierarchy remains: Reuters, S&P Global PMI, DFM, Central Bank UAE, HSBC UAE, Dubai official sources, DLD transaction/rental data.`;\n\n// -----------------------------\n// 8) Output one context row\n// -----------------------------\nreturn [\n  {\n    json: {\n      run_id: runId,\n\n      property_rows: coreCount + testCount,\n\n      macro_regime: macroRegime,\n      market_pulse: marketPulse,\n\n      financial_stability_score: financialStabilityScore,\n      proxy_lei_score: proxyLeiScore,\n\n      data_quality_score: dataQualityScore,\n      confidence_level: confidenceLevel,\n\n      property_data_status: propertyDataStatus,\n      rental_data_status: rentalDataStatus,\n      macro_data_status: macroDataStatus,\n\n      source_notes: sourceNotes,\n      risk_summary: riskSummary,\n      scoring_explanation: scoringExplanation,\n\n      dld_source_url: \"https://dubailand.gov.ae\",\n      pmi_source_url: \"https://www.pmi.spglobal.com\",\n      dfmgi_source_url: \"https://www.dfm.ae\",\n\n      bank_source_note: bankSourceNote\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        48
+      ],
+      "id": "d31263db-586e-40e4-b698-55fd4f06f593",
+      "name": "Create Market Context"
+    },
+    {
+      "parameters": {
+        "useCustomSchema": true,
+        "tableId": "property_observations",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "tower",
+              "fieldValue": "={{ $json.tower }}"
+            },
+            {
+              "fieldId": "unit_type",
+              "fieldValue": "={{ $json.unit_type }}"
+            },
+            {
+              "fieldId": "asking_price_aed",
+              "fieldValue": "={{ $json.asking_price_aed }}"
+            },
+            {
+              "fieldId": "area_sqft",
+              "fieldValue": "={{ $json.area_sqft }}"
+            },
+            {
+              "fieldId": "estimated_annual_rent_aed",
+              "fieldValue": "={{ $json.estimated_annual_rent_aed }}"
+            },
+            {
+              "fieldId": "service_charge_aed_sqft_year",
+              "fieldValue": "={{ $json.service_charge_aed_sqft_year }}"
+            },
+            {
+              "fieldId": "gross_yield_percent",
+              "fieldValue": "={{ $json.gross_yield_percent }}"
+            },
+            {
+              "fieldId": "estimated_service_charge_aed_year",
+              "fieldValue": "={{ $json.estimated_service_charge_aed_year }}"
+            },
+            {
+              "fieldId": "net_rent_aed_year",
+              "fieldValue": "={{ $json.net_rent_aed_year }}"
+            },
+            {
+              "fieldId": "net_yield_percent",
+              "fieldValue": "={{ $json.net_yield_percent }}"
+            },
+            {
+              "fieldId": "decision",
+              "fieldValue": "={{ $json.decision }}"
+            },
+            {
+              "fieldId": "decision_reason",
+              "fieldValue": "={{ $json.decision_reason }}"
+            },
+            {
+              "fieldId": "summary",
+              "fieldValue": "={{ $json.summary }}"
+            },
+            {
+              "fieldId": "run_id",
+              "fieldValue": "={{ $json.run_id }}"
+            },
+            {
+              "fieldId": "target_price_6_5_net_yield",
+              "fieldValue": "={{ $json.target_price_6_5_net_yield }}"
+            },
+            {
+              "fieldId": "target_price_6_0_net_yield",
+              "fieldValue": "={{ $json.target_price_6_0_net_yield }}"
+            },
+            {
+              "fieldId": "discount_to_6_5_target_aed",
+              "fieldValue": "={{ $json.discount_to_6_5_target_aed }}"
+            },
+            {
+              "fieldId": "discount_to_6_5_target_percent",
+              "fieldValue": "={{ $json.discount_to_6_5_target_percent }}"
+            },
+            {
+              "fieldId": "quality_score",
+              "fieldValue": "={{ $json.quality_score }}"
+            },
+            {
+              "fieldId": "yield_score",
+              "fieldValue": "={{ $json.yield_score }}"
+            },
+            {
+              "fieldId": "final_score",
+              "fieldValue": "={{ $json.final_score }}"
+            },
+            {
+              "fieldId": "final_decision",
+              "fieldValue": "={{ $json.final_decision }}"
+            },
+            {
+              "fieldId": "action_label",
+              "fieldValue": "={{ $json.action_label }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "={{ $json.status }}"
+            },
+            {
+              "fieldId": "budget_min_aed",
+              "fieldValue": "={{ $json.budget_min_aed }}"
+            },
+            {
+              "fieldId": "budget_max_aed",
+              "fieldValue": "={{ $json.budget_max_aed }}"
+            },
+            {
+              "fieldId": "vacancy_percent",
+              "fieldValue": "={{ $json.vacancy_percent }}"
+            },
+            {
+              "fieldId": "entry_cost_percent",
+              "fieldValue": "={{ $json.entry_cost_percent }}"
+            },
+            {
+              "fieldId": "exit_cost_percent",
+              "fieldValue": "={{ $json.exit_cost_percent }}"
+            },
+            {
+              "fieldId": "rent_growth_percent",
+              "fieldValue": "={{ $json.rent_growth_percent }}"
+            },
+            {
+              "fieldId": "price_growth_percent",
+              "fieldValue": "={{ $json.price_growth_percent }}"
+            },
+            {
+              "fieldId": "holding_period_years",
+              "fieldValue": "={{ $json.holding_period_years }}"
+            },
+            {
+              "fieldId": "bank_yield_percent",
+              "fieldValue": "={{ $json.bank_yield_percent }}"
+            },
+            {
+              "fieldId": "irr_5y_percent",
+              "fieldValue": "={{ $json.irr_5y_percent }}"
+            },
+            {
+              "fieldId": "irr_vs_bank_percent",
+              "fieldValue": "={{ $json.irr_vs_bank_percent }}"
+            },
+            {
+              "fieldId": "npv_5y_aed",
+              "fieldValue": "={{ $json.npv_5y_aed }}"
+            },
+            {
+              "fieldId": "discount_rate_percent",
+              "fieldValue": "={{ $json.discount_rate_percent }}"
+            },
+            {
+              "fieldId": "strong_buy_price_aed",
+              "fieldValue": "={{ $json.strong_buy_price_aed }}"
+            },
+            {
+              "fieldId": "fair_price_aed",
+              "fieldValue": "={{ $json.fair_price_aed }}"
+            },
+            {
+              "fieldId": "walkaway_price_aed",
+              "fieldValue": "={{ $json.walkaway_price_aed }}"
+            },
+            {
+              "fieldId": "financial_stability_score",
+              "fieldValue": "={{ $json.financial_stability_score }}"
+            },
+            {
+              "fieldId": "proxy_lei_score",
+              "fieldValue": "={{ $json.proxy_lei_score }}"
+            },
+            {
+              "fieldId": "data_quality_score",
+              "fieldValue": "={{ $json.data_quality_score }}"
+            },
+            {
+              "fieldId": "confidence_level",
+              "fieldValue": "={{ $json.confidence_level }}"
+            },
+            {
+              "fieldId": "macro_regime",
+              "fieldValue": "={{ $json.macro_regime }}"
+            },
+            {
+              "fieldId": "market_pulse",
+              "fieldValue": "={{ $json.market_pulse }}"
+            },
+            {
+              "fieldId": "risk_summary",
+              "fieldValue": "={{ $json.risk_summary }}"
+            },
+            {
+              "fieldId": "call_script",
+              "fieldValue": "={{ $json.call_script }}"
+            },
+            {
+              "fieldId": "input_source_type",
+              "fieldValue": "={{ $json.input_source_type }}"
+            },
+            {
+              "fieldId": "input_data_confidence",
+              "fieldValue": "={{ $json.input_data_confidence }}"
+            },
+            {
+              "fieldId": "price_source_note",
+              "fieldValue": "={{ $json.price_source_note }}"
+            },
+            {
+              "fieldId": "rent_source_note",
+              "fieldValue": "={{ $json.rent_source_note }}"
+            },
+            {
+              "fieldId": "service_charge_source_note",
+              "fieldValue": "={{ $json.service_charge_source_note }}"
+            },
+            {
+              "fieldId": "bank_source_quality",
+              "fieldValue": "={{ $json.bank_source_quality }}"
+            },
+            {
+              "fieldId": "bank_benchmark_source_note",
+              "fieldValue": "={{ $json.bank_benchmark_source_note }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        -160
+      ],
+      "id": "10256a1f-39f6-49c8-b8c8-1f221607973f",
+      "name": "Supabase - property_observations",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "XiBVxh24YuvkbN1h",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const runId = $('Create Run Metadata').first().json.run_id;\n\n// -----------------------------\n// Input rows\n// -----------------------------\nconst inputRows = $input.all().map(item => item.json);\n\n// -----------------------------\n// Bank benchmark\n// -----------------------------\nlet bankYieldPercent = 3.5;\nlet bankSourceQuality = \"MEDIUM\";\nlet bankBenchmarkSourceNote = \"Manual/default bank benchmark used.\";\n\ntry {\n  const bank = $('Create Bank Benchmark Context').first().json;\n\n  if (bank?.benchmark_rate_percent !== undefined && bank?.benchmark_rate_percent !== null) {\n    bankYieldPercent = Number(bank.benchmark_rate_percent);\n  }\n\n  bankSourceQuality = bank?.source_quality || \"MEDIUM\";\n  bankBenchmarkSourceNote =\n    `Dynamic bank benchmark used from dedicated bank branch: ${bankYieldPercent.toFixed(2)}% ${bank?.bank_name || \"bank benchmark\"}.`;\n} catch (error) {\n  bankYieldPercent = 3.5;\n  bankSourceQuality = \"MEDIUM\";\n  bankBenchmarkSourceNote = \"Fallback bank benchmark used: 3.50%. Dedicated bank branch unavailable in this run.\";\n}\n\n// -----------------------------\n// Global assumptions\n// -----------------------------\nconst DEFAULTS = {\n  budgetMinAed: 1200000,\n  budgetMaxAed: 1600000,\n  vacancyPercent: 5,\n  entryCostPercent: 6.6,\n  exitCostPercent: 2,\n  rentGrowthPercent: 2.25,\n  priceGrowthPercent: 1.75,\n  holdingPeriodYears: 5,\n  discountRatePercent: 8,\n  targetNetYieldStrongPercent: 6.5,\n  targetNetYieldFairPercent: 6.0\n};\n\n// -----------------------------\n// Helpers\n// -----------------------------\nfunction n(value, fallback = 0) {\n  if (value === null || value === undefined || value === \"\") return fallback;\n  const x = Number(value);\n  return Number.isFinite(x) ? x : fallback;\n}\n\nfunction round(value, digits = 2) {\n  const factor = Math.pow(10, digits);\n  return Math.round(n(value) * factor) / factor;\n}\n\nfunction rowIsDealTest(row) {\n  const sourceType = String(row.source_type || row.input_source_type || \"\").toLowerCase();\n  return sourceType.includes(\"deal_test\");\n}\n\nfunction rowIsUnvalidated(row) {\n  const sourceType = String(row.source_type || row.input_source_type || \"\").toLowerCase();\n  const confidence = String(row.data_confidence || row.input_data_confidence || \"\").toUpperCase();\n\n  return (\n    sourceType.includes(\"unvalidated\") ||\n    sourceType.includes(\"manual\") ||\n    sourceType.includes(\"prototype\") ||\n    confidence === \"LOW\"\n  );\n}\n\nfunction hasValidFinancialInputs(row) {\n  const price = n(row.asking_price_aed);\n  const area = n(row.area_sqft);\n  const rent = n(row.estimated_annual_rent_aed);\n  const serviceCharge = n(row.service_charge_aed_sqft_year);\n\n  return (\n    price > 0 &&\n    area > 0 &&\n    rent > 0 &&\n    serviceCharge >= 0\n  );\n}\n\nfunction calculateIrr(cashflows) {\n  let low = -0.95;\n  let high = 1.0;\n\n  function npv(rate) {\n    return cashflows.reduce((sum, cf, index) => {\n      return sum + cf / Math.pow(1 + rate, index);\n    }, 0);\n  }\n\n  let npvLow = npv(low);\n  let npvHigh = npv(high);\n\n  let expandCount = 0;\n  while (npvLow * npvHigh > 0 && expandCount < 10) {\n    high += 1.0;\n    npvHigh = npv(high);\n    expandCount++;\n  }\n\n  if (npvLow * npvHigh > 0) return null;\n\n  for (let i = 0; i < 100; i++) {\n    const mid = (low + high) / 2;\n    const npvMid = npv(mid);\n\n    if (Math.abs(npvMid) < 0.0001) return mid * 100;\n\n    if (npvLow * npvMid < 0) {\n      high = mid;\n      npvHigh = npvMid;\n    } else {\n      low = mid;\n      npvLow = npvMid;\n    }\n  }\n\n  return ((low + high) / 2) * 100;\n}\n\nfunction calculateNpv(cashflows, discountRatePercent) {\n  const r = discountRatePercent / 100;\n\n  return cashflows.reduce((sum, cf, index) => {\n    return sum + cf / Math.pow(1 + r, index);\n  }, 0);\n}\n\nfunction yieldScoreFromNetYield(netYieldPercent) {\n  if (netYieldPercent >= 6.5) return 9.5;\n  if (netYieldPercent >= 6.2) return 8.5;\n  if (netYieldPercent >= 6.0) return 7.8;\n  if (netYieldPercent >= 5.5) return 6.5;\n  if (netYieldPercent > 0) return 5.0;\n  return 0;\n}\n\nfunction finalDecisionFromGates(row) {\n  const sourceType = String(row.input_source_type || \"\").toLowerCase();\n  const confidence = String(row.input_data_confidence || \"\").toUpperCase();\n\n  const netYield = n(row.net_yield_percent);\n  const irrVsBank = n(row.irr_vs_bank_percent);\n  const gapToStrongBuy = n(row.discount_to_6_5_target_aed);\n  const price = n(row.asking_price_aed);\n\n  const isDealTestRow = sourceType.includes(\"deal_test\");\n\n  const isUnvalidatedRow =\n    sourceType.includes(\"unvalidated\") ||\n    sourceType.includes(\"manual\") ||\n    sourceType.includes(\"prototype\");\n\n  const isInterimEvidenceRow =\n    sourceType.includes(\"propertyfinder_dld_derived_interim\") ||\n    sourceType.includes(\"propertyfinder\") ||\n    confidence === \"MEDIUM-HIGH\" ||\n    confidence === \"MEDIUM\";\n\n  const isHighEvidenceRow =\n    sourceType.includes(\"evidence_supported\") ||\n    confidence === \"HIGH\";\n\n  // Deal-test rows\n  if (isDealTestRow) {\n    return {\n      finalDecision: \"DEAL TEST ONLY\",\n      actionLabel: \"Scenario check only\",\n      decision: \"Deal test\",\n      decisionReason: \"Deal-test row is excluded from investable ranking.\"\n    };\n  }\n\n  // True placeholders / data gaps\n  if (isUnvalidatedRow || price <= 0) {\n    return {\n      finalDecision: \"DATA GAP\",\n      actionLabel: \"Add trusted sale/rent evidence\",\n      decision: \"Data gap\",\n      decisionReason: \"Unvalidated input. Excluded from investable decision until trusted sale and rent evidence are added.\"\n    };\n  }\n\n  // Budget cap\n  if (price > DEFAULTS.budgetMaxAed) {\n    return {\n      finalDecision: \"OUT OF BUDGET\",\n      actionLabel: \"Monitor only\",\n      decision: \"Out of budget\",\n      decisionReason: `Price is above AED ${DEFAULTS.budgetMaxAed.toLocaleString()} budget cap.`\n    };\n  }\n\n  // Interim DLD-derived evidence rows\n  if (isInterimEvidenceRow && !isHighEvidenceRow) {\n    if (netYield >= 6.5 && irrVsBank >= 3.0 && gapToStrongBuy <= 1000) {\n      return {\n        finalDecision: \"INTERIM BUY CANDIDATE\",\n        actionLabel: \"Validate with direct DLD/Ejari before action\",\n        decision: \"Interim buy candidate\",\n        decisionReason: \"Property Finder DLD-derived evidence meets numeric gates, but still requires direct DLD/Ejari validation before investment action.\"\n      };\n    }\n\n    if (netYield >= 6.2 && irrVsBank >= 2.5) {\n      return {\n        finalDecision: \"INTERIM WATCH\",\n        actionLabel: \"Watch / negotiate only if evidence improves\",\n        decision: \"Interim watch\",\n        decisionReason: \"Property Finder DLD-derived evidence is available, but return is below full buy gate or entry margin is insufficient.\"\n      };\n    }\n\n    return {\n      finalDecision: \"INTERIM PASS\",\n      actionLabel: \"Do not pursue at current economics\",\n      decision: \"Interim pass\",\n      decisionReason: \"Property Finder DLD-derived evidence is available, but net yield and/or IRR spread is below target.\"\n    };\n  }\n\n  // High-confidence evidence rows\n  if (netYield >= 6.5 && irrVsBank >= 3.0 && gapToStrongBuy <= 1000) {\n    return {\n      finalDecision: \"BUY CANDIDATE\",\n      actionLabel: \"Proceed to detailed due diligence\",\n      decision: \"Buy candidate\",\n      decisionReason: \"Evidence-supported candidate meets key numeric gates.\"\n    };\n  }\n\n  if (netYield >= 6.2 && irrVsBank >= 2.5) {\n    return {\n      finalDecision: \"SELECTIVE BUY\",\n      actionLabel: \"Negotiate / selective buy\",\n      decision: \"Watch\",\n      decisionReason: \"Return is close to buy zone, but entry price or yield margin requires negotiation.\"\n    };\n  }\n\n  if (netYield >= 6.0) {\n    return {\n      finalDecision: \"WATCH\",\n      actionLabel: \"Watch only\",\n      decision: \"Watch\",\n      decisionReason: \"Net yield is acceptable but below the preferred 6.2%–6.5% decision range.\"\n    };\n  }\n\n  return {\n    finalDecision: \"PASS\",\n    actionLabel: \"Do not pursue at current price\",\n    decision: \"Pass\",\n    decisionReason: \"Yield and/or IRR spread is below target.\"\n  };\n}\n\nfunction createDataGapOutput(row) {\n  const tower = row.tower || \"\";\n  const unitType = row.unit_type || \"Unknown\";\n\n  const sourceType = rowIsDealTest(row)\n    ? \"deal_test_input\"\n    : (row.source_type || row.input_source_type || \"unvalidated_input\");\n\n  const confidence = rowIsDealTest(row)\n    ? (row.data_confidence || row.input_data_confidence || \"LOW\")\n    : \"LOW\";\n\n  return {\n    json: {\n      run_id: runId,\n\n      tower,\n      unit_type: unitType,\n      status: row.status || \"READY\",\n\n      asking_price_aed: n(row.asking_price_aed),\n      area_sqft: n(row.area_sqft),\n      estimated_annual_rent_aed: n(row.estimated_annual_rent_aed),\n      service_charge_aed_sqft_year: n(row.service_charge_aed_sqft_year),\n\n      gross_yield_percent: 0,\n      estimated_service_charge_aed_year: 0,\n      net_rent_aed_year: 0,\n      net_yield_percent: 0,\n\n      decision: \"Data gap\",\n      decision_reason: \"Missing or unvalidated price/rent/area input. Excluded from investable decision.\",\n      summary: `${tower} ${unitType}: DATA GAP. Price/rent/area inputs are missing or unvalidated. Excluded from investable ranking until trusted sale and rent evidence are added.`,\n\n      target_price_6_5_net_yield: 0,\n      target_price_6_0_net_yield: 0,\n      discount_to_6_5_target_aed: 0,\n      discount_to_6_5_target_percent: 0,\n\n      quality_score: n(row.quality_score),\n      yield_score: 0,\n      final_score: 0,\n\n      final_decision: \"DATA GAP\",\n      action_label: \"Add trusted sale/rent evidence\",\n\n      budget_min_aed: DEFAULTS.budgetMinAed,\n      budget_max_aed: DEFAULTS.budgetMaxAed,\n      vacancy_percent: DEFAULTS.vacancyPercent,\n      entry_cost_percent: DEFAULTS.entryCostPercent,\n      exit_cost_percent: DEFAULTS.exitCostPercent,\n      rent_growth_percent: DEFAULTS.rentGrowthPercent,\n      price_growth_percent: DEFAULTS.priceGrowthPercent,\n      holding_period_years: DEFAULTS.holdingPeriodYears,\n\n      bank_yield_percent: bankYieldPercent,\n      irr_5y_percent: 0,\n      irr_vs_bank_percent: 0,\n      npv_5y_aed: 0,\n      discount_rate_percent: DEFAULTS.discountRatePercent,\n\n      strong_buy_price_aed: 0,\n      fair_price_aed: 0,\n\n      input_source_type: sourceType,\n      input_data_confidence: confidence,\n\n      price_source_note: row.price_source_note || \"Missing/unvalidated price. Excluded from investable decision until trusted sale evidence is added.\",\n      rent_source_note: row.rent_source_note || \"Missing/unvalidated rent. Excluded from investable decision until trusted rental evidence is added.\",\n      service_charge_source_note: row.service_charge_source_note || \"Service-charge source not available.\",\n\n      bank_source_quality: bankSourceQuality,\n      bank_benchmark_source_note: bankBenchmarkSourceNote,\n\n      call_script: `${tower} ${unitType}: do not discuss as investable yet. Sale/rent evidence is missing or unvalidated.`\n    }\n  };\n}\n\nfunction calculateValidOutput(row) {\n  const tower = row.tower || \"\";\n  const unitType = row.unit_type || \"Unknown\";\n\n  const price = n(row.asking_price_aed);\n  const area = n(row.area_sqft);\n  const annualRent = n(row.estimated_annual_rent_aed);\n  const serviceChargeRate = n(row.service_charge_aed_sqft_year);\n  const qualityScore = n(row.quality_score);\n\n  const vacancyFactor = 1 - DEFAULTS.vacancyPercent / 100;\n\n  const grossYieldPercent = annualRent / price * 100;\n  const serviceChargeYear = serviceChargeRate * area;\n  const netRentYear = annualRent * vacancyFactor - serviceChargeYear;\n  const netYieldPercent = netRentYear / price * 100;\n\n  const targetPrice65 = netRentYear / (DEFAULTS.targetNetYieldStrongPercent / 100);\n  const targetPrice60 = netRentYear / (DEFAULTS.targetNetYieldFairPercent / 100);\n\n  const discountTo65Aed = price - targetPrice65;\n  const discountTo65Percent = price > 0 ? (discountTo65Aed / price) * 100 : 0;\n\n  const cashflows = [];\n  const initialOutflow = -price * (1 + DEFAULTS.entryCostPercent / 100);\n  cashflows.push(initialOutflow);\n\n  for (let year = 1; year <= DEFAULTS.holdingPeriodYears; year++) {\n    const grownRent = netRentYear * Math.pow(1 + DEFAULTS.rentGrowthPercent / 100, year - 1);\n    let cashflow = grownRent;\n\n    if (year === DEFAULTS.holdingPeriodYears) {\n      const exitPrice = price * Math.pow(1 + DEFAULTS.priceGrowthPercent / 100, DEFAULTS.holdingPeriodYears);\n      const exitNet = exitPrice * (1 - DEFAULTS.exitCostPercent / 100);\n      cashflow += exitNet;\n    }\n\n    cashflows.push(cashflow);\n  }\n\n  const irr = calculateIrr(cashflows);\n  const irr5yPercent = irr === null ? 0 : irr;\n  const irrVsBankPercent = irr5yPercent - bankYieldPercent;\n  const npv5yAed = calculateNpv(cashflows, DEFAULTS.discountRatePercent);\n\n  const yieldScore = yieldScoreFromNetYield(netYieldPercent);\n  const finalScore = yieldScore * 0.6 + qualityScore * 0.4;\n\n  const preliminary = {\n    input_source_type: row.source_type || row.input_source_type || \"unknown\",\n    input_data_confidence: row.data_confidence || row.input_data_confidence || \"LOW\",\n    net_yield_percent: netYieldPercent,\n    irr_vs_bank_percent: irrVsBankPercent,\n    discount_to_6_5_target_aed: discountTo65Aed,\n    asking_price_aed: price\n  };\n\n  const decision = finalDecisionFromGates(preliminary);\n\n  const requiredReductionText =\n    discountTo65Aed > 1000\n      ? `Needs about AED ${Math.round(discountTo65Aed).toLocaleString()} (${round(discountTo65Percent, 2)}%) price reduction to reach 6.5% net yield.`\n      : `At or near the 6.5% net-yield trigger.`;\n\n  const summary =\n    `${tower} ${unitType}: Net yield is ${round(netYieldPercent, 2)}%, ` +\n    `5Y IRR is ${round(irr5yPercent, 2)}%, IRR vs bank is ${round(irrVsBankPercent, 2)}%, ` +\n    `quality score is ${round(qualityScore, 2)}/10, final score is ${round(finalScore, 2)}/10. ` +\n    `Verdict: ${decision.finalDecision}. Action: ${decision.actionLabel}. ${requiredReductionText}`;\n\n  const callScript =\n    `I am comparing this against a ~${bankYieldPercent.toFixed(2)}% bank return. ` +\n    `At current pricing, the net yield is ${round(netYieldPercent, 2)}% and estimated 5-year IRR is ${round(irr5yPercent, 2)}%. ` +\n    `The deal only works if the price is supported by transaction/rental evidence and gives enough spread over the bank return.`;\n\n  return {\n    json: {\n      run_id: runId,\n\n      tower,\n      unit_type: unitType,\n      status: row.status || \"READY\",\n\n      asking_price_aed: price,\n      area_sqft: area,\n      estimated_annual_rent_aed: annualRent,\n      service_charge_aed_sqft_year: serviceChargeRate,\n\n      gross_yield_percent: round(grossYieldPercent, 2),\n      estimated_service_charge_aed_year: round(serviceChargeYear, 2),\n      net_rent_aed_year: round(netRentYear, 2),\n      net_yield_percent: round(netYieldPercent, 2),\n\n      decision: decision.decision,\n      decision_reason: decision.decisionReason,\n      summary,\n\n      target_price_6_5_net_yield: Math.round(targetPrice65),\n      target_price_6_0_net_yield: Math.round(targetPrice60),\n      discount_to_6_5_target_aed: Math.round(discountTo65Aed),\n      discount_to_6_5_target_percent: round(discountTo65Percent, 2),\n\n      quality_score: round(qualityScore, 2),\n      yield_score: round(yieldScore, 2),\n      final_score: round(finalScore, 2),\n\n      final_decision: decision.finalDecision,\n      action_label: decision.actionLabel,\n\n      budget_min_aed: DEFAULTS.budgetMinAed,\n      budget_max_aed: DEFAULTS.budgetMaxAed,\n      vacancy_percent: DEFAULTS.vacancyPercent,\n      entry_cost_percent: DEFAULTS.entryCostPercent,\n      exit_cost_percent: DEFAULTS.exitCostPercent,\n      rent_growth_percent: DEFAULTS.rentGrowthPercent,\n      price_growth_percent: DEFAULTS.priceGrowthPercent,\n      holding_period_years: DEFAULTS.holdingPeriodYears,\n\n      bank_yield_percent: bankYieldPercent,\n      irr_5y_percent: round(irr5yPercent, 2),\n      irr_vs_bank_percent: round(irrVsBankPercent, 2),\n      npv_5y_aed: Math.round(npv5yAed),\n      discount_rate_percent: DEFAULTS.discountRatePercent,\n\n      strong_buy_price_aed: Math.round(targetPrice65),\n      fair_price_aed: Math.round(targetPrice60),\n\n      input_source_type: row.source_type || row.input_source_type || \"unknown\",\n      input_data_confidence: row.data_confidence || row.input_data_confidence || \"LOW\",\n\n      price_source_note: row.price_source_note || \"No price source note.\",\n      rent_source_note: row.rent_source_note || \"No rent source note.\",\n      service_charge_source_note: row.service_charge_source_note || \"No service-charge source note.\",\n\n      bank_source_quality: bankSourceQuality,\n      bank_benchmark_source_note: bankBenchmarkSourceNote,\n\n      call_script: callScript\n    }\n  };\n}\n\n// -----------------------------\n// Main output\n// -----------------------------\nconst output = [];\n\nfor (const row of inputRows) {\n  const validInputs = hasValidFinancialInputs(row);\n  const dealTest = rowIsDealTest(row);\n  const unvalidated = rowIsUnvalidated(row);\n\n  // Zero/null placeholder rows must not run financial math.\n  if (!validInputs) {\n    output.push(createDataGapOutput(row));\n    continue;\n  }\n\n  // Unvalidated core rows must not run financial math even if numeric placeholders exist.\n  // Deal-test rows are allowed to calculate but remain scenario checks only.\n  if (unvalidated && !dealTest) {\n    output.push(createDataGapOutput(row));\n    continue;\n  }\n\n  output.push(calculateValidOutput(row));\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        -160
+      ],
+      "id": "2fc9a97a-f96f-4847-99de-e2b5dada14af",
+      "name": "Calculate yields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.perplexity.ai/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pplx-xxx"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"model\": \"sonar\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a conservative UAE macro-risk research assistant. Use only the returned sources. Prefer Reuters, S&P Global PMI, DFM, HSBC, and official UAE/Dubai sources. Do not use broker blogs, YouTube, promotional property websites, or unrelated articles. If evidence is not found, write 'not found in allowed sources'.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Assess current UAE/Dubai macro context for a Dubai real estate investor. Cover only: UAE or Dubai PMI trend, DFMGI or Dubai equity sentiment, oil price or geopolitical risk including Hormuz/shipping, financial stability signals, and AED bank deposit benchmark. Return concise bullets with source names. Do not discuss property listings.\"\n    }\n  ],\n  \"search_domain_filter\": [\n    \"reuters.com\",\n    \"pmi.spglobal.com\",\n    \"spglobal.com\",\n    \"dfm.ae\",\n    \"hsbc.ae\",\n    \"centralbank.ae\",\n    \"mediaoffice.ae\"\n  ],\n  \"stream\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -80,
+        48
+      ],
+      "id": "d634dc1d-fee5-42df-988b-f8b9fe0becb3",
+      "name": "Perplexity Macro Search"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.perplexity.ai/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pplx-xxx"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"model\": \"sonar\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a conservative Dubai real estate data-quality assistant. Use only returned sources. Prefer Dubai Land Department and official/primary data. Do not use broker blogs, YouTube, promotional property websites, or unsourced commentary. If transaction or rent evidence is not found, say 'not found in allowed sources'.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"For JLT Dubai ready apartments in 2026, check whether reliable data is available for sale transactions, rental transactions, or official market statistics for these towers: Green Lakes, Madina Tower, Goldcrest Views 2, Icon Tower 1, Icon Tower 2. Return concise bullets. Separate sale transaction evidence, rental evidence, listing evidence, and data gaps. Mention source names.\"\n    }\n  ],\n  \"search_domain_filter\": [\n    \"dubailand.gov.ae\",\n    \"dxbinteract.com\",\n    \"propertymonitor.com\",\n    \"famproperties.com\"\n  ],\n  \"stream\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -80,
+        240
+      ],
+      "id": "3db28313-5f49-4869-ada5-b6f9ab45cebc",
+      "name": "Perplexity Property Search node"
+    },
+    {
+      "parameters": {
+        "tableId": "property_source_context",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "run_id",
+              "fieldValue": "={{ $json.run_id }}"
+            },
+            {
+              "fieldId": "source_type",
+              "fieldValue": "={{ $json.source_type }}"
+            },
+            {
+              "fieldId": "tower_scope",
+              "fieldValue": "={{ $json.tower_scope }}"
+            },
+            {
+              "fieldId": "source_quality",
+              "fieldValue": "={{ $json.source_quality }}"
+            },
+            {
+              "fieldId": "confidence_level",
+              "fieldValue": "={{ $json.confidence_level }}"
+            },
+            {
+              "fieldId": "property_search_summary",
+              "fieldValue": "={{ $json.property_search_summary }}"
+            },
+            {
+              "fieldId": "rental_search_summary",
+              "fieldValue": "={{ $json.rental_search_summary }}"
+            },
+            {
+              "fieldId": "transaction_source_status",
+              "fieldValue": "={{ $json.transaction_source_status }}"
+            },
+            {
+              "fieldId": "rental_source_status",
+              "fieldValue": "={{ $json.rental_source_status }}"
+            },
+            {
+              "fieldId": "listing_source_status",
+              "fieldValue": "={{ $json.listing_source_status }}"
+            },
+            {
+              "fieldId": "source_notes",
+              "fieldValue": "={{ $json.source_notes }}"
+            },
+            {
+              "fieldId": "source_urls",
+              "fieldValue": "={{ $json.source_urls }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        320,
+        240
+      ],
+      "id": "adc29f22-bd2c-4ebe-89d4-b1037a750f34",
+      "name": "property_source_context",
+      "credentials": {
+        "supabaseApi": {
+          "id": "XiBVxh24YuvkbN1h",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const runId = $('Create Run Metadata').first().json.run_id;\n\nconst response = $input.first().json;\n\nlet propertyText = \"\";\nlet searchResults = [];\n\nif (response.choices && response.choices[0]?.message?.content) {\n  propertyText = response.choices[0].message.content;\n} else if (response.message?.content) {\n  propertyText = response.message.content;\n} else {\n  propertyText = JSON.stringify(response).slice(0, 3000);\n}\n\nif (Array.isArray(response.search_results)) {\n  searchResults = response.search_results;\n}\n\nconst lowerText = propertyText.toLowerCase();\n\n// Explicit negative checks\nconst saleNotFound =\n  lowerText.includes(\"sale transaction evidence: not found\") ||\n  lowerText.includes(\"sale transactions: not found\") ||\n  lowerText.includes(\"sale transaction evidence is not found\") ||\n  lowerText.includes(\"sale transaction evidence not found\");\n\nconst rentalNotFound =\n  lowerText.includes(\"rental transaction evidence: not found\") ||\n  lowerText.includes(\"rental transactions: not found\") ||\n  lowerText.includes(\"rental transaction evidence is not found\") ||\n  lowerText.includes(\"rental transaction evidence not found\");\n\nconst listingNotFound =\n  lowerText.includes(\"listing evidence: not found\") ||\n  lowerText.includes(\"listings: not found\") ||\n  lowerText.includes(\"listing evidence is not found\") ||\n  lowerText.includes(\"listing evidence not found\");\n\nconst officialStatsNotFound =\n  lowerText.includes(\"official market statistics: not found\") ||\n  lowerText.includes(\"official statistics: not found\") ||\n  lowerText.includes(\"official market statistics not found\");\n\n// Positive checks only valid if not explicitly negated\nconst foundSaleTransactions =\n  !saleNotFound &&\n  (\n    lowerText.includes(\"sale transaction evidence found\") ||\n    lowerText.includes(\"sale transactions found\") ||\n    lowerText.includes(\"transaction data found\") ||\n    lowerText.includes(\"dld transaction\")\n  );\n\nconst foundRentalTransactions =\n  !rentalNotFound &&\n  (\n    lowerText.includes(\"rental transaction evidence found\") ||\n    lowerText.includes(\"rental transactions found\") ||\n    lowerText.includes(\"rental data found\") ||\n    lowerText.includes(\"dld rental\")\n  );\n\nconst foundListings =\n  !listingNotFound &&\n  (\n    lowerText.includes(\"listing evidence found\") ||\n    lowerText.includes(\"listings found\") ||\n    lowerText.includes(\"active listings found\")\n  );\n\nconst hasDld =\n  searchResults.some(r => (r.url || \"\").includes(\"dubailand.gov.ae\"));\n\nconst hasTowerSpecificText =\n  lowerText.includes(\"green lakes\") ||\n  lowerText.includes(\"madina tower\") ||\n  lowerText.includes(\"goldcrest views 2\") ||\n  lowerText.includes(\"icon tower 1\") ||\n  lowerText.includes(\"icon tower 2\");\n\nlet sourceQuality = \"LOW\";\nlet confidenceLevel = \"LOW\";\n\nif (hasDld && hasTowerSpecificText && (foundSaleTransactions || foundRentalTransactions)) {\n  sourceQuality = \"HIGH\";\n  confidenceLevel = \"HIGH\";\n} else if (hasTowerSpecificText && (foundSaleTransactions || foundRentalTransactions)) {\n  sourceQuality = \"MEDIUM\";\n  confidenceLevel = \"MEDIUM\";\n} else if (foundListings) {\n  sourceQuality = \"LOW-MEDIUM\";\n  confidenceLevel = \"LOW-MEDIUM\";\n} else {\n  sourceQuality = \"LOW\";\n  confidenceLevel = \"LOW\";\n}\n\nconst transactionSourceStatus = foundSaleTransactions\n  ? \"Potential sale transaction evidence found, requires validation.\"\n  : \"Sale transaction evidence not found in allowed sources.\";\n\nconst rentalSourceStatus = foundRentalTransactions\n  ? \"Potential rental transaction evidence found, requires validation.\"\n  : \"Rental transaction evidence not found in allowed sources.\";\n\nconst listingSourceStatus = foundListings\n  ? \"Potential listing evidence found, use only for negotiation context.\"\n  : \"Tower-specific listing evidence not found in allowed sources.\";\n\nconst sourceUrls = searchResults\n  .slice(0, 10)\n  .map((r, index) => `${index + 1}. ${r.title || \"Untitled\"} — ${r.url || \"\"}`)\n  .join(\"\\n\");\n\nreturn [\n  {\n    json: {\n      run_id: runId,\n\n      source_type: \"property_rental_source_check\",\n      tower_scope: \"JLT focus towers: Green Lakes, Madina Tower, Goldcrest Views 2, Icon Tower 1, Icon Tower 2\",\n\n      source_quality: sourceQuality,\n      confidence_level: confidenceLevel,\n\n      property_search_summary: propertyText || \"No property search text returned.\",\n\n      rental_search_summary: foundRentalTransactions\n        ? \"Rental evidence may be available in returned sources, but requires extraction and validation.\"\n        : \"Rental transaction evidence not found in allowed sources.\",\n\n      transaction_source_status: transactionSourceStatus,\n      rental_source_status: rentalSourceStatus,\n      listing_source_status: listingSourceStatus,\n\n      source_notes:\n        \"Property-source branch is live-connected via Perplexity. Current output does not provide validated tower-level sale or rental transaction data unless explicitly stated as found. Negative statements such as 'not found' must be treated as data gaps. Static sample prices/rents must not be treated as final investment evidence.\",\n\n      source_urls: sourceUrls || \"No source URLs returned.\"\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        240
+      ],
+      "id": "d3ab549f-dbe9-470d-9117-3f3cf5228772",
+      "name": "Create Property Source Context"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "property_inputs",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "is_active",
+              "condition": "eq",
+              "keyValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        512,
+        -160
+      ],
+      "id": "06cef03e-3f92-4118-b504-82c49c241dd5",
+      "name": "Read Property Inputs",
+      "credentials": {
+        "supabaseApi": {
+          "id": "XiBVxh24YuvkbN1h",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const runId = $('Create Run Metadata').first().json.run_id;\n\n// Read latest bank benchmark from the current run\nconst bankContext = $('Create Bank Benchmark Context').first().json;\n\nconst bankRateFromContext = Number(bankContext.benchmark_rate_percent);\nconst bankSourceQuality = bankContext.source_quality || \"LOW\";\n\nconst bankYieldPercent =\n  bankSourceQuality === \"HIGH\" && !Number.isNaN(bankRateFromContext)\n    ? bankRateFromContext\n    : 3.5;\n\nconst bankBenchmarkSourceNote =\n  bankSourceQuality === \"HIGH\"\n    ? `Dynamic bank benchmark used from bank branch: ${bankYieldPercent}% (${bankContext.bank_name || \"bank source\"}).`\n    : \"Fallback benchmark used: 3.5%. Bank branch did not return high-quality evidence.\";\n\nconst inputItems = $input.all();\n\nconst activeInputs = inputItems\n  .map(item => item.json)\n  .filter(row => {\n    const isActive = row.is_active === true || row.is_active === \"true\";\n    const includeInRun =\n      row.include_in_run === undefined ||\n      row.include_in_run === null ||\n      row.include_in_run === true ||\n      row.include_in_run === \"true\";\n\n    return isActive && includeInRun;\n  });\n\nreturn activeInputs.map(row => {\n  const isDealTest =\n    String(row.source_type || \"\").toLowerCase().includes(\"deal_test\") ||\n    row.test_note !== undefined;\n\n  return {\n    json: {\n      run_id: runId,\n\n      tower: row.tower,\n      unit_type: row.unit_type,\n      status: row.status || \"READY\",\n\n      asking_price_aed: Number(row.asking_price_aed),\n      area_sqft: Number(row.area_sqft),\n      estimated_annual_rent_aed: Number(row.estimated_annual_rent_aed),\n      service_charge_aed_sqft_year: Number(row.service_charge_aed_sqft_year),\n      quality_score: Number(row.quality_score || 6.0),\n\n      input_source_type: isDealTest\n        ? \"deal_test_input\"\n        : (row.source_type || \"manual_input\"),\n\n      input_data_confidence: row.data_confidence || \"LOW\",\n\n      price_source_note: isDealTest\n        ? `Deal test input. ${row.price_source_note || \"Validate asking price before decision.\"}`\n        : (row.price_source_note || \"\"),\n\n      rent_source_note: isDealTest\n        ? `Deal test input. ${row.rent_source_note || \"Validate rent before decision.\"}`\n        : (row.rent_source_note || \"\"),\n\n      service_charge_source_note: isDealTest\n        ? `Deal test input. ${row.service_charge_source_note || \"Validate service charge before decision.\"}`\n        : (row.service_charge_source_note || \"\"),\n\n      test_note: row.test_note || \"\",\n\n      bank_yield_percent: bankYieldPercent,\n      bank_source_quality: bankSourceQuality,\n      bank_benchmark_source_note: bankBenchmarkSourceNote\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        -160
+      ],
+      "id": "ec0a9670-9d3a-44c3-b68b-ee97a2781238",
+      "name": "Prepare Property Inputs"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.perplexity.ai/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer pplx-xxx"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"model\": \"sonar\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a conservative UAE bank-rate research assistant. Use only returned sources. Prefer HSBC UAE official pages, UAE Central Bank, Reuters, or official bank product pages. Do not use forums, blogs, YouTube, property websites, or unsourced commentary. If the AED term deposit rate is not found in allowed sources, say 'not found in allowed sources'.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Find the current HSBC UAE AED term deposit or fixed deposit benchmark rate relevant for comparing a Dubai property investment return. Return concise bullets with source names. If HSBC UAE AED term deposit rate is not found in allowed sources, say so clearly. Do not estimate.\"\n    }\n  ],\n  \"search_domain_filter\": [\n    \"hsbc.ae\",\n    \"centralbank.ae\",\n    \"reuters.com\",\n    \"emiratesnbd.com\",\n    \"adcb.com\",\n    \"rakbank.ae\",\n    \"mashreq.com\"\n  ],\n  \"stream\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -80,
+        -160
+      ],
+      "id": "78ce0786-36cc-4bf1-9e7b-bd019be58eb0",
+      "name": "Perplexity Bank Benchmark Search"
+    },
+    {
+      "parameters": {
+        "jsCode": "const runId = $('Create Run Metadata').first().json.run_id;\n\n// Collect all incoming items from the Perplexity / bank-search node\nconst inputItems = $input.all();\nconst rawItems = inputItems.map(item => item.json);\n\n// Convert full payload to searchable text\nconst rawText = JSON.stringify(rawItems, null, 2);\n\n// Helper: safe lower-case search text\nconst text = rawText.toLowerCase();\n\n// Extract assistant content if available\nlet assistantContent = \"\";\n\ntry {\n  assistantContent = rawItems\n    .map(item => {\n      if (item?.choices?.[0]?.message?.content) {\n        return item.choices[0].message.content;\n      }\n      if (item?.message?.content) {\n        return item.message.content;\n      }\n      if (item?.content) {\n        return item.content;\n      }\n      return \"\";\n    })\n    .filter(Boolean)\n    .join(\"\\n\\n\");\n} catch (error) {\n  assistantContent = \"\";\n}\n\n// Extract citations/search result URLs if available\nlet sourceUrls = [];\n\ntry {\n  for (const item of rawItems) {\n    if (Array.isArray(item?.citations)) {\n      sourceUrls.push(...item.citations);\n    }\n\n    if (Array.isArray(item?.search_results)) {\n      for (const result of item.search_results) {\n        if (result?.url) sourceUrls.push(result.url);\n      }\n    }\n  }\n} catch (error) {\n  sourceUrls = [];\n}\n\nsourceUrls = [...new Set(sourceUrls)].filter(Boolean);\n\n// Source checks\nconst hasHsbc =\n  text.includes(\"hsbc\") ||\n  sourceUrls.some(url => String(url).toLowerCase().includes(\"hsbc\"));\n\nconst hasUae =\n  text.includes(\"uae\") ||\n  text.includes(\"united arab emirates\") ||\n  sourceUrls.some(url => String(url).toLowerCase().includes(\"hsbc.ae\"));\n\nconst hasAed =\n  text.includes(\"aed\") ||\n  text.includes(\"dirham\") ||\n  text.includes(\"dirhams\");\n\nconst hasTermDeposit =\n  text.includes(\"term deposit\") ||\n  text.includes(\"fixed deposit\") ||\n  text.includes(\"deposit rate\") ||\n  text.includes(\"aer\");\n\nconst hasExplicitThreePointFive =\n  text.includes(\"3.50\") ||\n  text.includes(\"3.5%\") ||\n  text.includes(\"3.50%\") ||\n  text.includes(\"3 months\") ||\n  text.includes(\"6 months\") ||\n  text.includes(\"12 months\");\n\n// Conservative default\nlet bankName = \"HSBC UAE / UAE bank benchmark\";\nlet benchmarkType = \"AED term deposit / fixed deposit comparison benchmark\";\nlet benchmarkRatePercent = 3.5;\nlet benchmarkRateStatus =\n  \"HSBC UAE AED term deposit benchmark remains manually locked at 3.5%; live bank evidence was not strong enough to override.\";\nlet confidenceLevel = \"MEDIUM\";\nlet sourceQuality = \"MEDIUM\";\nlet calculationUsageStatus =\n  \"3.50% benchmark retained as conservative fallback pending stronger bank-rate evidence.\";\nlet sourceNotes =\n  \"Bank benchmark branch did not return sufficiently strong evidence. The model retained the conservative 3.50% comparison benchmark.\";\n\n// Permanent high-confidence rule:\n// If the bank-search result contains HSBC + UAE/AED + term/fixed deposit + 3.5 evidence,\n// classify the benchmark as HIGH and use 3.50%.\nif (hasHsbc && hasUae && hasAed && hasTermDeposit && hasExplicitThreePointFive) {\n  bankName = \"HSBC UAE / UAE bank benchmark\";\n  benchmarkType = \"AED term deposit / fixed deposit comparison benchmark\";\n  benchmarkRatePercent = 3.5;\n  benchmarkRateStatus =\n    \"HSBC UAE AED term deposit evidence found. 3.50% selected as the conservative property-comparison benchmark.\";\n  confidenceLevel = \"HIGH\";\n  sourceQuality = \"HIGH\";\n  calculationUsageStatus =\n    \"3.50% benchmark is evidence-supported and used in the property model.\";\n  sourceNotes =\n    \"Dedicated bank benchmark branch found HSBC UAE AED term-deposit evidence. 3.50% is used as the conservative comparison benchmark for property IRR spread.\";\n}\n\n// Fallback if HSBC is found but 3.5 is not clearly found\nelse if (hasHsbc && hasUae && hasAed && hasTermDeposit) {\n  bankName = \"HSBC UAE / UAE bank benchmark\";\n  benchmarkType = \"AED term deposit / fixed deposit comparison benchmark\";\n  benchmarkRatePercent = 3.5;\n  benchmarkRateStatus =\n    \"HSBC UAE AED term deposit source found, but a clear 3.50% benchmark was not confidently extracted. 3.50% retained as conservative fallback.\";\n  confidenceLevel = \"MEDIUM\";\n  sourceQuality = \"MEDIUM\";\n  calculationUsageStatus =\n    \"3.50% benchmark retained in the property model, but manual validation is recommended.\";\n  sourceNotes =\n    \"HSBC UAE term-deposit source was found, but the exact benchmark rate extraction was not fully robust in this run.\";\n}\n\n// Build concise search summary\nlet bankSearchSummary = assistantContent || \"No bank-search summary returned.\";\n\nif (bankSearchSummary.length > 4000) {\n  bankSearchSummary = bankSearchSummary.slice(0, 4000) + \"\\n\\n[Truncated for dashboard display]\";\n}\n\n// Source URLs as readable numbered list\nconst sourceUrlText = sourceUrls.length > 0\n  ? sourceUrls.map((url, index) => `${index + 1}. ${url}`).join(\"\\n\")\n  : \"No bank source URLs returned.\";\n\n// Output one context item\nreturn [\n  {\n    json: {\n      run_id: runId,\n\n      bank_name: bankName,\n      benchmark_type: benchmarkType,\n      benchmark_rate_percent: benchmarkRatePercent,\n      benchmark_rate_status: benchmarkRateStatus,\n\n      confidence_level: confidenceLevel,\n      source_quality: sourceQuality,\n\n      bank_search_summary: bankSearchSummary,\n      source_notes: sourceNotes,\n      source_urls: sourceUrlText,\n\n      calculation_usage_status: calculationUsageStatus\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        -160
+      ],
+      "id": "e93c0dd0-2fb9-47e1-a840-d6d347d65d16",
+      "name": "Create Bank Benchmark Context"
+    },
+    {
+      "parameters": {
+        "tableId": "bank_benchmark_context",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "run_id",
+              "fieldValue": "={{ $json.run_id }}"
+            },
+            {
+              "fieldId": "bank_name",
+              "fieldValue": "={{ $json.bank_name }}"
+            },
+            {
+              "fieldId": "benchmark_type",
+              "fieldValue": "={{ $json.benchmark_type }}"
+            },
+            {
+              "fieldId": "benchmark_rate_percent",
+              "fieldValue": "={{ $json.benchmark_rate_percent }}"
+            },
+            {
+              "fieldId": "benchmark_rate_status",
+              "fieldValue": "={{ $json.benchmark_rate_status }}"
+            },
+            {
+              "fieldId": "confidence_level",
+              "fieldValue": "={{ $json.confidence_level }}"
+            },
+            {
+              "fieldId": "source_quality",
+              "fieldValue": "={{ $json.source_quality }}"
+            },
+            {
+              "fieldId": "bank_search_summary",
+              "fieldValue": "={{ $json.bank_search_summary }}"
+            },
+            {
+              "fieldId": "source_notes",
+              "fieldValue": "={{ $json.source_notes }}"
+            },
+            {
+              "fieldId": "source_urls",
+              "fieldValue": "={{ $json.source_urls }}"
+            },
+            {
+              "fieldId": "calculation_usage_status",
+              "fieldValue": "={{ $json.calculation_usage_status }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        320,
+        -160
+      ],
+      "id": "8899a0c8-2ec0-4f44-96b1-3db65017da32",
+      "name": "bank_benchmark_context",
+      "credentials": {
+        "supabaseApi": {
+          "id": "XiBVxh24YuvkbN1h",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "deal_test_inputs",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "include_in_run",
+              "condition": "eq",
+              "keyValue": "true"
+            },
+            {
+              "keyName": "is_active",
+              "condition": "eq",
+              "keyValue": "true"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        416,
+        -320
+      ],
+      "id": "4c8ba7cf-38e1-4538-a979-eb4e3da1f528",
+      "name": "Read Deal Test Inputs",
+      "credentials": {
+        "supabaseApi": {
+          "id": "XiBVxh24YuvkbN1h",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        720,
+        -160
+      ],
+      "id": "bcfdfe34-e056-4e10-80f4-7f8216795cfe",
+      "name": "Merge Property + Deal Test Inputs"
+    },
+    {
+      "parameters": {
+        "tableId": "agent_run_context",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "run_id",
+              "fieldValue": "={{ $json.run_id }}"
+            },
+            {
+              "fieldId": "macro_regime",
+              "fieldValue": "={{ $json.macro_regime }}"
+            },
+            {
+              "fieldId": "market_pulse",
+              "fieldValue": "={{ $json.market_pulse }}"
+            },
+            {
+              "fieldId": "financial_stability_score",
+              "fieldValue": "={{ $json.financial_stability_score }}"
+            },
+            {
+              "fieldId": "proxy_lei_score",
+              "fieldValue": "={{ $json.proxy_lei_score }}"
+            },
+            {
+              "fieldId": "data_quality_score",
+              "fieldValue": "={{ $json.data_quality_score }}"
+            },
+            {
+              "fieldId": "confidence_level",
+              "fieldValue": "={{ $json.confidence_level }}"
+            },
+            {
+              "fieldId": "property_data_status",
+              "fieldValue": "={{ $json.property_data_status }}"
+            },
+            {
+              "fieldId": "rental_data_status",
+              "fieldValue": "={{ $json.rental_data_status }}"
+            },
+            {
+              "fieldId": "macro_data_status",
+              "fieldValue": "={{ $json.macro_data_status }}"
+            },
+            {
+              "fieldId": "source_notes",
+              "fieldValue": "={{ $json.source_notes }}"
+            },
+            {
+              "fieldId": "risk_summary",
+              "fieldValue": "={{ $json.risk_summary }}"
+            },
+            {
+              "fieldId": "scoring_explanation",
+              "fieldValue": "={{ $json.scoring_explanation }}"
+            },
+            {
+              "fieldId": "dld_source_url",
+              "fieldValue": "={{ $json.dld_source_url }}"
+            },
+            {
+              "fieldId": "pmi_source_url",
+              "fieldValue": "={{ $json.pmi_source_url }}"
+            },
+            {
+              "fieldId": "dfmgi_source_url",
+              "fieldValue": "={{ $json.dfmgi_source_url }}"
+            },
+            {
+              "fieldId": "bank_source_note",
+              "fieldValue": "={{ $json.bank_source_note }}"
+            },
+            {
+              "fieldId": "property_rows",
+              "fieldValue": "={{ $json.property_rows }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        320,
+        48
+      ],
+      "id": "f7c7e3bf-4134-458b-91a8-e9a523fd6476",
+      "name": "Agent_run_context",
+      "credentials": {
+        "supabaseApi": {
+          "id": "XiBVxh24YuvkbN1h",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create Run Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Run Metadata": {
+      "main": [
+        [
+          {
+            "node": "Perplexity Macro Search",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Perplexity Property Search node",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Perplexity Bank Benchmark Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Market Context": {
+      "main": [
+        [
+          {
+            "node": "Agent_run_context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate yields": {
+      "main": [
+        [
+          {
+            "node": "Supabase - property_observations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perplexity Macro Search": {
+      "main": [
+        [
+          {
+            "node": "Create Market Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perplexity Property Search node": {
+      "main": [
+        [
+          {
+            "node": "Create Property Source Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Property Source Context": {
+      "main": [
+        [
+          {
+            "node": "property_source_context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Property Inputs": {
+      "main": [
+        [
+          {
+            "node": "Merge Property + Deal Test Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Property Inputs": {
+      "main": [
+        [
+          {
+            "node": "Calculate yields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perplexity Bank Benchmark Search": {
+      "main": [
+        [
+          {
+            "node": "Create Bank Benchmark Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Bank Benchmark Context": {
+      "main": [
+        [
+          {
+            "node": "bank_benchmark_context",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Deal Test Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "bank_benchmark_context": {
+      "main": [
+        [
+          {
+            "node": "Read Property Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Deal Test Inputs": {
+      "main": [
+        [
+          {
+            "node": "Merge Property + Deal Test Inputs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Property + Deal Test Inputs": {
+      "main": [
+        [
+          {
+            "node": "Prepare Property Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "9f3df505-a73d-47dc-a308-a21024907cc2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e8b5a9601483f948e5e3a74647f7a1a5d3cc3706c0605d67ffd920cd50a5e899"
+  },
+  "id": "1ZfjJJgFkqZJV0ZZ",
+  "tags": []
+}
