@@ -1,0 +1,157 @@
+JLT INVESTMENT AGENT — n8n WORKFLOW HANDOVER
+
+Workflow purpose:
+Run daily or manual data collection and screening for JLT ready apartments, store evidence and calculated outputs in Supabase, and feed GitHub Pages dashboard.
+
+Current data flow concept:
+1. Property evidence collection
+2. Service charge evidence update
+3. Bank benchmark branch
+4. Macro/market branch
+5. Candidate calculation branch
+6. Dashboard output write to Supabase
+7. Frontend reads Supabase REST
+
+Known issue:
+A later n8n run appears to have overwritten or repopulated `dashboard_decision_watchlist_v` with an old 5-row prototype/review-required dataset. This caused the frontend to show no screened rows or wrong review rows.
+
+n8n must not write old prototype rows into the main dashboard output as the latest run.
+
+Good workflow output should write cleaned candidate rows:
+- Green Lakes S1 1BR
+- Green Lakes S2 1BR
+- Green Lakes S3 1BR
+- Icon Tower 1 1BR
+- Icon Tower 2 1BR
+- Madina Tower 1BR
+- Goldcrest Views 2 2BR
+- Icon Tower 1 2BR
+- Icon Tower 2 2BR
+- plus data-gap rows and budget-monitor rows as needed.
+
+Bad old output:
+- Green Lakes 2BR
+- Madina Tower 2BR
+- Goldcrest Views 2 2BR
+- Icon Tower 1 2BR
+- Icon Tower 2 2BR
+with readiness_status REVIEW_REQUIRED and target price fields zero.
+
+Required n8n controls:
+1. Add run quality gate before writing dashboard output.
+2. If candidate rows are fewer than expected or all are REVIEW_REQUIRED, do not mark the run as dashboard-valid.
+3. Prevent old prototype branch from overwriting cleaned dashboard view/table.
+4. Write run_id consistently across:
+   - candidate output
+   - agent_run_context
+   - bank_benchmark_context
+5. Ensure macro context and property rows share the same run_id where possible.
+6. If macro branch fails, property rows should still write, but dashboard should label macro stale/missing.
+7. Keep deal-test rows separate from core ranking.
+8. Do not allow deal-test rows to become investable unless promoted through evidence register.
+
+Recommended n8n output fields for dashboard rows:
+- run_id
+- created_at
+- tower
+- unit_type
+- asking_price_aed
+- area_sqft
+- estimated_annual_rent_aed
+- service_charge_aed_sqft_year
+- net_yield_percent
+- irr_5y_percent
+- irr_vs_bank_percent
+- npv_5y_aed
+- final_score
+- strong_buy_price_aed
+- fair_price_aed
+- discount_to_6_5_target_aed
+- discount_to_6_5_target_percent
+- risk_adjusted_target_yield_percent
+- risk_adjusted_target_price_aed
+- risk_adjusted_required_cut_aed
+- risk_adjusted_required_cut_percent
+- final_decision
+- action_label
+- decision_reason
+- summary
+- input_source_type
+- input_data_confidence
+- dashboard_bucket
+- dashboard_bucket_note
+- financial_stability_score
+- proxy_lei_score
+- macro_confidence
+- macro_data_quality
+- bank_yield_percent
+- bank_source_quality
+- bank_benchmark_source_note
+- price_source_note
+- rent_source_note
+- service_charge_source_note
+- readiness_status
+- negotiation_realism
+- daily_action_category
+- evidence_gap_reason
+- next_data_action
+
+Readiness-status logic:
+- DECISION_READY: high-confidence direct/strict evidence.
+- INTERIM_SCREENED: Property Finder DLD-derived sale/rent evidence plus DLD service charge input, usable for screening.
+- NEEDS_EVIDENCE: missing sale/rent or insufficient usable evidence.
+- BUDGET_MONITOR: normal median price above active/default budget range, but keep price/rent values.
+- DEAL_TEST: scenario only.
+- REVIEW_REQUIRED: should be exceptional, not used for investable rows.
+
+Calculation rules:
+- Net rent = annual rent − area × service charge.
+- Net yield = net rent / asking price × 100.
+- Base strong-buy net-yield trigger = 6.50%.
+- Risk-adjusted target yield = 6.75% if FS < 0 or Proxy LEI < 0.
+- Target price = net rent / risk-adjusted target yield.
+- Required cut = asking price − target price.
+- Required cut % = required cut / asking price × 100.
+- Purchase-cost assumption = 6.6%.
+- Bank benchmark = 3.50% unless updated by bank branch.
+- IRR spread = property IRR − bank benchmark.
+
+Macro branch:
+- Use S&P Global PMI, Reuters where available, DFM, Central Bank UAE, HSBC/bank evidence.
+- FS score:
+  +1 supportive/stable
+  0 mixed/neutral/incomplete
+  -1 stress/caution
+- Proxy LEI:
+  +1 improving
+  0 mixed/neutral
+  -1 weakening/uncertain
+- Macro must remain overlay only. It tightens target yield but does not override property economics.
+
+Bank branch:
+- HSBC UAE AED term deposit evidence previously found.
+- Current benchmark: 3.50%.
+- Source quality: HIGH.
+- Use as low-risk AED alternative for property IRR spread.
+
+Service-charge branch:
+Manual values entered by user from 2026 DLD Service Charge Index:
+- Green Lakes S1 15.42
+- Green Lakes S2 13.56
+- Green Lakes S3 14.25
+- Icon Tower 1 13.56
+- Icon Tower 2 17.54
+- Goldcrest Views 2 17.12
+- Madina Tower 16.42
+Source:
+https://dubailand.gov.ae/en/eservices/service-charge-index-overview/service-charge-index/#/
+
+Need future improvement:
+Automate DLD Service Charge Index extraction or keep a controlled manual service_charge_reference table.
+
+Recommended next n8n fix:
+Add a final IF node before Supabase write:
+- Count rows where readiness_status in INTERIM_SCREENED, DECISION_READY.
+- Count total candidate rows.
+- If screened_count = 0 and total rows <= 5, do not write as latest dashboard run.
+- Route to error/log table instead.

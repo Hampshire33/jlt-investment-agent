@@ -1,0 +1,135 @@
+JLT INVESTMENT AGENT — SUPABASE / SQL HANDOVER
+
+Main issue:
+The frontend reads `dashboard_decision_watchlist_v` ordered by `created_at desc`. Sometimes the latest run regresses to an old 5-row REVIEW_REQUIRED dataset. This breaks the dashboard.
+
+Main dashboard view:
+public.dashboard_decision_watchlist_v
+
+Current known columns:
+run_id
+created_at
+tower
+unit_type
+asking_price_aed
+area_sqft
+estimated_annual_rent_aed
+service_charge_aed_sqft_year
+net_yield_percent
+irr_5y_percent
+irr_vs_bank_percent
+npv_5y_aed
+final_score
+strong_buy_price_aed
+fair_price_aed
+discount_to_6_5_target_aed
+discount_to_6_5_target_percent
+risk_adjusted_target_yield_percent
+risk_adjusted_target_price_aed
+risk_adjusted_required_cut_aed
+risk_adjusted_required_cut_percent
+final_decision
+action_label
+decision_reason
+summary
+input_source_type
+input_data_confidence
+dashboard_bucket
+dashboard_bucket_note
+financial_stability_score
+proxy_lei_score
+macro_confidence
+macro_data_quality
+bank_yield_percent
+bank_source_quality
+bank_benchmark_source_note
+price_source_note
+rent_source_note
+service_charge_source_note
+readiness_status
+negotiation_realism
+daily_action_category
+evidence_gap_reason
+next_data_action
+
+Supporting tables/views used earlier:
+- property_inputs
+- property_evidence_log
+- property_input_data_register
+- agent_run_context
+- bank_benchmark_context
+- deal_test_inputs
+
+Critical SQL/data rule:
+- The dashboard should not expose old REVIEW_REQUIRED rows as investable/screened.
+- Rows with:
+  readiness_status = REVIEW_REQUIRED
+  dashboard_bucket = REVIEW_REQUIRED
+  input_source_type is null
+  input_data_confidence is null
+  risk_adjusted_target_price_aed = 0
+are legacy/review-only rows.
+
+Good cleaned rows should have:
+- readiness_status = INTERIM_SCREENED or DECISION_READY
+- usable asking_price_aed
+- usable area_sqft
+- usable estimated_annual_rent_aed
+- usable service_charge_aed_sqft_year
+- input_source_type like propertyfinder_dld_derived_interim or evidence_supported_input
+- input_data_confidence not null where possible
+- non-zero calculated target prices, or enough values for frontend fallback.
+
+Important SQL design improvement:
+The view should preserve real median sale/rent values even for budget-monitor rows. Do not zero out price/rent just because the row is outside the user’s active cash range. Budget filtering should be frontend-level, not destructive in the view.
+
+Run-quality check SQL:
+select
+  run_id,
+  count(*) as row_count,
+  min(created_at) as first_row,
+  max(created_at) as last_row,
+  string_agg(distinct tower, ', ' order by tower) as towers,
+  string_agg(distinct unit_type, ', ' order by unit_type) as unit_types,
+  string_agg(distinct readiness_status, ', ' order by readiness_status) as readiness_statuses
+from public.dashboard_decision_watchlist_v
+group by run_id
+order by max(created_at) desc;
+
+Expected clean run:
+- around 14–15 rows.
+- includes 1BR and 2BR.
+- towers include Green Lakes S1/S2/S3, Icon Tower 1, Icon Tower 2, Madina Tower, Goldcrest Views 2.
+- readiness_status includes INTERIM_SCREENED / NEEDS_EVIDENCE / BUDGET_MONITOR, not only REVIEW_REQUIRED.
+
+Bad regressed run:
+- 5 rows only.
+- towers: Green Lakes, Madina Tower, Goldcrest Views 2, Icon Tower 1, Icon Tower 2.
+- unit_type mostly 2BR only.
+- readiness_status = REVIEW_REQUIRED.
+- target price fields = 0.
+
+Required future SQL/view improvement:
+Either:
+1. Ensure latest run always writes the cleaned evidence dataset, or
+2. Create a separate view such as `dashboard_latest_valid_run_v` that selects the latest run with at least one INTERIM_SCREENED/DECISION_READY row and excludes legacy REVIEW_REQUIRED-only runs, or
+3. Add `run_quality_status` and `is_dashboard_valid_run` fields.
+
+Strong recommendation:
+Create a view that selects the latest valid run, e.g. latest run where:
+- count of rows with readiness_status in ('INTERIM_SCREENED','DECISION_READY') > 0
+- row_count >= 8
+- not all rows are REVIEW_REQUIRED
+Then point frontend to this view instead of raw latest `dashboard_decision_watchlist_v`.
+
+Service-charge values manually entered by user from DLD Service Charge Index 2026:
+- Green Lakes S1: 15.42
+- Green Lakes S2: 13.56
+- Green Lakes S3: 14.25
+- Icon Tower 1: 13.56
+- Icon Tower 2: 17.54
+- Goldcrest Views 2: 17.12
+- Madina Tower: 16.42
+Source:
+https://dubailand.gov.ae/en/eservices/service-charge-index-overview/service-charge-index/#/
+Label as user-entered DLD Service Charge Index reading until automated verification exists.
