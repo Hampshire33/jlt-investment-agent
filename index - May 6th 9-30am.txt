@@ -448,8 +448,8 @@
   </div>
 
   <script>
-    const SUPABASE_REST_URL = "https://cndyxfprqpfkzypxhrxl.supabase.co/rest/v1";
-    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_VOIytNYEBG7FyZzQqqW66w_nJWK37TC";
+    const SUPABASE_REST_URL = "xxx";
+    const SUPABASE_PUBLISHABLE_KEY = "xxx";
 
     const VIEW_WATCHLIST = "dashboard_decision_watchlist_v";
     const TABLE_AGENT_CONTEXT = "agent_run_context";
