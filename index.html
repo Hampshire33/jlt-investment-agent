@@ -1013,7 +1013,7 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
               <td class="num">AED ${money(c.price_aed)}</td>
               <td class="num">AED ${money(c.price_aed_per_sqft)}</td>
               <td>${escapeHtml(safe(c.transaction_date, "N/A"))}</td>
-              <td>${escapeHtml(safe(c.contract_type_note || c.floor_or_unit_note, "Representative evidence"))}</td>
+              <td>${escapeHtml(safe(c.completion_status, "Ready"))}</td>
               <td>${escapeHtml(safe(c.property_type, "Apartment"))}</td>
               <td>${escapeHtml(safe(c.bedrooms, row.unit_type))}</td>
               <td class="num">${pct(c.area_sqft)}</td>
@@ -1054,7 +1054,7 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
             <td>${link}</td>
             <td class="num">AED ${money(c.annual_rent_aed)}</td>
             <td>${escapeHtml(safe(c.transaction_date, "N/A"))}</td>
-            <td>${escapeHtml(safe(c.contract_type_note, "Representative annual rent evidence"))}</td>
+            <td>${escapeHtml(safe(c.contract_status, "Annual"))}</td>
             <td>${escapeHtml(safe(c.property_type, "Apartment"))}</td>
             <td>${escapeHtml(safe(c.bedrooms, row.unit_type))}</td>
             <td class="num">${pct(c.area_sqft)}</td>
