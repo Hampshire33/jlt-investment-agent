@@ -927,6 +927,27 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
       return `${pct(vals[0])}–${pct(vals[vals.length - 1])} sqft`;
     }
 
+    function primaryEvidenceUrl(row) {
+      const sale = evidenceCasesFor(row, "sale").find(e => e.source_url);
+      if (sale && sale.source_url) return sale.source_url;
+
+      const rent = evidenceCasesFor(row, "rent").find(e => e.source_url);
+      if (rent && rent.source_url) return rent.source_url;
+
+      const sourceText = `${safe(row.price_source_note)} ${safe(row.rent_source_note)}`;
+      const match = sourceText.match(new RegExp("https?://[^ ,]+"));
+      return match ? match[0] : null;
+    }
+
+    function candidateNameHtml(row) {
+      const name = escapeHtml(safe(row.tower));
+      const url = primaryEvidenceUrl(row);
+
+      if (!url) return `<span class="candidate-title">${name}</span>`;
+
+      return `<a class="candidate-title" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${name}</a>`;
+    }
+
     function renderEvidenceCases(row) {
       const saleCases = evidenceCasesFor(row, "sale");
       const rentCases = evidenceCasesFor(row, "rent");
@@ -1491,7 +1512,11 @@ If the database returns zero target-price fields, the frontend calculates fallba
               ${rows.map((r, i) => `
                 <tr>
                   <td>${i + 1}</td>
-                  <td><span class="candidate-title">${escapeHtml(safe(r.tower))}</span><br><span class="small-text">${escapeHtml(safe(r.unit_type))}</span></td>
+                  <td>
+                    ${candidateNameHtml(r)}<br>
+                    <span class="small-text">${escapeHtml(safe(r.unit_type))}</span>
+                    ${renderEvidenceCases(r)}
+                  </td>
                   <td>${pill(readinessLabel(derivedReadiness(r)))}</td>
                   <td class="num">AED ${money(r.asking_price_aed)}</td>
                   <td class="num">AED ${money(estimatedPurchaseCosts(r.asking_price_aed, DEFAULT_PURCHASE_COST_PERCENT))}<br><span class="small-text">${pct(DEFAULT_PURCHASE_COST_PERCENT)}%</span></td>
@@ -1505,7 +1530,6 @@ If the database returns zero target-price fields, the frontend calculates fallba
                     <details class="inline-detail">
                       <summary>View</summary>
                       <div class="compact-detail">${escapeHtml(compactSourceNote(r))}</div>
-                      ${renderEvidenceCases(r)}
                       <details class="inline-detail">
                         <summary>Raw source details</summary>
                         <div class="details-box">${escapeHtml(fullEvidenceDetails(r))}</div>
@@ -1827,7 +1851,7 @@ Budget monitor = selected candidate is above active max cash range or normal mar
 
 Below range = selected candidate is below active min cash range.
 
-Deal test = scenario only</div>
+Deal test = scenario only.</div>
         </details>
 
         <details class="inline-detail">
