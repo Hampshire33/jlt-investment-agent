@@ -486,6 +486,10 @@
       return v === null || v === undefined || v === "" ? fallback : v;
     }
 
+    function txt(v) {
+      return String(v || "").trim().toUpperCase();
+    }
+
     function num(v, fallback = 0) {
       const n = Number(v);
       return Number.isFinite(n) ? n : fallback;
@@ -523,6 +527,92 @@
       return `${safe(row.tower)} ${safe(row.unit_type)}`.trim();
     }
 
+    function baseReadiness(row) {
+      const readiness = txt(row.readiness_status);
+      const finalDecision = txt(row.final_decision);
+      const bucket = txt(row.dashboard_bucket);
+      const source = txt(row.input_source_type);
+      const action = txt(row.daily_action_category);
+      const confidence = txt(row.input_data_confidence);
+      const price = num(row.asking_price_aed);
+      const rent = num(row.estimated_annual_rent_aed);
+      const sc = num(row.service_charge_aed_sqft_year);
+
+      if (
+        readiness.includes("DEAL") ||
+        finalDecision.includes("DEAL TEST") ||
+        bucket.includes("DEAL") ||
+        source.includes("DEAL_TEST") ||
+        action.includes("SCENARIO")
+      ) return "DEAL_TEST";
+
+      if (
+        readiness.includes("DECISION_READY") ||
+        readiness.includes("STRICT") ||
+        bucket.includes("STRICT") ||
+        bucket.includes("DECISION_READY")
+      ) return "DECISION_READY";
+
+      if (
+        readiness.includes("INTERIM") ||
+        readiness.includes("SCREENED") ||
+        finalDecision.includes("INTERIM") ||
+        finalDecision.includes("PASS") ||
+        bucket.includes("INTERIM") ||
+        bucket.includes("EVIDENCE") ||
+        source.includes("PROPERTYFINDER") ||
+        source.includes("DLD_DERIVED") ||
+        source.includes("EVIDENCE") ||
+        action.includes("WATCH_ONLY") ||
+        action.includes("TRACK") ||
+        (price > 0 && rent > 0 && sc > 0 && !finalDecision.includes("DATA GAP"))
+      ) return "INTERIM_SCREENED";
+
+      if (
+        readiness.includes("BUDGET") ||
+        finalDecision.includes("OUT_OF_BUDGET") ||
+        bucket.includes("BUDGET") ||
+        action.includes("BUDGET")
+      ) return "BUDGET_MONITOR";
+
+      if (
+        readiness.includes("NEEDS") ||
+        readiness.includes("DATA") ||
+        finalDecision.includes("DATA GAP") ||
+        bucket.includes("DATA") ||
+        action.includes("COMPLETE_EVIDENCE") ||
+        price <= 0 ||
+        rent <= 0
+      ) return "NEEDS_EVIDENCE";
+
+      if (confidence.includes("MEDIUM") && price > 0 && rent > 0) return "INTERIM_SCREENED";
+
+      return "NEEDS_EVIDENCE";
+    }
+
+    function derivedReadiness(row) {
+      const base = baseReadiness(row);
+      if (base === "DEAL_TEST") return "DEAL_TEST";
+
+      const price = num(row.asking_price_aed);
+      if (price <= 0) return base;
+      if (price < state.settings.minBudget) return "BELOW_RANGE";
+      if (price > state.settings.maxBudget) return "BUDGET_MONITOR";
+
+      return base;
+    }
+
+    function readinessLabel(status) {
+      const s = String(status || "").toUpperCase();
+      if (s === "DECISION_READY") return "Decision-ready";
+      if (s === "INTERIM_SCREENED") return "Screened";
+      if (s === "NEEDS_EVIDENCE") return "Needs evidence";
+      if (s === "BUDGET_MONITOR") return "Budget monitor";
+      if (s === "BELOW_RANGE") return "Below range";
+      if (s === "DEAL_TEST") return "Deal test";
+      return "Review";
+    }
+
     function pill(text, tone = null) {
       const t = String(text || "").toUpperCase();
       let cls = tone;
@@ -538,26 +628,7 @@
       return `<span class="pill ${cls}">${escapeHtml(safe(text, "N/A"))}</span>`;
     }
 
-    function readinessLabel(status) {
-      const s = String(status || "").toUpperCase();
-      if (s === "DECISION_READY") return "Decision-ready";
-      if (s === "INTERIM_SCREENED") return "Screened";
-      if (s === "NEEDS_EVIDENCE") return "Needs evidence";
-      if (s === "BUDGET_MONITOR") return "Budget monitor";
-      if (s === "BELOW_RANGE") return "Below range";
-      if (s === "DEAL_TEST") return "Deal test";
-      return "Review";
-    }
-
-    function optionListFromRange({
-      start,
-      end,
-      step,
-      selected,
-      formatter,
-      decimals = 0,
-      includeExactSelected = true
-    }) {
+    function optionListFromRange({ start, end, step, selected, formatter, decimals = 0, includeExactSelected = true }) {
       const values = [];
       for (let v = start; v <= end + 1e-9; v += step) {
         values.push(Number(v.toFixed(decimals)));
@@ -680,18 +751,6 @@
       return num(row.asking_price_aed) * num(row.net_yield_percent) / 100;
     }
 
-    function derivedReadiness(row) {
-      const base = String(row.readiness_status || "");
-      if (base === "DEAL_TEST") return "DEAL_TEST";
-
-      const price = num(row.asking_price_aed);
-      if (price <= 0) return base;
-      if (price < state.settings.minBudget) return "BELOW_RANGE";
-      if (price > state.settings.maxBudget) return "BUDGET_MONITOR";
-
-      return base;
-    }
-
     function classifyRows(rows) {
       return {
         decisionReady: rows.filter(r => derivedReadiness(r) === "DECISION_READY"),
@@ -713,8 +772,9 @@
 
     function getCalculatorRows(rows) {
       return rows.filter(r =>
-        ["DECISION_READY", "INTERIM_SCREENED"].includes(String(r.readiness_status || "")) &&
-        num(r.asking_price_aed) > 0
+        ["DECISION_READY", "INTERIM_SCREENED"].includes(baseReadiness(r)) &&
+        num(r.asking_price_aed) > 0 &&
+        num(r.estimated_annual_rent_aed) > 0
       );
     }
 
@@ -817,9 +877,9 @@ Required cut: AED ${money(row.risk_adjusted_required_cut_aed)} / ${pct(p)}%.`;
       const dr = derivedReadiness(row);
       const confidence = String(row.input_data_confidence || "");
 
-      if (dr === "INTERIM_SCREENED") {
-        return `Status: Screened
-Basis: Property Finder DLD-derived sale/rent + 2026 DLD service charge input.
+      if (dr === "INTERIM_SCREENED" || dr === "DECISION_READY") {
+        return `Status: ${readinessLabel(dr)}
+Basis: ${safe(row.input_source_type, "screening evidence")}
 Decision use: Good enough for current screen and deal/no-deal discipline.
 Main issue: price/yield, not data availability.
 Confidence: ${confidence}
@@ -856,8 +916,8 @@ Rent source: ${safe(row.rent_source_note, "N/A")}
 
 Service-charge source: ${safe(row.service_charge_source_note, "N/A")}
 
+Dashboard bucket: ${safe(row.dashboard_bucket, "N/A")}
 Technical verdict: ${safe(row.final_decision, "N/A")}
-
 Decision reason: ${safe(row.decision_reason, "N/A")}`;
     }
 
@@ -865,7 +925,7 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
       const reason = String(row.evidence_gap_reason || "").toLowerCase();
       const dr = derivedReadiness(row);
 
-      if (dr === "INTERIM_SCREENED") return "Evidence is sufficient for current screening; commercial issue is whether price reaches target.";
+      if (dr === "INTERIM_SCREENED" || dr === "DECISION_READY") return "Evidence is sufficient for current screening; commercial issue is whether price reaches target.";
       if (dr === "BUDGET_MONITOR") return "Price is above the active max cash range.";
       if (dr === "BELOW_RANGE") return "Price is below the active min cash range.";
       if (reason.includes("rent")) return "Without rent evidence, net yield and IRR cannot be trusted.";
@@ -1255,10 +1315,7 @@ Net-yield formula:
 Net yield = estimated net annual rent ÷ current evidence price.
 
 Risk target price formula:
-Risk target price = estimated net annual rent ÷ risk-adjusted target yield.
-
-Important:
-Target price is a screening entry-price discipline. Final action still needs unit-level checks such as floor, view, condition, parking, vacancy, layout, title status and actual owner motivation.</div>
+Risk target price = estimated net annual rent ÷ risk-adjusted target yield.</div>
         </details>
       `;
     }
@@ -1500,7 +1557,7 @@ Controlled dropdown from 5.00% to 8.00% in 0.25% steps. If the model value is no
 Purchase-cost %:
 Editable because actual transaction fees may vary.
 
-Owner asking price is not overwritten by required yield. Target buy price is recalculated instead, because seller ask and target entry price are different things.</div>
+Owner asking price is not overwritten by required yield. Target buy price is recalculated instead.</div>
         </details>
       `;
     }
@@ -1558,7 +1615,7 @@ Owner asking price is not overwritten by required yield. Target buy price is rec
     function displayEvidenceIssue(row) {
       const dr = derivedReadiness(row);
 
-      if (dr === "INTERIM_SCREENED") {
+      if (dr === "INTERIM_SCREENED" || dr === "DECISION_READY") {
         return "Sale, rent and service-charge evidence available. Suitable for current screen and deal/no-deal discipline.";
       }
 
@@ -1576,7 +1633,7 @@ Owner asking price is not overwritten by required yield. Target buy price is rec
     function displayNextAction(row) {
       const dr = derivedReadiness(row);
 
-      if (dr === "INTERIM_SCREENED") {
+      if (dr === "INTERIM_SCREENED" || dr === "DECISION_READY") {
         return "Track only if owner asking price approaches the risk target price.";
       }
 
@@ -1595,15 +1652,16 @@ Owner asking price is not overwritten by required yield. Target buy price is rec
       return `
         <details class="inline-detail">
           <summary>Readiness rules</summary>
-          <div class="details-box">Decision-ready = strict / high-confidence direct evidence.
+          <div class="details-box">Status is inferred from:
+readiness_status, final_decision, dashboard_bucket, input_source_type, daily_action_category, asking_price_aed, estimated_annual_rent_aed, and service_charge_aed_sqft_year.
 
-Screened = Property Finder DLD-derived transaction/rent evidence plus DLD Service Charge Index input. Good enough for dashboard screen and deal/no-deal discipline.
+Screened = DLD-derived / Property Finder / evidence-backed row with usable price, rent and service charge.
 
-Needs evidence = missing sale or rent evidence.
+Budget monitor = above active max cash range.
 
-Budget monitor = selected candidate is above active max cash range or normal market evidence is above budget.
+Below range = below active min cash range.
 
-Below range = selected candidate is below active min cash range.
+Needs evidence = missing usable price/rent or marked data gap.
 
 Deal test = scenario only.</div>
         </details>
