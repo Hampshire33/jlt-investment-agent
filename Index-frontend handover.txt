@@ -6,9 +6,9 @@ Frontend stack:
 - Static GitHub Pages.
 - Vanilla HTML/CSS/JS only.
 - Supabase REST endpoint:
-  https://cndyxfprqpfkzypxhrxl.supabase.co/rest/v1
+  https://xxx
 - Publishable key:
-  sb_publishable_VOIytNYEBG7FyZzQqqW66w_nJWK37TC
+  xxx
 
 Main frontend data source:
 - public.dashboard_decision_watchlist_v
