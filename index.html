@@ -996,63 +996,88 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
         ? "Dashboard evidence price"
         : "Dashboard rent";
 
-      const lines = cases.map((c, idx) => {
-        const amount = type === "sale"
-          ? `AED ${money(c.price_aed)}`
-          : `AED ${money(c.annual_rent_aed)}/yr`;
+      const summaryHtml = `
+        <div class="compact-detail"><strong>${title}</strong><br>Included cases: ${included.length} / ${cases.length} | Median: AED ${money(medianValue)}${type === "rent" ? "/yr" : ""} | ${modelLabel}: AED ${money(modelValue)}${type === "rent" ? "/yr" : ""} | Area range: ${evidenceAreaRange(cases)}</div>
+      `;
 
-        const rate = type === "sale"
-          ? `AED ${money(c.price_aed_per_sqft)}/sqft`
-          : `AED ${money(c.rent_aed_per_sqft)}/sqft/yr`;
+      if (type === "sale") {
+        const saleLines = cases.map(c => {
+          const location = `${safe(c.tower, row.tower)}${safe(c.unit_type || c.bedrooms || row.unit_type) ? `, ${safe(c.unit_type || c.bedrooms || row.unit_type)}` : ""}`;
+          const link = c.source_url
+            ? `<a href="${escapeHtml(c.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(location)}</a>`
+            : escapeHtml(location);
 
-        const includeFlag = (c.included_in_median === true || c.included_in_median === "true")
-          ? "USED"
-          : `EXCLUDED: ${escapeHtml(safe(c.exclusion_reason, "not used"))}`;
+          return `
+            <tr>
+              <td>${link}</td>
+              <td class="num">AED ${money(c.price_aed)}</td>
+              <td class="num">AED ${money(c.price_aed_per_sqft)}</td>
+              <td>${escapeHtml(safe(c.transaction_date, "N/A"))}</td>
+              <td>${escapeHtml(safe(c.contract_type_note || c.floor_or_unit_note, "Representative evidence"))}</td>
+              <td>${escapeHtml(safe(c.property_type, "Apartment"))}</td>
+              <td>${escapeHtml(safe(c.bedrooms, row.unit_type))}</td>
+              <td class="num">${pct(c.area_sqft)}</td>
+            </tr>
+          `;
+        }).join("");
 
+        return `
+          ${summaryHtml}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Location</th>
+                  <th class="num">Sold for (AED)</th>
+                  <th class="num">Sold for (AED per sqft)</th>
+                  <th>Date</th>
+                  <th>Completion Status</th>
+                  <th>Property Type</th>
+                  <th>Bedrooms</th>
+                  <th class="num">Size (sqft)</th>
+                </tr>
+              </thead>
+              <tbody>${saleLines}</tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      const rentLines = cases.map(c => {
+        const location = `${safe(c.tower, row.tower)}${safe(c.unit_type || c.bedrooms || row.unit_type) ? `, ${safe(c.unit_type || c.bedrooms || row.unit_type)}` : ""}`;
         const link = c.source_url
-          ? `<a href="${escapeHtml(c.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(shortUrlLabel(c.source_url))}</a>`
-          : "No link";
+          ? `<a href="${escapeHtml(c.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(location)}</a>`
+          : escapeHtml(location);
 
         return `
           <tr>
-            <td>${idx + 1}</td>
-            <td>${escapeHtml(amount)}</td>
+            <td>${link}</td>
+            <td class="num">AED ${money(c.annual_rent_aed)}</td>
+            <td>${escapeHtml(safe(c.transaction_date, "N/A"))}</td>
+            <td>${escapeHtml(safe(c.contract_type_note, "Representative annual rent evidence"))}</td>
+            <td>${escapeHtml(safe(c.property_type, "Apartment"))}</td>
             <td>${escapeHtml(safe(c.bedrooms, row.unit_type))}</td>
             <td class="num">${pct(c.area_sqft)}</td>
-            <td class="num">${escapeHtml(rate)}</td>
-            <td>${escapeHtml(safe(c.transaction_date, "N/A"))}</td>
-            <td>${includeFlag}</td>
-            <td>${link}</td>
           </tr>
         `;
       }).join("");
 
       return `
-        <div class="compact-detail">
-          <strong>${title}</strong><br>
-          Included cases: ${included.length} / ${cases.length}<br>
-          Median from cases: AED ${money(medianValue)}${type === "rent" ? "/yr" : ""}<br>
-          ${modelLabel}: AED ${money(modelValue)}${type === "rent" ? "/yr" : ""}<br>
-          Area range: ${evidenceAreaRange(cases)}
-        </div>
-
+        ${summaryHtml}
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>#</th>
-                <th>Amount</th>
-                <th>Unit</th>
-                <th class="num">Area sqft</th>
-                <th class="num">Unit rate</th>
+                <th>Location</th>
+                <th class="num">Rented Price (AED/Year)</th>
                 <th>Date</th>
-                <th>Use</th>
-                <th>Source</th>
+                <th>Contract Status</th>
+                <th>Property Type</th>
+                <th>Bedrooms</th>
+                <th class="num">Size (sqft)</th>
               </tr>
             </thead>
-            <tbody>
-              ${lines}
-            </tbody>
+            <tbody>${rentLines}</tbody>
           </table>
         </div>
       `;
