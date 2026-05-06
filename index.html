@@ -201,6 +201,21 @@
       overflow: hidden;
     }
 
+    .metric.good {
+      background: var(--soft-green);
+      border-color: #b7e5c7;
+    }
+
+    .metric.warn {
+      background: var(--soft-amber);
+      border-color: #ffd38a;
+    }
+
+    .metric.bad {
+      background: var(--soft-red);
+      border-color: #ffb4b4;
+    }
+
     .metric-label {
       color: var(--muted);
       font-size: 11px;
@@ -579,47 +594,23 @@
     }
 
     function getOwnerAskOptions(selected) {
-      return optionListFromRange(
-        500000,
-        2000000,
-        50000,
-        selected,
-        v => `AED ${money(v)}`,
-        0
-      );
+      return optionListFromRange(500000, 2000000, 50000, selected, v => `AED ${money(v)}`, 0);
     }
 
     function getAnnualRentOptions(selected) {
-      return optionListFromRange(
-        60000,
-        140000,
-        5000,
-        selected,
-        v => `AED ${money(v)}`,
-        0
-      );
+      return optionListFromRange(60000, 140000, 5000, selected, v => `AED ${money(v)}`, 0);
     }
 
     function getServiceChargeOptions(selected) {
-      return optionListFromRange(
-        12,
-        20,
-        0.5,
-        selected,
-        v => `${pct(v)} AED/sqft/year`,
-        2
-      );
+      return optionListFromRange(12, 20, 0.5, selected, v => `${pct(v)} AED/sqft/year`, 2);
     }
 
     function getRequiredYieldOptions(selected) {
-      return optionListFromRange(
-        5,
-        8,
-        0.25,
-        selected,
-        v => `${pct(v)}%`,
-        2
-      );
+      return optionListFromRange(5, 8, 0.25, selected, v => `${pct(v)}%`, 2);
+    }
+
+    function getPurchaseCostOptions(selected) {
+      return optionListFromRange(5, 7, 0.1, selected, v => `${pct(v)}%`, 1);
     }
 
     function sortByNetYield(rows) {
@@ -1275,7 +1266,16 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
 
         <details class="inline-detail">
           <summary>All-in cost, net-yield and target-price assumptions</summary>
-          <div class="details-box">Purchase-cost assumption:
+          <div class="details-box">Column definitions:
+- Candidate: tower and unit type.
+- Status: evidence/readiness classification. Only Screened or Decision-ready rows enter this table.
+- Price: evidence/model sale-price assumption from Supabase, not necessarily live owner asking price.
+- Est. Buy Costs: Price × 6.6% purchase-cost assumption.
+- All-in Cost: Price + estimated buy costs.
+- Rent: evidence/model annual rent assumption.
+- Net Yield: estimated net rent ÷ Price, after service charge deduction.
+
+Purchase-cost assumption:
 The watchlist adds ${pct(DEFAULT_PURCHASE_COST_PERCENT)}% to estimate practical all-in capital required.
 
 Indicative acquisition-cost breakdown:
@@ -1283,10 +1283,7 @@ Indicative acquisition-cost breakdown:
 - Agency fee: ~2.0% + VAT, approximately 2.1%
 - Trustee / conveyancing / admin / NOC allowance: ~0.5%
 
-Net-yield formula:
-Net yield = estimated net annual rent ÷ current evidence price.
-
-Risk target price formula:
+Risk target price:
 Risk target price = estimated net annual rent ÷ risk-adjusted target yield.
 
 If the database returns zero target-price fields, the frontend calculates fallback target price from rent, area, service charge and target yield.</div>
@@ -1384,6 +1381,7 @@ If the database returns zero target-price fields, the frontend calculates fallba
       const cutPct = requiredCutPercent(ask, targetPrice);
       const fees = estimatedPurchaseCosts(ask, costPct);
       const allIn = allInCost(ask, costPct);
+      const signal = dealSignalClass(yieldPct, requiredYield);
 
       return {
         ask,
@@ -1399,8 +1397,15 @@ If the database returns zero target-price fields, the frontend calculates fallba
         cut,
         cutPct,
         fees,
-        allIn
+        allIn,
+        signal
       };
+    }
+
+    function dealSignalClass(yieldPct, requiredYield) {
+      if (num(yieldPct) >= num(requiredYield)) return "good";
+      if (num(yieldPct) > 5) return "warn";
+      return "bad";
     }
 
     function renderDealTestCalculator() {
@@ -1449,7 +1454,7 @@ If the database returns zero target-price fields, the frontend calculates fallba
 
           <div class="form-field">
             <label for="dealPurchaseCostPercentInput">Purchase-cost assumption, %</label>
-            <input id="dealPurchaseCostPercentInput" type="number" min="0" step="0.1" value="${c.costPct}" />
+            <select id="dealPurchaseCostPercentInput">${getPurchaseCostOptions(c.costPct)}</select>
           </div>
 
           <div class="form-field">
@@ -1477,19 +1482,19 @@ If the database returns zero target-price fields, the frontend calculates fallba
             <div class="metric-small">Annual rent − service charge</div>
           </div>
 
-          <div class="metric">
+          <div class="metric ${c.signal}">
             <div class="metric-label">Expected net yield</div>
             <div class="metric-value">${pct(c.yieldPct)}%</div>
             <div class="metric-small">Net rent ÷ asking price</div>
           </div>
 
-          <div class="metric">
+          <div class="metric ${c.signal}">
             <div class="metric-label">Target buy price</div>
             <div class="metric-value">AED ${money(c.targetPrice)}</div>
             <div class="metric-small">Net rent ÷ required yield</div>
           </div>
 
-          <div class="metric">
+          <div class="metric ${c.signal}">
             <div class="metric-label">Required cut</div>
             <div class="metric-value">AED ${money(c.cut)}</div>
             <div class="metric-small">${pct(c.cutPct)}% vs owner ask</div>
@@ -1761,7 +1766,7 @@ Deal test = scenario only.</div>
       }
 
       if (dealPurchaseCostPercentInput) {
-        dealPurchaseCostPercentInput.addEventListener("input", (e) => {
+        dealPurchaseCostPercentInput.addEventListener("change", (e) => {
           state.dealTest.purchaseCostPercent = e.target.value;
           renderDashboard();
         });
