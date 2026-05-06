@@ -486,10 +486,6 @@
       return v === null || v === undefined || v === "" ? fallback : v;
     }
 
-    function txt(v) {
-      return String(v || "").trim().toUpperCase();
-    }
-
     function num(v, fallback = 0) {
       const n = Number(v);
       return Number.isFinite(n) ? n : fallback;
@@ -527,92 +523,6 @@
       return `${safe(row.tower)} ${safe(row.unit_type)}`.trim();
     }
 
-    function baseReadiness(row) {
-      const readiness = txt(row.readiness_status);
-      const finalDecision = txt(row.final_decision);
-      const bucket = txt(row.dashboard_bucket);
-      const source = txt(row.input_source_type);
-      const action = txt(row.daily_action_category);
-      const confidence = txt(row.input_data_confidence);
-      const price = num(row.asking_price_aed);
-      const rent = num(row.estimated_annual_rent_aed);
-      const sc = num(row.service_charge_aed_sqft_year);
-
-      if (
-        readiness.includes("DEAL") ||
-        finalDecision.includes("DEAL TEST") ||
-        bucket.includes("DEAL") ||
-        source.includes("DEAL_TEST") ||
-        action.includes("SCENARIO")
-      ) return "DEAL_TEST";
-
-      if (
-        readiness.includes("DECISION_READY") ||
-        readiness.includes("STRICT") ||
-        bucket.includes("STRICT") ||
-        bucket.includes("DECISION_READY")
-      ) return "DECISION_READY";
-
-      if (
-        readiness.includes("INTERIM") ||
-        readiness.includes("SCREENED") ||
-        finalDecision.includes("INTERIM") ||
-        finalDecision.includes("PASS") ||
-        bucket.includes("INTERIM") ||
-        bucket.includes("EVIDENCE") ||
-        source.includes("PROPERTYFINDER") ||
-        source.includes("DLD_DERIVED") ||
-        source.includes("EVIDENCE") ||
-        action.includes("WATCH_ONLY") ||
-        action.includes("TRACK") ||
-        (price > 0 && rent > 0 && sc > 0 && !finalDecision.includes("DATA GAP"))
-      ) return "INTERIM_SCREENED";
-
-      if (
-        readiness.includes("BUDGET") ||
-        finalDecision.includes("OUT_OF_BUDGET") ||
-        bucket.includes("BUDGET") ||
-        action.includes("BUDGET")
-      ) return "BUDGET_MONITOR";
-
-      if (
-        readiness.includes("NEEDS") ||
-        readiness.includes("DATA") ||
-        finalDecision.includes("DATA GAP") ||
-        bucket.includes("DATA") ||
-        action.includes("COMPLETE_EVIDENCE") ||
-        price <= 0 ||
-        rent <= 0
-      ) return "NEEDS_EVIDENCE";
-
-      if (confidence.includes("MEDIUM") && price > 0 && rent > 0) return "INTERIM_SCREENED";
-
-      return "NEEDS_EVIDENCE";
-    }
-
-    function derivedReadiness(row) {
-      const base = baseReadiness(row);
-      if (base === "DEAL_TEST") return "DEAL_TEST";
-
-      const price = num(row.asking_price_aed);
-      if (price <= 0) return base;
-      if (price < state.settings.minBudget) return "BELOW_RANGE";
-      if (price > state.settings.maxBudget) return "BUDGET_MONITOR";
-
-      return base;
-    }
-
-    function readinessLabel(status) {
-      const s = String(status || "").toUpperCase();
-      if (s === "DECISION_READY") return "Decision-ready";
-      if (s === "INTERIM_SCREENED") return "Screened";
-      if (s === "NEEDS_EVIDENCE") return "Needs evidence";
-      if (s === "BUDGET_MONITOR") return "Budget monitor";
-      if (s === "BELOW_RANGE") return "Below range";
-      if (s === "DEAL_TEST") return "Deal test";
-      return "Review";
-    }
-
     function pill(text, tone = null) {
       const t = String(text || "").toUpperCase();
       let cls = tone;
@@ -628,7 +538,27 @@
       return `<span class="pill ${cls}">${escapeHtml(safe(text, "N/A"))}</span>`;
     }
 
-    function optionListFromRange({ start, end, step, selected, formatter, decimals = 0, includeExactSelected = true }) {
+    function readinessLabel(status) {
+      const s = String(status || "").toUpperCase();
+      if (s === "DECISION_READY") return "Decision-ready";
+      if (s === "INTERIM_SCREENED") return "Screened";
+      if (s === "NEEDS_EVIDENCE") return "Needs evidence";
+      if (s === "BUDGET_MONITOR") return "Budget monitor";
+      if (s === "BELOW_RANGE") return "Below range";
+      if (s === "DEAL_TEST") return "Deal test";
+      if (s === "REVIEW_REQUIRED") return "Review required";
+      return "Review";
+    }
+
+    function getBudgetOptions(selected) {
+      let html = "";
+      for (let v = 500000; v <= 2000000; v += 100000) {
+        html += `<option value="${v}" ${v === selected ? "selected" : ""}>AED ${money(v)}</option>`;
+      }
+      return html;
+    }
+
+    function optionListFromRange(start, end, step, selected, formatter, decimals = 0) {
       const values = [];
       for (let v = start; v <= end + 1e-9; v += step) {
         values.push(Number(v.toFixed(decimals)));
@@ -637,7 +567,7 @@
       const selectedNumber = Number(Number(selected).toFixed(decimals));
       const hasSelected = values.some(v => Math.abs(v - selectedNumber) < 1e-9);
 
-      if (includeExactSelected && Number.isFinite(selectedNumber) && selectedNumber > 0 && !hasSelected) {
+      if (Number.isFinite(selectedNumber) && selectedNumber > 0 && !hasSelected) {
         values.push(selectedNumber);
         values.sort((a, b) => a - b);
       }
@@ -648,59 +578,48 @@
       }).join("");
     }
 
-    function getBudgetOptions(selected) {
-      return optionListFromRange({
-        start: 500000,
-        end: 2000000,
-        step: 100000,
-        selected,
-        formatter: v => `AED ${money(v)}`,
-        decimals: 0
-      });
-    }
-
     function getOwnerAskOptions(selected) {
-      return optionListFromRange({
-        start: 500000,
-        end: 2000000,
-        step: 100000,
+      return optionListFromRange(
+        500000,
+        2000000,
+        50000,
         selected,
-        formatter: v => `AED ${money(v)}`,
-        decimals: 0
-      });
+        v => `AED ${money(v)}`,
+        0
+      );
     }
 
     function getAnnualRentOptions(selected) {
-      return optionListFromRange({
-        start: 60000,
-        end: 140000,
-        step: 5000,
+      return optionListFromRange(
+        60000,
+        140000,
+        5000,
         selected,
-        formatter: v => `AED ${money(v)}`,
-        decimals: 0
-      });
+        v => `AED ${money(v)}`,
+        0
+      );
     }
 
     function getServiceChargeOptions(selected) {
-      return optionListFromRange({
-        start: 12,
-        end: 20,
-        step: 0.5,
+      return optionListFromRange(
+        12,
+        20,
+        0.5,
         selected,
-        formatter: v => `${pct(v)} AED/sqft/year`,
-        decimals: 2
-      });
+        v => `${pct(v)} AED/sqft/year`,
+        2
+      );
     }
 
     function getRequiredYieldOptions(selected) {
-      return optionListFromRange({
-        start: 5,
-        end: 8,
-        step: 0.25,
+      return optionListFromRange(
+        5,
+        8,
+        0.25,
         selected,
-        formatter: v => `${pct(v)}%`,
-        decimals: 2
-      });
+        v => `${pct(v)}%`,
+        2
+      );
     }
 
     function sortByNetYield(rows) {
@@ -751,6 +670,48 @@
       return num(row.asking_price_aed) * num(row.net_yield_percent) / 100;
     }
 
+    function rowTargetPrice(row) {
+      const dbValue = num(row.risk_adjusted_target_price_aed);
+      if (dbValue > 0) return dbValue;
+
+      const yieldTarget = num(row.risk_adjusted_target_yield_percent, 6.5);
+      const netRent = netRentFromRow(row);
+
+      return targetBuyPrice(netRent, yieldTarget);
+    }
+
+    function rowRequiredCut(row) {
+      const dbValue = num(row.risk_adjusted_required_cut_aed);
+      if (dbValue !== 0) return dbValue;
+
+      const target = rowTargetPrice(row);
+      if (target <= 0) return 0;
+
+      return requiredCut(row.asking_price_aed, target);
+    }
+
+    function rowRequiredCutPercent(row) {
+      const dbValue = num(row.risk_adjusted_required_cut_percent);
+      if (dbValue !== 0) return dbValue;
+
+      const target = rowTargetPrice(row);
+      if (target <= 0) return 0;
+
+      return requiredCutPercent(row.asking_price_aed, target);
+    }
+
+    function derivedReadiness(row) {
+      const base = String(row.readiness_status || "");
+      if (base === "DEAL_TEST") return "DEAL_TEST";
+
+      const price = num(row.asking_price_aed);
+      if (price <= 0) return base;
+      if (price < state.settings.minBudget) return "BELOW_RANGE";
+      if (price > state.settings.maxBudget) return "BUDGET_MONITOR";
+
+      return base;
+    }
+
     function classifyRows(rows) {
       return {
         decisionReady: rows.filter(r => derivedReadiness(r) === "DECISION_READY"),
@@ -758,7 +719,8 @@
         needsEvidence: rows.filter(r => derivedReadiness(r) === "NEEDS_EVIDENCE"),
         budgetMonitor: rows.filter(r => derivedReadiness(r) === "BUDGET_MONITOR"),
         belowRange: rows.filter(r => derivedReadiness(r) === "BELOW_RANGE"),
-        dealTest: rows.filter(r => derivedReadiness(r) === "DEAL_TEST")
+        dealTest: rows.filter(r => derivedReadiness(r) === "DEAL_TEST"),
+        reviewRequired: rows.filter(r => derivedReadiness(r) === "REVIEW_REQUIRED")
       };
     }
 
@@ -772,8 +734,9 @@
 
     function getCalculatorRows(rows) {
       return rows.filter(r =>
-        ["DECISION_READY", "INTERIM_SCREENED"].includes(baseReadiness(r)) &&
+        ["DECISION_READY", "INTERIM_SCREENED"].includes(String(r.readiness_status || "")) &&
         num(r.asking_price_aed) > 0 &&
+        num(r.area_sqft) > 0 &&
         num(r.estimated_annual_rent_aed) > 0
       );
     }
@@ -858,28 +821,28 @@ Applied hurdle = ${best ? pct(best.risk_adjusted_target_yield_percent) : "N/A"}%
     }
 
     function negotiationExplanation(row) {
-      const p = num(row.risk_adjusted_required_cut_percent);
+      const p = rowRequiredCutPercent(row);
       const realism = String(row.negotiation_realism || "NOT_APPLICABLE").toUpperCase();
 
       const base = `Current evidence price: AED ${money(row.asking_price_aed)}.
-Risk-adjusted target price: AED ${money(row.risk_adjusted_target_price_aed)}.
-Required cut: AED ${money(row.risk_adjusted_required_cut_aed)} / ${pct(p)}%.`;
+Risk-adjusted target price: AED ${money(rowTargetPrice(row))}.
+Required cut: AED ${money(rowRequiredCut(row))} / ${pct(p)}%.`;
 
       if (realism === "REALISTIC") return `${base}\n\nWithin normal negotiation band.`;
       if (realism === "POSSIBLE") return `${base}\n\nRequires seller motivation or negotiation leverage.`;
       if (realism === "DIFFICULT") return `${base}\n\nAbove normal negotiation range. Requires motivated seller, stale listing or unit-specific weakness.`;
       if (realism === "UNLIKELY") return `${base}\n\nLikely unrealistic unless distress or abnormal listing appears.`;
 
-      return "Negotiation realism is not applicable for this row.";
+      return base;
     }
 
     function compactSourceNote(row) {
       const dr = derivedReadiness(row);
       const confidence = String(row.input_data_confidence || "");
 
-      if (dr === "INTERIM_SCREENED" || dr === "DECISION_READY") {
-        return `Status: ${readinessLabel(dr)}
-Basis: ${safe(row.input_source_type, "screening evidence")}
+      if (dr === "INTERIM_SCREENED") {
+        return `Status: Screened
+Basis: Property Finder DLD-derived sale/rent + 2026 DLD service charge input.
 Decision use: Good enough for current screen and deal/no-deal discipline.
 Main issue: price/yield, not data availability.
 Confidence: ${confidence}
@@ -905,6 +868,12 @@ Issue: Price is below selected min cash range of AED ${money(state.settings.minB
 Next action: Review only if intentionally targeting lower ticket size.`;
       }
 
+      if (dr === "REVIEW_REQUIRED") {
+        return `Status: Review required
+Issue: This row is not promoted to screened evidence status.
+Next action: Review source evidence and rerun/register through the cleaned evidence workflow.`;
+      }
+
       return `Status: ${readinessLabel(dr)}
 Next action: ${safe(row.next_data_action, "Review.")}`;
     }
@@ -916,8 +885,8 @@ Rent source: ${safe(row.rent_source_note, "N/A")}
 
 Service-charge source: ${safe(row.service_charge_source_note, "N/A")}
 
-Dashboard bucket: ${safe(row.dashboard_bucket, "N/A")}
 Technical verdict: ${safe(row.final_decision, "N/A")}
+
 Decision reason: ${safe(row.decision_reason, "N/A")}`;
     }
 
@@ -925,9 +894,10 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
       const reason = String(row.evidence_gap_reason || "").toLowerCase();
       const dr = derivedReadiness(row);
 
-      if (dr === "INTERIM_SCREENED" || dr === "DECISION_READY") return "Evidence is sufficient for current screening; commercial issue is whether price reaches target.";
+      if (dr === "INTERIM_SCREENED") return "Evidence is sufficient for current screening; commercial issue is whether price reaches target.";
       if (dr === "BUDGET_MONITOR") return "Price is above the active max cash range.";
       if (dr === "BELOW_RANGE") return "Price is below the active min cash range.";
+      if (dr === "REVIEW_REQUIRED") return "Review-required rows should not be treated as investment-ready until promoted by the evidence workflow.";
       if (reason.includes("rent")) return "Without rent evidence, net yield and IRR cannot be trusted.";
       if (reason.includes("sale")) return "Without sale evidence, fair entry price and required discount cannot be trusted.";
 
@@ -1048,7 +1018,7 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
           <div class="decision-title">Do not buy now</div>
           <div class="decision-subtitle">
             ${best
-              ? `Best watch item is <strong>${escapeHtml(rowName(best))}</strong>, but it still requires AED ${money(best.risk_adjusted_required_cut_aed)} / ${pct(best.risk_adjusted_required_cut_percent)}% lower entry price.`
+              ? `Best watch item is <strong>${escapeHtml(rowName(best))}</strong>, but it still requires AED ${money(rowRequiredCut(best))} / ${pct(rowRequiredCutPercent(best))}% lower entry price.`
               : `No screened candidate is currently available within the selected cash range.`
             }
           </div>
@@ -1092,21 +1062,21 @@ All-in cost estimate: AED ${money(allIn)} including ${pct(DEFAULT_PURCHASE_COST_
 
             ${renderKpiMetric(
               "Risk-Adjusted Price",
-              `AED ${best ? money(best.risk_adjusted_target_price_aed) : "N/A"}`,
+              `AED ${best ? money(rowTargetPrice(best)) : "N/A"}`,
               "Target entry",
               best
                 ? `Formula: estimated net rent ÷ risk-adjusted target yield.
 
 Estimated net rent: AED ${money(netRent)}.
 Target yield: ${pct(best.risk_adjusted_target_yield_percent)}%.
-Target price: AED ${money(best.risk_adjusted_target_price_aed)}.`
+Target price: AED ${money(rowTargetPrice(best))}.`
                 : "No target price available."
             )}
 
             ${renderKpiMetric(
               "Required Cut",
-              `AED ${best ? money(best.risk_adjusted_required_cut_aed) : "N/A"}`,
-              best ? `${pct(best.risk_adjusted_required_cut_percent)}% — ${safe(best.negotiation_realism)}` : "N/A",
+              `AED ${best ? money(rowRequiredCut(best)) : "N/A"}`,
+              best ? `${pct(rowRequiredCutPercent(best))}% — ${safe(best.negotiation_realism)}` : "N/A",
               best ? negotiationExplanation(best) : "No required cut available."
             )}
 
@@ -1140,6 +1110,7 @@ Property should offer enough spread above this low-risk AED alternative.`
             Decision-ready: <strong>${groups.decisionReady.length}</strong>.
             Screened: <strong>${groups.screened.length}</strong>.
             Needs evidence: <strong>${groups.needsEvidence.length}</strong>.
+            Review-required: <strong>${groups.reviewRequired.length}</strong>.
             Budget monitor: <strong>${groups.budgetMonitor.length}</strong>.
             Below range: <strong>${groups.belowRange.length}</strong>.
             Deal test: <strong>${groups.dealTest.length}</strong>.
@@ -1287,6 +1258,7 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
             <option value="DECISION_READY">Decision-ready</option>
             <option value="INTERIM_SCREENED">Screened</option>
             <option value="NEEDS_EVIDENCE">Needs evidence</option>
+            <option value="REVIEW_REQUIRED">Review required</option>
             <option value="BUDGET_MONITOR">Budget monitor</option>
             <option value="BELOW_RANGE">Below range</option>
           </select>
@@ -1315,7 +1287,9 @@ Net-yield formula:
 Net yield = estimated net annual rent ÷ current evidence price.
 
 Risk target price formula:
-Risk target price = estimated net annual rent ÷ risk-adjusted target yield.</div>
+Risk target price = estimated net annual rent ÷ risk-adjusted target yield.
+
+If the database returns zero target-price fields, the frontend calculates fallback target price from rent, area, service charge and target yield.</div>
         </details>
       `;
     }
@@ -1353,8 +1327,8 @@ Risk target price = estimated net annual rent ÷ risk-adjusted target yield.</di
                   <td class="num">AED ${money(allInCost(r.asking_price_aed, DEFAULT_PURCHASE_COST_PERCENT))}</td>
                   <td class="num">AED ${money(r.estimated_annual_rent_aed)}</td>
                   <td class="num">${pct(r.net_yield_percent)}%</td>
-                  <td class="num">AED ${money(r.risk_adjusted_target_price_aed)}</td>
-                  <td class="num">AED ${money(r.risk_adjusted_required_cut_aed)}<br><span class="small-text">${pct(r.risk_adjusted_required_cut_percent)}%</span></td>
+                  <td class="num">AED ${money(rowTargetPrice(r))}</td>
+                  <td class="num">AED ${money(rowRequiredCut(r))}<br><span class="small-text">${pct(rowRequiredCutPercent(r))}%</span></td>
                   <td>${pill(safe(r.negotiation_realism), getNegotiationTone(r.negotiation_realism))}</td>
                   <td>
                     <details class="inline-detail">
@@ -1440,7 +1414,7 @@ Risk target price = estimated net annual rent ÷ risk-adjusted target yield.</di
 
       return `
         <div class="note">
-          Select a tower to pull model values. Change price, rent, service charge or required yield using controlled dropdowns.
+          Select a tower to pull real model values. Controlled dropdowns avoid random numbers while keeping quick deal testing.
         </div>
 
         <div class="form-grid">
@@ -1540,24 +1514,24 @@ Risk target price = estimated net annual rent ÷ risk-adjusted target yield.</di
 All inputs reset from the DB view.
 
 Owner asking price:
-Controlled dropdown from AED 500k to AED 2.0m in AED 100k steps. If the model value is not on the step, the exact model value is also included.
+Dropdown from AED 500k to AED 2.0m in AED 50k steps. If the model value is not on the step, the exact model value is also included.
 
 Area:
 Read-only. Comes only from selected tower/unit.
 
 Annual rent:
-Controlled dropdown from AED 60k to AED 140k in AED 5k steps. If the model value is not on the step, the exact model value is also included.
+Dropdown from AED 60k to AED 140k in AED 5k steps. If the model value is not on the step, the exact model value is also included.
 
 Service charge:
-Controlled dropdown from AED 12 to AED 20/sqft/year in AED 0.5 steps. If the model value is not on the step, the exact model value is also included.
+Dropdown from AED 12 to AED 20/sqft/year in AED 0.5 steps. If the model value is not on the step, the exact model value is also included.
 
 Required yield:
-Controlled dropdown from 5.00% to 8.00% in 0.25% steps. If the model value is not on the step, the exact model value is also included.
+Dropdown from 5.00% to 8.00% in 0.25% steps. If the model value is not on the step, the exact model value is also included.
 
 Purchase-cost %:
 Editable because actual transaction fees may vary.
 
-Owner asking price is not overwritten by required yield. Target buy price is recalculated instead.</div>
+Owner asking price is not overwritten by required yield. Target buy price is recalculated instead, because seller ask and target entry price are different things.</div>
         </details>
       `;
     }
@@ -1569,8 +1543,9 @@ Owner asking price is not overwritten by required yield. Target buy price is rec
         "DECISION_READY": 1,
         "INTERIM_SCREENED": 2,
         "NEEDS_EVIDENCE": 3,
-        "BUDGET_MONITOR": 4,
-        "BELOW_RANGE": 5
+        "REVIEW_REQUIRED": 4,
+        "BUDGET_MONITOR": 5,
+        "BELOW_RANGE": 6
       };
 
       const sorted = [...nonDealRows].sort((a, b) => {
@@ -1582,7 +1557,7 @@ Owner asking price is not overwritten by required yield. Target buy price is rec
 
       return `
         <div class="note">
-          QA section. Use it to see what is missing or why an item is outside the active cash range.
+          QA section. Use it to see what is missing, what needs review, or why an item is outside the active cash range.
         </div>
 
         <div class="table-wrap">
@@ -1615,8 +1590,12 @@ Owner asking price is not overwritten by required yield. Target buy price is rec
     function displayEvidenceIssue(row) {
       const dr = derivedReadiness(row);
 
-      if (dr === "INTERIM_SCREENED" || dr === "DECISION_READY") {
+      if (dr === "INTERIM_SCREENED") {
         return "Sale, rent and service-charge evidence available. Suitable for current screen and deal/no-deal discipline.";
+      }
+
+      if (dr === "REVIEW_REQUIRED") {
+        return "Review-required row. Not promoted to screened evidence status.";
       }
 
       if (dr === "BUDGET_MONITOR") {
@@ -1633,8 +1612,12 @@ Owner asking price is not overwritten by required yield. Target buy price is rec
     function displayNextAction(row) {
       const dr = derivedReadiness(row);
 
-      if (dr === "INTERIM_SCREENED" || dr === "DECISION_READY") {
+      if (dr === "INTERIM_SCREENED") {
         return "Track only if owner asking price approaches the risk target price.";
+      }
+
+      if (dr === "REVIEW_REQUIRED") {
+        return "Review source evidence and rerun/register through cleaned evidence workflow.";
       }
 
       if (dr === "BUDGET_MONITOR") {
@@ -1652,16 +1635,17 @@ Owner asking price is not overwritten by required yield. Target buy price is rec
       return `
         <details class="inline-detail">
           <summary>Readiness rules</summary>
-          <div class="details-box">Status is inferred from:
-readiness_status, final_decision, dashboard_bucket, input_source_type, daily_action_category, asking_price_aed, estimated_annual_rent_aed, and service_charge_aed_sqft_year.
+          <div class="details-box">Decision-ready = strict / high-confidence direct evidence.
 
-Screened = DLD-derived / Property Finder / evidence-backed row with usable price, rent and service charge.
+Screened = Property Finder DLD-derived transaction/rent evidence plus DLD Service Charge Index input. Good enough for dashboard screen and deal/no-deal discipline.
 
-Budget monitor = above active max cash range.
+Needs evidence = missing sale or rent evidence.
 
-Below range = below active min cash range.
+Review required = row exists but is not promoted as screened evidence.
 
-Needs evidence = missing usable price/rent or marked data gap.
+Budget monitor = selected candidate is above active max cash range or normal market evidence is above budget.
+
+Below range = selected candidate is below active min cash range.
 
 Deal test = scenario only.</div>
         </details>
