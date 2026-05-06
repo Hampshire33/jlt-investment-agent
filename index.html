@@ -481,6 +481,7 @@
       rows: [],
       contextRows: [],
       bankRows: [],
+      evidenceRows: [],
       filters: { search: "", readiness: "ALL", realism: "ALL" },
       settings: {
         minBudget: DEFAULT_MIN_BUDGET_AED,
@@ -881,6 +882,159 @@ Technical verdict: ${safe(row.final_decision, "N/A")}
 Decision reason: ${safe(row.decision_reason, "N/A")}`;
     }
 
+    function evidenceCasesFor(row, transactionType) {
+      return state.evidenceRows.filter(e =>
+        String(e.tower || "").trim() === String(row.tower || "").trim() &&
+        String(e.unit_type || "").trim() === String(row.unit_type || "").trim() &&
+        String(e.transaction_type || "").trim() === transactionType
+      );
+    }
+
+    function shortUrlLabel(url) {
+      if (!url) return "No link";
+      try {
+        const u = new URL(url);
+        return u.hostname.replace("www.", "");
+      } catch {
+        return "Source";
+      }
+    }
+
+    function evidenceMedian(cases, field) {
+      const vals = cases
+        .filter(e => e.included_in_median === true || e.included_in_median === "true")
+        .map(e => num(e[field]))
+        .filter(v => v > 0)
+        .sort((a, b) => a - b);
+
+      if (!vals.length) return 0;
+
+      const mid = Math.floor(vals.length / 2);
+      if (vals.length % 2) return vals[mid];
+      return (vals[mid - 1] + vals[mid]) / 2;
+    }
+
+    function evidenceAreaRange(cases) {
+      const vals = cases
+        .map(e => num(e.area_sqft))
+        .filter(v => v > 0)
+        .sort((a, b) => a - b);
+
+      if (!vals.length) return "N/A";
+      if (vals.length === 1) return `${pct(vals[0])} sqft`;
+      return `${pct(vals[0])}–${pct(vals[vals.length - 1])} sqft`;
+    }
+
+    function renderEvidenceCases(row) {
+      const saleCases = evidenceCasesFor(row, "sale");
+      const rentCases = evidenceCasesFor(row, "rent");
+
+      if (!saleCases.length && !rentCases.length) {
+        return `
+          <details class="inline-detail">
+            <summary>View evidence cases</summary>
+            <div class="details-box">No case-level transaction evidence found for this run_id / tower / unit type.</div>
+          </details>
+        `;
+      }
+
+      return `
+        <details class="inline-detail">
+          <summary>View evidence cases</summary>
+          <div class="banner warn">
+            <strong>Evidence note:</strong>
+            Current case rows are representative median/sample evidence rows. Exact individual transaction rows will be added when automated extraction is available.
+          </div>
+          ${renderCaseSummary(row, saleCases, "sale")}
+          ${renderCaseSummary(row, rentCases, "rent")}
+        </details>
+      `;
+    }
+
+    function renderCaseSummary(row, cases, type) {
+      if (!cases.length) {
+        return `<div class="compact-detail"><strong>${type.toUpperCase()} evidence:</strong> none found.</div>`;
+      }
+
+      const included = cases.filter(c => c.included_in_median === true || c.included_in_median === "true");
+      const medianValue = type === "sale"
+        ? evidenceMedian(cases, "price_aed")
+        : evidenceMedian(cases, "annual_rent_aed");
+
+      const modelValue = type === "sale"
+        ? row.asking_price_aed
+        : row.estimated_annual_rent_aed;
+
+      const title = type === "sale"
+        ? "Sale evidence behind evidence price"
+        : "Rent evidence behind model rent";
+
+      const modelLabel = type === "sale"
+        ? "Dashboard evidence price"
+        : "Dashboard rent";
+
+      const lines = cases.map((c, idx) => {
+        const amount = type === "sale"
+          ? `AED ${money(c.price_aed)}`
+          : `AED ${money(c.annual_rent_aed)}/yr`;
+
+        const rate = type === "sale"
+          ? `AED ${money(c.price_aed_per_sqft)}/sqft`
+          : `AED ${money(c.rent_aed_per_sqft)}/sqft/yr`;
+
+        const includeFlag = (c.included_in_median === true || c.included_in_median === "true")
+          ? "USED"
+          : `EXCLUDED: ${escapeHtml(safe(c.exclusion_reason, "not used"))}`;
+
+        const link = c.source_url
+          ? `<a href="${escapeHtml(c.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(shortUrlLabel(c.source_url))}</a>`
+          : "No link";
+
+        return `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${escapeHtml(amount)}</td>
+            <td>${escapeHtml(safe(c.bedrooms, row.unit_type))}</td>
+            <td class="num">${pct(c.area_sqft)}</td>
+            <td class="num">${escapeHtml(rate)}</td>
+            <td>${escapeHtml(safe(c.transaction_date, "N/A"))}</td>
+            <td>${includeFlag}</td>
+            <td>${link}</td>
+          </tr>
+        `;
+      }).join("");
+
+      return `
+        <div class="compact-detail">
+          <strong>${title}</strong><br>
+          Included cases: ${included.length} / ${cases.length}<br>
+          Median from cases: AED ${money(medianValue)}${type === "rent" ? "/yr" : ""}<br>
+          ${modelLabel}: AED ${money(modelValue)}${type === "rent" ? "/yr" : ""}<br>
+          Area range: ${evidenceAreaRange(cases)}
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Amount</th>
+                <th>Unit</th>
+                <th class="num">Area sqft</th>
+                <th class="num">Unit rate</th>
+                <th>Date</th>
+                <th>Use</th>
+                <th>Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${lines}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
     function whyItMatters(row) {
       const reason = String(row.evidence_gap_reason || "").toLowerCase();
       const dr = derivedReadiness(row);
@@ -1269,11 +1423,15 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
           <div class="details-box">Column definitions:
 - Candidate: tower and unit type.
 - Status: evidence/readiness classification. Only Screened or Decision-ready rows enter this table.
-- Price: evidence/model sale-price used for screening. It may be based on median DLD-derived transactions and is not necessarily a live owner asking price.
-- Est. Buy Costs: Price × 6.6% purchase-cost assumption.
-- All-in Cost: Price + estimated buy costs.
+- Evidence Price: sale-price assumption used by the model, normally from median DLD-derived transaction evidence. It is not necessarily a live owner asking price.
+- Est. Buy Costs: Evidence Price × 6.6% purchase-cost assumption.
+- All-in Cost: Evidence Price + estimated buy costs.
 - Rent: evidence/model annual rent assumption.
-- Net Yield: estimated net rent ÷ Price, after service charge deduction.
+- Net Yield: estimated net rent ÷ Evidence Price, after service charge deduction.
+- Evidence / Cases: source notes plus case-level sale/rent evidence rows with hyperlinks.
+
+Owner Asking Price:
+A live seller/broker price should be tested separately in the Manual Deal Test Calculator.
 
 Purchase-cost assumption:
 The watchlist adds ${pct(DEFAULT_PURCHASE_COST_PERCENT)}% to estimate practical all-in capital required.
@@ -1302,7 +1460,7 @@ If the database returns zero target-price fields, the frontend calculates fallba
                 <th>Rank</th>
                 <th>Candidate</th>
                 <th>Status</th>
-                <th class="num">Price</th>
+                <th class="num">Evidence Price</th>
                 <th class="num">Est. Buy Costs</th>
                 <th class="num">All-in Cost</th>
                 <th class="num">Rent</th>
@@ -1310,7 +1468,7 @@ If the database returns zero target-price fields, the frontend calculates fallba
                 <th class="num">Risk Target Price</th>
                 <th class="num">Required Cut</th>
                 <th>Negotiation</th>
-                <th>Evidence</th>
+                <th>Evidence / Cases</th>
               </tr>
             </thead>
             <tbody>
@@ -1331,6 +1489,7 @@ If the database returns zero target-price fields, the frontend calculates fallba
                     <details class="inline-detail">
                       <summary>View</summary>
                       <div class="compact-detail">${escapeHtml(compactSourceNote(r))}</div>
+                      ${renderEvidenceCases(r)}
                       <details class="inline-detail">
                         <summary>Raw source details</summary>
                         <div class="details-box">${escapeHtml(fullEvidenceDetails(r))}</div>
@@ -1817,6 +1976,14 @@ Deal test = scenario only.</div>
 
         let contextRows = [];
         let bankRows = [];
+        let evidenceRows = [];
+
+        try {
+          evidenceRows = await restGet(
+            "property_transaction_evidence",
+            `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=tower.asc,unit_type.asc,transaction_type.asc,evidence_case_no.asc`
+          );
+        } catch { evidenceRows = []; }
 
         try {
           contextRows = await restGet(TABLE_AGENT_CONTEXT, `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=created_at.desc&limit=1`);
@@ -1837,6 +2004,7 @@ Deal test = scenario only.</div>
         state.rows = watchlistRows;
         state.contextRows = contextRows;
         state.bankRows = bankRows;
+        state.evidenceRows = evidenceRows;
 
         const calcRows = sortByNetYield(getCalculatorRows(state.rows));
         if (calcRows.length) {
