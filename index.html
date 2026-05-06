@@ -1269,7 +1269,7 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
           <div class="details-box">Column definitions:
 - Candidate: tower and unit type.
 - Status: evidence/readiness classification. Only Screened or Decision-ready rows enter this table.
-- Price: evidence/model sale-price assumption from Supabase, not necessarily live owner asking price.
+- Price: evidence/model sale-price used for screening. It may be based on median DLD-derived transactions and is not necessarily a live owner asking price.
 - Est. Buy Costs: Price × 6.6% purchase-cost assumption.
 - All-in Cost: Price + estimated buy costs.
 - Rent: evidence/model annual rent assumption.
