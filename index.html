@@ -482,6 +482,8 @@
       contextRows: [],
       bankRows: [],
       evidenceRows: [],
+      evidenceRunId: null,
+      evidenceRunMatch: true,
       filters: { search: "", readiness: "ALL", realism: "ALL" },
       settings: {
         minBudget: DEFAULT_MIN_BUDGET_AED,
@@ -1396,6 +1398,8 @@ Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "
           Ranked by net yield. Includes estimated purchase costs and risk-adjusted target price.
         </div>
 
+        ${renderEvidenceRunStatus()}
+
         <div class="toolbar">
           <input id="searchInput" type="text" placeholder="Search tower or unit..." value="${escapeHtml(state.filters.search)}" />
           <select id="readinessSelect">
@@ -1447,6 +1451,18 @@ Risk target price = estimated net annual rent ÷ risk-adjusted target yield.
 If the database returns zero target-price fields, the frontend calculates fallback target price from rent, area, service charge and target yield.</div>
         </details>
       `;
+    }
+
+    function renderEvidenceRunStatus() {
+      if (!state.evidenceRows.length) {
+        return `<div class="banner warn"><strong>Evidence cases:</strong> no case-level evidence rows loaded yet.</div>`;
+      }
+
+      if (state.evidenceRunMatch) {
+        return `<div class="banner good"><strong>Evidence cases:</strong> loaded for the same dashboard run (${escapeHtml(state.evidenceRunId || "current run")}).</div>`;
+      }
+
+      return `<div class="banner warn"><strong>Evidence cases:</strong> using latest available evidence run (${escapeHtml(state.evidenceRunId || "unknown")}) because no evidence cases were found for the current dashboard run. Use as source transparency only until n8n run IDs are synchronized.</div>`;
     }
 
     function renderWatchlistTable(rows) {
@@ -1977,6 +1993,8 @@ Deal test = scenario only.</div>
         let contextRows = [];
         let bankRows = [];
         let evidenceRows = [];
+        let evidenceRunId = latestRunId;
+        let evidenceRunMatch = true;
 
         try {
           evidenceRows = await restGet(
@@ -1984,6 +2002,30 @@ Deal test = scenario only.</div>
             `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=tower.asc,unit_type.asc,transaction_type.asc,evidence_case_no.asc`
           );
         } catch { evidenceRows = []; }
+
+        if (!evidenceRows.length) {
+          try {
+            const latestEvidence = await restGet(
+              "property_transaction_evidence",
+              "select=*&order=created_at.desc&limit=1"
+            );
+
+            const fallbackRunId = latestEvidence?.[0]?.run_id;
+
+            if (fallbackRunId) {
+              evidenceRows = await restGet(
+                "property_transaction_evidence",
+                `select=*&run_id=eq.${encodeURIComponent(fallbackRunId)}&order=tower.asc,unit_type.asc,transaction_type.asc,evidence_case_no.asc`
+              );
+              evidenceRunId = fallbackRunId;
+              evidenceRunMatch = fallbackRunId === latestRunId;
+            }
+          } catch {
+            evidenceRows = [];
+            evidenceRunId = latestRunId;
+            evidenceRunMatch = true;
+          }
+        }
 
         try {
           contextRows = await restGet(TABLE_AGENT_CONTEXT, `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=created_at.desc&limit=1`);
@@ -2005,6 +2047,8 @@ Deal test = scenario only.</div>
         state.contextRows = contextRows;
         state.bankRows = bankRows;
         state.evidenceRows = evidenceRows;
+        state.evidenceRunId = evidenceRunId;
+        state.evidenceRunMatch = evidenceRunMatch;
 
         const calcRows = sortByNetYield(getCalculatorRows(state.rows));
         if (calcRows.length) {
