@@ -1,0 +1,1860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>JLT Investment Agent</title>
+
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --card: #ffffff;
+      --soft: #fbfcfd;
+      --text: #16202a;
+      --muted: #64717f;
+      --border: #dce3ea;
+      --border-strong: #c9d3dd;
+      --blue: #1f5fbf;
+      --green: #0b7a3b;
+      --amber: #b26a00;
+      --red: #a12626;
+      --soft-blue: #eef4ff;
+      --soft-green: #eefaf2;
+      --soft-amber: #fff6e5;
+      --soft-red: #fff0f0;
+      --shadow: 0 8px 22px rgba(0,0,0,0.055);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+    }
+
+    .container {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 22px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 30px;
+      letter-spacing: -0.02em;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 21px;
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.035em;
+      margin-bottom: 5px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-top: 4px;
+      font-size: 15px;
+    }
+
+    button {
+      border: 1px solid var(--border-strong);
+      background: #fff;
+      color: var(--blue);
+      font-weight: 700;
+      border-radius: 11px;
+      padding: 9px 12px;
+      cursor: pointer;
+    }
+
+    button:hover { background: var(--soft-blue); }
+
+    .section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 0;
+      margin-top: 16px;
+      overflow: hidden;
+    }
+
+    .section > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 16px 18px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section > summary::-webkit-details-marker { display: none; }
+
+    .section > summary::after {
+      content: "Collapse";
+      color: var(--blue);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .section:not([open]) > summary::after {
+      content: "Expand";
+    }
+
+    .section-body { padding: 18px; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-top: 12px;
+    }
+
+    .decision-body {
+      border-left: 8px solid var(--red);
+      padding-left: 16px;
+    }
+
+    .layout-two {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .grid-two {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .grid-four {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+      align-items: end;
+    }
+
+    .form-field input,
+    .form-field select {
+      width: 100%;
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      padding: 9px 10px;
+      background: #fff;
+      min-height: 38px;
+      font-size: 14px;
+    }
+
+    .form-field input[readonly] {
+      background: #f1f4f7;
+      color: #3a4653;
+      cursor: not-allowed;
+    }
+
+    .metric {
+      background: var(--soft);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      min-height: 78px;
+      overflow: hidden;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .metric-value {
+      margin-top: 5px;
+      font-size: 19px;
+      font-weight: 800;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
+    }
+
+    .metric-small {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .decision-title {
+      font-size: 30px;
+      font-weight: 800;
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+
+    .decision-subtitle {
+      font-size: 16px;
+      color: var(--muted);
+      max-width: 980px;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    .small-text {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .banner {
+      border-radius: 14px;
+      padding: 14px;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      background: var(--soft);
+    }
+
+    .banner.good {
+      background: var(--soft-green);
+      border-color: #b7e5c7;
+    }
+
+    .banner.warn {
+      background: var(--soft-amber);
+      border-color: #ffd38a;
+    }
+
+    .banner.bad {
+      background: var(--soft-red);
+      border-color: #ffb4b4;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid var(--border);
+      background: #f8f9fa;
+      white-space: nowrap;
+    }
+
+    .pill.good {
+      color: var(--green);
+      background: var(--soft-green);
+      border-color: #b7e5c7;
+    }
+
+    .pill.warn {
+      color: var(--amber);
+      background: var(--soft-amber);
+      border-color: #ffd38a;
+    }
+
+    .pill.bad {
+      color: var(--red);
+      background: var(--soft-red);
+      border-color: #ffb4b4;
+    }
+
+    .pill.blue {
+      color: var(--blue);
+      background: var(--soft-blue);
+      border-color: #bdd3ff;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .toolbar input,
+    .toolbar select {
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      padding: 9px 10px;
+      background: #fff;
+      min-height: 38px;
+      font-size: 14px;
+    }
+
+    .toolbar input { min-width: 210px; }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 10px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: white;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+    }
+
+    th, td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+      font-size: 13px;
+    }
+
+    th {
+      background: #f1f4f7;
+      color: #2d3748;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.035em;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    .num {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    details.inline-detail {
+      margin-top: 8px;
+      cursor: pointer;
+    }
+
+    details.inline-detail summary {
+      color: var(--blue);
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+    .details-box {
+      margin-top: 8px;
+      color: var(--muted);
+      max-width: 1080px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 13px;
+    }
+
+    .compact-detail {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+
+    .candidate-title {
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .loading {
+      padding: 20px;
+      color: var(--muted);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #cfd6df;
+      border-top: 2px solid var(--blue);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin-right: 8px;
+      vertical-align: -2px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 1180px) {
+      .layout-two { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid-two, .grid-four, .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 700px) {
+      .container { padding: 14px; }
+      .grid, .grid-two, .grid-four, .form-grid { grid-template-columns: 1fr; }
+      h1 { font-size: 24px; }
+      .decision-title { font-size: 24px; }
+      .toolbar input, .toolbar select { width: 100%; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>JLT Investment Agent</h1>
+        <div class="subtitle">Macro-aware, finance-driven JLT ready-apartment screening</div>
+      </div>
+      <button onclick="window.location.reload()">Refresh</button>
+    </header>
+
+    <div id="app" class="loading">
+      <span class="spinner"></span>Loading latest run...
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_REST_URL = "https://cndyxfprqpfkzypxhrxl.supabase.co/rest/v1";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_VOIytNYEBG7FyZzQqqW66w_nJWK37TC";
+
+    const VIEW_WATCHLIST = "dashboard_decision_watchlist_v";
+    const TABLE_AGENT_CONTEXT = "agent_run_context";
+    const TABLE_BANK_CONTEXT = "bank_benchmark_context";
+
+    const DEFAULT_MIN_BUDGET_AED = 500000;
+    const DEFAULT_MAX_BUDGET_AED = 1600000;
+    const DEFAULT_PURCHASE_COST_PERCENT = 6.6;
+
+    const AED = new Intl.NumberFormat("en-AE", { maximumFractionDigits: 0 });
+    const NUM = new Intl.NumberFormat("en-AE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const state = {
+      rows: [],
+      contextRows: [],
+      bankRows: [],
+      filters: { search: "", readiness: "ALL", realism: "ALL" },
+      settings: {
+        minBudget: DEFAULT_MIN_BUDGET_AED,
+        maxBudget: DEFAULT_MAX_BUDGET_AED
+      },
+      dealTest: {
+        selectedIndex: 0,
+        ownerAsk: 0,
+        areaSqft: 0,
+        purchaseCostPercent: DEFAULT_PURCHASE_COST_PERCENT,
+        serviceChargeAedSqftYear: 0,
+        annualRentAed: 0,
+        requiredNetYield: 6.75
+      }
+    };
+
+    function safe(v, fallback = "") {
+      return v === null || v === undefined || v === "" ? fallback : v;
+    }
+
+    function num(v, fallback = 0) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : fallback;
+    }
+
+    function money(v) {
+      const n = num(v);
+      return n === 0 ? "0" : AED.format(n);
+    }
+
+    function pct(v) {
+      return NUM.format(num(v));
+    }
+
+    function dateTime(v) {
+      if (!v) return "N/A";
+      try { return new Date(v).toLocaleString(); } catch { return v; }
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function normalizeTextBlock(text) {
+      const s = String(text || "").trim();
+      return s || "No text available.";
+    }
+
+    function rowName(row) {
+      return `${safe(row.tower)} ${safe(row.unit_type)}`.trim();
+    }
+
+    function pill(text, tone = null) {
+      const t = String(text || "").toUpperCase();
+      let cls = tone;
+
+      if (!cls) {
+        if (t.includes("BUY") || t.includes("REALISTIC") || t.includes("READY")) cls = "good";
+        else if (t.includes("POSSIBLE") || t.includes("DIFFICULT") || t.includes("SCREENED") || t.includes("WATCH")) cls = "warn";
+        else if (t.includes("UNLIKELY") || t.includes("NEEDS") || t.includes("DATA") || t.includes("PASS")) cls = "bad";
+        else if (t.includes("MONITOR") || t.includes("DEAL") || t.includes("BELOW")) cls = "blue";
+        else cls = "";
+      }
+
+      return `<span class="pill ${cls}">${escapeHtml(safe(text, "N/A"))}</span>`;
+    }
+
+    function readinessLabel(status) {
+      const s = String(status || "").toUpperCase();
+      if (s === "DECISION_READY") return "Decision-ready";
+      if (s === "INTERIM_SCREENED") return "Screened";
+      if (s === "NEEDS_EVIDENCE") return "Needs evidence";
+      if (s === "BUDGET_MONITOR") return "Budget monitor";
+      if (s === "BELOW_RANGE") return "Below range";
+      if (s === "DEAL_TEST") return "Deal test";
+      if (s === "REVIEW_REQUIRED") return "Review required";
+      return "Review";
+    }
+
+    function getBudgetOptions(selected) {
+      let html = "";
+      for (let v = 500000; v <= 2000000; v += 100000) {
+        html += `<option value="${v}" ${v === selected ? "selected" : ""}>AED ${money(v)}</option>`;
+      }
+      return html;
+    }
+
+    function optionListFromRange(start, end, step, selected, formatter, decimals = 0) {
+      const values = [];
+      for (let v = start; v <= end + 1e-9; v += step) {
+        values.push(Number(v.toFixed(decimals)));
+      }
+
+      const selectedNumber = Number(Number(selected).toFixed(decimals));
+      const hasSelected = values.some(v => Math.abs(v - selectedNumber) < 1e-9);
+
+      if (Number.isFinite(selectedNumber) && selectedNumber > 0 && !hasSelected) {
+        values.push(selectedNumber);
+        values.sort((a, b) => a - b);
+      }
+
+      return values.map(v => {
+        const selectedAttr = Math.abs(v - selectedNumber) < 1e-9 ? "selected" : "";
+        return `<option value="${v}" ${selectedAttr}>${formatter(v)}</option>`;
+      }).join("");
+    }
+
+    function getOwnerAskOptions(selected) {
+      return optionListFromRange(
+        500000,
+        2000000,
+        50000,
+        selected,
+        v => `AED ${money(v)}`,
+        0
+      );
+    }
+
+    function getAnnualRentOptions(selected) {
+      return optionListFromRange(
+        60000,
+        140000,
+        5000,
+        selected,
+        v => `AED ${money(v)}`,
+        0
+      );
+    }
+
+    function getServiceChargeOptions(selected) {
+      return optionListFromRange(
+        12,
+        20,
+        0.5,
+        selected,
+        v => `${pct(v)} AED/sqft/year`,
+        2
+      );
+    }
+
+    function getRequiredYieldOptions(selected) {
+      return optionListFromRange(
+        5,
+        8,
+        0.25,
+        selected,
+        v => `${pct(v)}%`,
+        2
+      );
+    }
+
+    function sortByNetYield(rows) {
+      return [...rows].sort((a, b) => num(b.net_yield_percent) - num(a.net_yield_percent));
+    }
+
+    function estimatedPurchaseCosts(price, costPercent = DEFAULT_PURCHASE_COST_PERCENT) {
+      return num(price) * num(costPercent) / 100;
+    }
+
+    function allInCost(price, costPercent = DEFAULT_PURCHASE_COST_PERCENT) {
+      return num(price) + estimatedPurchaseCosts(price, costPercent);
+    }
+
+    function serviceChargeCost(areaSqft, serviceChargeAedSqftYear) {
+      return num(areaSqft) * num(serviceChargeAedSqftYear);
+    }
+
+    function netRentFromInputs(annualRentAed, areaSqft, serviceChargeAedSqftYear) {
+      return num(annualRentAed) - serviceChargeCost(areaSqft, serviceChargeAedSqftYear);
+    }
+
+    function expectedNetYield(ownerAsk, annualRentAed, areaSqft, serviceChargeAedSqftYear) {
+      const ask = num(ownerAsk);
+      if (ask <= 0) return 0;
+      return netRentFromInputs(annualRentAed, areaSqft, serviceChargeAedSqftYear) / ask * 100;
+    }
+
+    function targetBuyPrice(netRentAed, requiredYieldPercent) {
+      const y = num(requiredYieldPercent);
+      if (y <= 0) return 0;
+      return num(netRentAed) / (y / 100);
+    }
+
+    function requiredCut(ownerAsk, targetPrice) {
+      return num(ownerAsk) - num(targetPrice);
+    }
+
+    function requiredCutPercent(ownerAsk, targetPrice) {
+      const ask = num(ownerAsk);
+      if (ask <= 0) return 0;
+      return requiredCut(ask, targetPrice) / ask * 100;
+    }
+
+    function netRentFromRow(row) {
+      const explicit = num(row.estimated_annual_rent_aed) - serviceChargeCost(row.area_sqft, row.service_charge_aed_sqft_year);
+      if (explicit > 0) return explicit;
+      return num(row.asking_price_aed) * num(row.net_yield_percent) / 100;
+    }
+
+    function rowTargetPrice(row) {
+      const dbValue = num(row.risk_adjusted_target_price_aed);
+      if (dbValue > 0) return dbValue;
+
+      const yieldTarget = num(row.risk_adjusted_target_yield_percent, 6.5);
+      const netRent = netRentFromRow(row);
+
+      return targetBuyPrice(netRent, yieldTarget);
+    }
+
+    function rowRequiredCut(row) {
+      const dbValue = num(row.risk_adjusted_required_cut_aed);
+      if (dbValue !== 0) return dbValue;
+
+      const target = rowTargetPrice(row);
+      if (target <= 0) return 0;
+
+      return requiredCut(row.asking_price_aed, target);
+    }
+
+    function rowRequiredCutPercent(row) {
+      const dbValue = num(row.risk_adjusted_required_cut_percent);
+      if (dbValue !== 0) return dbValue;
+
+      const target = rowTargetPrice(row);
+      if (target <= 0) return 0;
+
+      return requiredCutPercent(row.asking_price_aed, target);
+    }
+
+    function derivedReadiness(row) {
+      const base = String(row.readiness_status || "");
+      if (base === "DEAL_TEST") return "DEAL_TEST";
+
+      const price = num(row.asking_price_aed);
+      if (price <= 0) return base;
+      if (price < state.settings.minBudget) return "BELOW_RANGE";
+      if (price > state.settings.maxBudget) return "BUDGET_MONITOR";
+
+      return base;
+    }
+
+    function classifyRows(rows) {
+      return {
+        decisionReady: rows.filter(r => derivedReadiness(r) === "DECISION_READY"),
+        screened: rows.filter(r => derivedReadiness(r) === "INTERIM_SCREENED"),
+        needsEvidence: rows.filter(r => derivedReadiness(r) === "NEEDS_EVIDENCE"),
+        budgetMonitor: rows.filter(r => derivedReadiness(r) === "BUDGET_MONITOR"),
+        belowRange: rows.filter(r => derivedReadiness(r) === "BELOW_RANGE"),
+        dealTest: rows.filter(r => derivedReadiness(r) === "DEAL_TEST"),
+        reviewRequired: rows.filter(r => derivedReadiness(r) === "REVIEW_REQUIRED")
+      };
+    }
+
+    function getEvidenceRows(rows) {
+      return rows.filter(r =>
+        ["DECISION_READY", "INTERIM_SCREENED"].includes(derivedReadiness(r)) &&
+        num(r.asking_price_aed) >= state.settings.minBudget &&
+        num(r.asking_price_aed) <= state.settings.maxBudget
+      );
+    }
+
+    function getCalculatorRows(rows) {
+      return rows.filter(r =>
+        ["DECISION_READY", "INTERIM_SCREENED"].includes(String(r.readiness_status || "")) &&
+        num(r.asking_price_aed) > 0 &&
+        num(r.area_sqft) > 0 &&
+        num(r.estimated_annual_rent_aed) > 0
+      );
+    }
+
+    function getBestWatch(rows) {
+      return sortByNetYield(getEvidenceRows(rows))[0] || null;
+    }
+
+    function getLatestContext() {
+      return state.contextRows[0] || {};
+    }
+
+    function getLatestBank() {
+      return state.bankRows[0] || state.rows.find(r => r.bank_yield_percent !== null && r.bank_yield_percent !== undefined) || {};
+    }
+
+    function getNegotiationTone(realism) {
+      const s = String(realism || "").toUpperCase();
+      if (s === "REALISTIC") return "good";
+      if (s === "POSSIBLE" || s === "DIFFICULT") return "warn";
+      if (s === "UNLIKELY") return "bad";
+      return "blue";
+    }
+
+    function scoreLabel(value, type) {
+      const v = num(value, 0);
+
+      if (type === "FS") {
+        if (v > 0) return "supportive / stable";
+        if (v < 0) return "soft / risk-on-hold";
+        return "mixed / neutral";
+      }
+
+      if (type === "LEI") {
+        if (v > 0) return "improving forward signal";
+        if (v < 0) return "weakening forward signal";
+        return "mixed / neutral forward signal";
+      }
+
+      return "mixed";
+    }
+
+    function fsScoringLogic(fs) {
+      return `Financial Stability score is a conservative macro risk score.
+
+Scoring rule:
++1 = clear stability / supportive liquidity / no major stress signals.
+0 = mixed or incomplete evidence.
+-1 = stress or caution signals are present.
+
+Current FS = ${fs} (${scoreLabel(fs, "FS")}).
+
+Effect:
+A negative FS increases required entry discipline.`;
+    }
+
+    function leiScoringLogic(lei) {
+      return `Proxy LEI is the forward-looking economic momentum score.
+
+Scoring rule:
++1 = improving momentum / supportive forward indicators.
+0 = mixed or neutral.
+-1 = slowing momentum, weak outlook, disruption, or uncertainty.
+
+Current LEI = ${lei} (${scoreLabel(lei, "LEI")}).
+
+Effect:
+A negative LEI pushes the hurdle from 6.50% to 6.75%.`;
+    }
+
+    function hurdleLogic(best, fs, lei) {
+      return `Base strong-buy hurdle = 6.50% net yield.
+
+Macro adjustment rule:
+If Financial Stability < 0 OR Proxy LEI < 0, use stricter hurdle = 6.75%.
+
+Current inputs:
+Financial Stability = ${fs}.
+Proxy LEI = ${lei}.
+
+Applied hurdle = ${best ? pct(best.risk_adjusted_target_yield_percent) : "N/A"}%.`;
+    }
+
+    function negotiationExplanation(row) {
+      const p = rowRequiredCutPercent(row);
+      const realism = String(row.negotiation_realism || "NOT_APPLICABLE").toUpperCase();
+
+      const base = `Current evidence price: AED ${money(row.asking_price_aed)}.
+Risk-adjusted target price: AED ${money(rowTargetPrice(row))}.
+Required cut: AED ${money(rowRequiredCut(row))} / ${pct(p)}%.`;
+
+      if (realism === "REALISTIC") return `${base}\n\nWithin normal negotiation band.`;
+      if (realism === "POSSIBLE") return `${base}\n\nRequires seller motivation or negotiation leverage.`;
+      if (realism === "DIFFICULT") return `${base}\n\nAbove normal negotiation range. Requires motivated seller, stale listing or unit-specific weakness.`;
+      if (realism === "UNLIKELY") return `${base}\n\nLikely unrealistic unless distress or abnormal listing appears.`;
+
+      return base;
+    }
+
+    function compactSourceNote(row) {
+      const dr = derivedReadiness(row);
+      const confidence = String(row.input_data_confidence || "");
+
+      if (dr === "INTERIM_SCREENED") {
+        return `Status: Screened
+Basis: Property Finder DLD-derived sale/rent + 2026 DLD service charge input.
+Decision use: Good enough for current screen and deal/no-deal discipline.
+Main issue: price/yield, not data availability.
+Confidence: ${confidence}
+Next action: Track only if owner price moves close to target.`;
+      }
+
+      if (dr === "NEEDS_EVIDENCE") {
+        return `Status: Needs evidence
+Issue: ${safe(row.evidence_gap_reason, "Sale/rent evidence incomplete.")}
+Why it matters: ${whyItMatters(row)}
+Next action: ${safe(row.next_data_action, "Add evidence before valuation.")}`;
+      }
+
+      if (dr === "BUDGET_MONITOR") {
+        return `Status: Budget monitor
+Issue: Price is above selected max cash range of AED ${money(state.settings.maxBudget)}.
+Next action: Monitor only for below-budget or distressed opportunity.`;
+      }
+
+      if (dr === "BELOW_RANGE") {
+        return `Status: Below selected range
+Issue: Price is below selected min cash range of AED ${money(state.settings.minBudget)}.
+Next action: Review only if intentionally targeting lower ticket size.`;
+      }
+
+      if (dr === "REVIEW_REQUIRED") {
+        return `Status: Review required
+Issue: This row is not promoted to screened evidence status.
+Next action: Review source evidence and rerun/register through the cleaned evidence workflow.`;
+      }
+
+      return `Status: ${readinessLabel(dr)}
+Next action: ${safe(row.next_data_action, "Review.")}`;
+    }
+
+    function fullEvidenceDetails(row) {
+      return `Price source: ${safe(row.price_source_note, "N/A")}
+
+Rent source: ${safe(row.rent_source_note, "N/A")}
+
+Service-charge source: ${safe(row.service_charge_source_note, "N/A")}
+
+Technical verdict: ${safe(row.final_decision, "N/A")}
+
+Decision reason: ${safe(row.decision_reason, "N/A")}`;
+    }
+
+    function whyItMatters(row) {
+      const reason = String(row.evidence_gap_reason || "").toLowerCase();
+      const dr = derivedReadiness(row);
+
+      if (dr === "INTERIM_SCREENED") return "Evidence is sufficient for current screening; commercial issue is whether price reaches target.";
+      if (dr === "BUDGET_MONITOR") return "Price is above the active max cash range.";
+      if (dr === "BELOW_RANGE") return "Price is below the active min cash range.";
+      if (dr === "REVIEW_REQUIRED") return "Review-required rows should not be treated as investment-ready until promoted by the evidence workflow.";
+      if (reason.includes("rent")) return "Without rent evidence, net yield and IRR cannot be trusted.";
+      if (reason.includes("sale")) return "Without sale evidence, fair entry price and required discount cannot be trusted.";
+
+      return "Weak evidence can distort yield, IRR, fair price and negotiation target.";
+    }
+
+    function filteredRows(rows) {
+      const search = state.filters.search.trim().toLowerCase();
+      const readiness = state.filters.readiness;
+      const realism = state.filters.realism;
+
+      return rows.filter(row => {
+        const dr = derivedReadiness(row);
+        const haystack = [row.tower, row.unit_type, dr, row.negotiation_realism, row.daily_action_category].join(" ").toLowerCase();
+
+        return (!search || haystack.includes(search))
+          && (readiness === "ALL" || dr === readiness)
+          && (realism === "ALL" || row.negotiation_realism === realism);
+      });
+    }
+
+    async function fetchWithTimeout(url, options, timeoutMs = 15000) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(timeout);
+        return response;
+      } catch (error) {
+        clearTimeout(timeout);
+        throw error;
+      }
+    }
+
+    async function restGet(path, query = "select=*") {
+      const url = `${SUPABASE_REST_URL}/${path}?${query}`;
+      const response = await fetchWithTimeout(url, {
+        method: "GET",
+        headers: {
+          "apikey": SUPABASE_PUBLISHABLE_KEY,
+          "Authorization": `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+          "Accept": "application/json"
+        }
+      });
+
+      const text = await response.text();
+      if (!response.ok) throw new Error(`REST ${path} failed: ${response.status} ${text}`);
+
+      try { return JSON.parse(text); }
+      catch { throw new Error(`REST ${path} returned non-JSON response: ${text}`); }
+    }
+
+    function renderKpiMetric(label, value, small, explanation) {
+      return `
+        <div class="metric">
+          <div class="metric-label">${escapeHtml(label)}</div>
+          <div class="metric-value">${value}</div>
+          <div class="metric-small">${escapeHtml(small)}</div>
+          <details class="inline-detail">
+            <summary>Why?</summary>
+            <div class="details-box">${escapeHtml(explanation)}</div>
+          </details>
+        </div>
+      `;
+    }
+
+    function renderBudgetControl() {
+      return `
+        <div class="note">
+          Express how much cash you are willing to deploy. Rows outside the range are monitored separately, not rejected.
+        </div>
+
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="minBudgetSelect">Minimum cash budget</label>
+            <select id="minBudgetSelect">${getBudgetOptions(state.settings.minBudget)}</select>
+          </div>
+
+          <div class="form-field">
+            <label for="maxBudgetSelect">Maximum cash budget</label>
+            <select id="maxBudgetSelect">${getBudgetOptions(state.settings.maxBudget)}</select>
+          </div>
+
+          <div class="form-field">
+            <button id="applySettingsButton">Apply Budget Range</button>
+          </div>
+        </div>
+
+        <div class="note">
+          Active cash range:
+          <strong>AED ${money(state.settings.minBudget)} – AED ${money(state.settings.maxBudget)}</strong>.
+        </div>
+      `;
+    }
+
+    function renderExecutiveDecision() {
+      const rows = state.rows;
+      const groups = classifyRows(rows);
+      const best = getBestWatch(rows);
+      const context = getLatestContext();
+      const bank = getLatestBank();
+
+      const latestRun = rows[0]?.run_id || "N/A";
+      const latestTime = rows[0]?.created_at || null;
+
+      const bankRate = bank.benchmark_rate_percent || best?.bank_yield_percent || 3.5;
+      const bankQuality = bank.source_quality || best?.bank_source_quality || "HIGH";
+
+      const fs = safe(context.financial_stability_score ?? best?.financial_stability_score, "N/A");
+      const lei = safe(context.proxy_lei_score ?? best?.proxy_lei_score, "N/A");
+      const macroConfidence = safe(context.confidence_level ?? best?.macro_confidence, "MEDIUM");
+
+      const netRent = best ? netRentFromRow(best) : 0;
+      const allIn = best ? allInCost(best.asking_price_aed) : 0;
+
+      return `
+        <div class="decision-body">
+          <div class="decision-title">Do not buy now</div>
+          <div class="decision-subtitle">
+            ${best
+              ? `Best watch item is <strong>${escapeHtml(rowName(best))}</strong>, but it still requires AED ${money(rowRequiredCut(best))} / ${pct(rowRequiredCutPercent(best))}% lower entry price.`
+              : `No screened candidate is currently available within the selected cash range.`
+            }
+          </div>
+
+          <div class="grid">
+            ${renderKpiMetric(
+              "Best Watch Item",
+              best ? escapeHtml(rowName(best)) : "None",
+              best ? readinessLabel(derivedReadiness(best)) : "N/A",
+              best
+                ? `Selected because it has the highest current net yield among screened candidates inside the selected cash range.
+
+Cash range: AED ${money(state.settings.minBudget)} – AED ${money(state.settings.maxBudget)}.
+Current ranking yield: ${pct(best.net_yield_percent)}%.
+Current price: AED ${money(best.asking_price_aed)}.
+Estimated net rent: AED ${money(netRent)} per year.`
+                : "No screened candidate is available within the selected cash range."
+            )}
+
+            ${renderKpiMetric(
+              "Current Net Yield",
+              best ? `${pct(best.net_yield_percent)}%` : "N/A",
+              "Current economics",
+              best
+                ? `Formula: net rent ÷ current evidence price.
+
+Estimated net rent: AED ${money(netRent)}.
+Current evidence price: AED ${money(best.asking_price_aed)}.
+Net yield: ${pct(best.net_yield_percent)}%.
+
+All-in cost estimate: AED ${money(allIn)} including ${pct(DEFAULT_PURCHASE_COST_PERCENT)}% purchase costs.`
+                : "No current yield available."
+            )}
+
+            ${renderKpiMetric(
+              "Risk-Adjusted Hurdle",
+              best ? `${pct(best.risk_adjusted_target_yield_percent)}%` : "N/A",
+              "Macro-adjusted trigger",
+              best ? hurdleLogic(best, fs, lei) : "No risk-adjusted hurdle available."
+            )}
+
+            ${renderKpiMetric(
+              "Risk-Adjusted Price",
+              `AED ${best ? money(rowTargetPrice(best)) : "N/A"}`,
+              "Target entry",
+              best
+                ? `Formula: estimated net rent ÷ risk-adjusted target yield.
+
+Estimated net rent: AED ${money(netRent)}.
+Target yield: ${pct(best.risk_adjusted_target_yield_percent)}%.
+Target price: AED ${money(rowTargetPrice(best))}.`
+                : "No target price available."
+            )}
+
+            ${renderKpiMetric(
+              "Required Cut",
+              `AED ${best ? money(rowRequiredCut(best)) : "N/A"}`,
+              best ? `${pct(rowRequiredCutPercent(best))}% — ${safe(best.negotiation_realism)}` : "N/A",
+              best ? negotiationExplanation(best) : "No required cut available."
+            )}
+
+            ${renderKpiMetric(
+              "Macro / Bank",
+              `FS ${escapeHtml(fs)} / LEI ${escapeHtml(lei)}`,
+              `Bank ${pct(bankRate)}% / ${escapeHtml(bankQuality)} / ${escapeHtml(macroConfidence)}`,
+              `Current macro scoring:
+FS = ${fs} (${scoreLabel(fs, "FS")}).
+LEI = ${lei} (${scoreLabel(lei, "LEI")}).
+
+FS basis:
+${fsScoringLogic(fs)}
+
+LEI basis:
+${leiScoringLogic(lei)}
+
+Bank benchmark:
+Current bank benchmark = ${pct(bankRate)}%.
+Property should offer enough spread above this low-risk AED alternative.`
+            )}
+          </div>
+
+          <div class="banner warn">
+            <strong>Advisor read:</strong>
+            Median-market pricing is not cheap enough. Track only, keep budget discipline, and wait for motivated-seller pricing near the risk-adjusted target.
+          </div>
+
+          <div class="note">
+            Latest run <strong>${escapeHtml(latestRun)}</strong> at ${dateTime(latestTime)}.
+            Decision-ready: <strong>${groups.decisionReady.length}</strong>.
+            Screened: <strong>${groups.screened.length}</strong>.
+            Needs evidence: <strong>${groups.needsEvidence.length}</strong>.
+            Review-required: <strong>${groups.reviewRequired.length}</strong>.
+            Budget monitor: <strong>${groups.budgetMonitor.length}</strong>.
+            Below range: <strong>${groups.belowRange.length}</strong>.
+            Deal test: <strong>${groups.dealTest.length}</strong>.
+          </div>
+        </div>
+      `;
+    }
+
+    function renderMacroAndBank() {
+      return `
+        <div class="layout-two">
+          ${renderMacroPanel()}
+          ${renderBankPanel()}
+        </div>
+      `;
+    }
+
+    function renderMacroPanel() {
+      const context = getLatestContext();
+      const best = getBestWatch(state.rows);
+
+      const fs = safe(context.financial_stability_score ?? best?.financial_stability_score, "N/A");
+      const lei = safe(context.proxy_lei_score ?? best?.proxy_lei_score, "N/A");
+      const confidence = safe(context.confidence_level ?? best?.macro_confidence, "MEDIUM");
+      const quality = safe(context.data_quality_score ?? best?.macro_data_quality, "MEDIUM");
+      const riskYield = best?.risk_adjusted_target_yield_percent || 6.75;
+      const negative = num(fs) < 0 || num(lei) < 0;
+
+      return `
+        <div class="card">
+          <h2>Market / Macro Overlay</h2>
+          <div class="note">Macro changes entry discipline. It does not rescue weak property economics.</div>
+
+          <div class="grid-two">
+            ${renderKpiMetric("Financial Stability", escapeHtml(fs), "Score scale: +1 / 0 / -1", fsScoringLogic(fs))}
+            ${renderKpiMetric("Proxy LEI", escapeHtml(lei), "Forward signal", leiScoringLogic(lei))}
+            ${renderKpiMetric("Risk Yield", `${pct(riskYield)}%`, "Current hurdle", best ? hurdleLogic(best, fs, lei) : "Risk yield applies the macro-adjusted hurdle.")}
+            ${renderKpiMetric(
+              "Source Quality",
+              escapeHtml(quality),
+              `${escapeHtml(confidence)} confidence`,
+              `Current quality = ${quality}.
+Current confidence = ${confidence}.
+
+Used as an overlay only. It controls entry strictness, not direct buy/sell.`
+            )}
+          </div>
+
+          <div class="banner ${negative ? "warn" : "good"}">
+            <strong>Macro read:</strong>
+            ${negative
+              ? "Soft/negative. Require wider entry margin and do not chase median prices."
+              : "Not negative. Still require property-level yield and evidence support."
+            }
+          </div>
+
+          <details class="inline-detail">
+            <summary>View market pulse evidence</summary>
+            <div class="details-box">${escapeHtml(normalizeTextBlock(context.market_pulse_preview || context.market_pulse || context.macro_regime))}</div>
+          </details>
+        </div>
+      `;
+    }
+
+    function renderBankPanel() {
+      const bank = getLatestBank();
+      const best = getBestWatch(state.rows);
+      const rate = bank.benchmark_rate_percent || best?.bank_yield_percent || 3.5;
+      const quality = bank.source_quality || best?.bank_source_quality || "HIGH";
+
+      return `
+        <div class="card">
+          <h2>Bank Benchmark</h2>
+          <div class="note">Low-risk AED cash alternative used to test property IRR spread.</div>
+
+          <div class="grid-two">
+            ${renderKpiMetric(
+              "Rate Used",
+              `${pct(rate)}%`,
+              "AED term-deposit benchmark",
+              `Current rate used: ${pct(rate)}%.
+
+Property risk should be compensated versus this low-risk cash return.`
+            )}
+
+            ${renderKpiMetric(
+              "Source Quality",
+              escapeHtml(quality),
+              escapeHtml(safe(bank.confidence_level, quality)),
+              `Current source quality = ${quality}.
+Current confidence = ${safe(bank.confidence_level, quality)}.`
+            )}
+
+            ${renderKpiMetric(
+              "Target Spread",
+              "3.00%",
+              "Property IRR above bank",
+              `Target spread = 3.00 percentage points above bank.
+
+Bank = ${pct(rate)}%.
+Preferred property IRR should be about ${pct(num(rate) + 3)}% or higher.`
+            )}
+
+            ${renderKpiMetric(
+              "Purchase Cost",
+              `${pct(DEFAULT_PURCHASE_COST_PERCENT)}%`,
+              "Screening assumption",
+              `Indicative breakdown:
+DLD transfer fee: ~4.0%.
+Agency fee: ~2.0% + VAT, about 2.1%.
+Trustee/conveyancing/admin/NOC allowance: ~0.5%.
+
+Current screening assumption: ${pct(DEFAULT_PURCHASE_COST_PERCENT)}%.`
+            )}
+          </div>
+
+          <details class="inline-detail">
+            <summary>View bank source details</summary>
+            <div class="details-box">Bank name: ${escapeHtml(safe(bank.bank_name, "HSBC UAE / UAE bank benchmark"))}
+Rate used: ${pct(rate)}
+Status: ${escapeHtml(safe(bank.benchmark_rate_status, "N/A"))}
+Usage: ${escapeHtml(safe(bank.calculation_usage_status, "N/A"))}
+Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "N/A"))}</div>
+          </details>
+        </div>
+      `;
+    }
+
+    function renderWatchlist() {
+      const evidenceRows = sortByNetYield(getEvidenceRows(state.rows));
+
+      if (!evidenceRows.length) {
+        return `<div class="banner bad">No screened watchlist rows available within the selected cash range.</div>`;
+      }
+
+      return `
+        <div class="note">
+          Ranked by net yield. Includes estimated purchase costs and risk-adjusted target price.
+        </div>
+
+        <div class="toolbar">
+          <input id="searchInput" type="text" placeholder="Search tower or unit..." value="${escapeHtml(state.filters.search)}" />
+          <select id="readinessSelect">
+            <option value="ALL">All readiness</option>
+            <option value="DECISION_READY">Decision-ready</option>
+            <option value="INTERIM_SCREENED">Screened</option>
+            <option value="NEEDS_EVIDENCE">Needs evidence</option>
+            <option value="REVIEW_REQUIRED">Review required</option>
+            <option value="BUDGET_MONITOR">Budget monitor</option>
+            <option value="BELOW_RANGE">Below range</option>
+          </select>
+          <select id="realismSelect">
+            <option value="ALL">All negotiation realism</option>
+            <option value="REALISTIC">Realistic</option>
+            <option value="POSSIBLE">Possible</option>
+            <option value="DIFFICULT">Difficult</option>
+            <option value="UNLIKELY">Unlikely</option>
+          </select>
+        </div>
+
+        ${renderWatchlistTable(filteredRows(evidenceRows))}
+
+        <details class="inline-detail">
+          <summary>All-in cost, net-yield and target-price assumptions</summary>
+          <div class="details-box">Purchase-cost assumption:
+The watchlist adds ${pct(DEFAULT_PURCHASE_COST_PERCENT)}% to estimate practical all-in capital required.
+
+Indicative acquisition-cost breakdown:
+- DLD transfer fee: ~4.0%
+- Agency fee: ~2.0% + VAT, approximately 2.1%
+- Trustee / conveyancing / admin / NOC allowance: ~0.5%
+
+Net-yield formula:
+Net yield = estimated net annual rent ÷ current evidence price.
+
+Risk target price formula:
+Risk target price = estimated net annual rent ÷ risk-adjusted target yield.
+
+If the database returns zero target-price fields, the frontend calculates fallback target price from rent, area, service charge and target yield.</div>
+        </details>
+      `;
+    }
+
+    function renderWatchlistTable(rows) {
+      if (!rows.length) return `<div class="banner warn">No rows match the selected filters.</div>`;
+
+      return `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Candidate</th>
+                <th>Status</th>
+                <th class="num">Price</th>
+                <th class="num">Est. Buy Costs</th>
+                <th class="num">All-in Cost</th>
+                <th class="num">Rent</th>
+                <th class="num">Net Yield</th>
+                <th class="num">Risk Target Price</th>
+                <th class="num">Required Cut</th>
+                <th>Negotiation</th>
+                <th>Evidence</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map((r, i) => `
+                <tr>
+                  <td>${i + 1}</td>
+                  <td><span class="candidate-title">${escapeHtml(safe(r.tower))}</span><br><span class="small-text">${escapeHtml(safe(r.unit_type))}</span></td>
+                  <td>${pill(readinessLabel(derivedReadiness(r)))}</td>
+                  <td class="num">AED ${money(r.asking_price_aed)}</td>
+                  <td class="num">AED ${money(estimatedPurchaseCosts(r.asking_price_aed, DEFAULT_PURCHASE_COST_PERCENT))}<br><span class="small-text">${pct(DEFAULT_PURCHASE_COST_PERCENT)}%</span></td>
+                  <td class="num">AED ${money(allInCost(r.asking_price_aed, DEFAULT_PURCHASE_COST_PERCENT))}</td>
+                  <td class="num">AED ${money(r.estimated_annual_rent_aed)}</td>
+                  <td class="num">${pct(r.net_yield_percent)}%</td>
+                  <td class="num">AED ${money(rowTargetPrice(r))}</td>
+                  <td class="num">AED ${money(rowRequiredCut(r))}<br><span class="small-text">${pct(rowRequiredCutPercent(r))}%</span></td>
+                  <td>${pill(safe(r.negotiation_realism), getNegotiationTone(r.negotiation_realism))}</td>
+                  <td>
+                    <details class="inline-detail">
+                      <summary>View</summary>
+                      <div class="compact-detail">${escapeHtml(compactSourceNote(r))}</div>
+                      <details class="inline-detail">
+                        <summary>Raw source details</summary>
+                        <div class="details-box">${escapeHtml(fullEvidenceDetails(r))}</div>
+                      </details>
+                    </details>
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function selectedDealRow() {
+      const rows = sortByNetYield(getCalculatorRows(state.rows));
+      return rows[state.dealTest.selectedIndex] || rows[0] || null;
+    }
+
+    function applyDealRowDefaults(index) {
+      const rows = sortByNetYield(getCalculatorRows(state.rows));
+      const row = rows[index] || rows[0];
+
+      if (!row) return;
+
+      state.dealTest.selectedIndex = index;
+      state.dealTest.ownerAsk = num(row.asking_price_aed);
+      state.dealTest.areaSqft = num(row.area_sqft);
+      state.dealTest.purchaseCostPercent = DEFAULT_PURCHASE_COST_PERCENT;
+      state.dealTest.serviceChargeAedSqftYear = num(row.service_charge_aed_sqft_year);
+      state.dealTest.annualRentAed = num(row.estimated_annual_rent_aed);
+      state.dealTest.requiredNetYield = num(row.risk_adjusted_target_yield_percent, 6.75);
+    }
+
+    function getDealCalcValues() {
+      const ask = num(state.dealTest.ownerAsk);
+      const area = num(state.dealTest.areaSqft);
+      const costPct = num(state.dealTest.purchaseCostPercent, DEFAULT_PURCHASE_COST_PERCENT);
+      const serviceCharge = num(state.dealTest.serviceChargeAedSqftYear);
+      const annualRent = num(state.dealTest.annualRentAed);
+      const requiredYield = num(state.dealTest.requiredNetYield);
+
+      const annualServiceCharge = serviceChargeCost(area, serviceCharge);
+      const netRent = netRentFromInputs(annualRent, area, serviceCharge);
+      const yieldPct = expectedNetYield(ask, annualRent, area, serviceCharge);
+      const targetPrice = targetBuyPrice(netRent, requiredYield);
+      const cut = requiredCut(ask, targetPrice);
+      const cutPct = requiredCutPercent(ask, targetPrice);
+      const fees = estimatedPurchaseCosts(ask, costPct);
+      const allIn = allInCost(ask, costPct);
+
+      return {
+        ask,
+        area,
+        costPct,
+        serviceCharge,
+        annualRent,
+        requiredYield,
+        annualServiceCharge,
+        netRent,
+        yieldPct,
+        targetPrice,
+        cut,
+        cutPct,
+        fees,
+        allIn
+      };
+    }
+
+    function renderDealTestCalculator() {
+      const rows = sortByNetYield(getCalculatorRows(state.rows));
+      if (!rows.length) {
+        return `<div class="banner warn">No screened rows are available for calculator setup.</div>`;
+      }
+
+      const selected = selectedDealRow();
+      const c = getDealCalcValues();
+
+      return `
+        <div class="note">
+          Select a tower to pull real model values. Controlled dropdowns avoid random numbers while keeping quick deal testing.
+        </div>
+
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="dealTowerSelect">Tower / unit</label>
+            <select id="dealTowerSelect">
+              ${rows.map((r, idx) => `
+                <option value="${idx}" ${idx === state.dealTest.selectedIndex ? "selected" : ""}>${escapeHtml(rowName(r))}</option>
+              `).join("")}
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="dealOwnerAskInput">Owner asking price, AED</label>
+            <select id="dealOwnerAskInput">${getOwnerAskOptions(c.ask)}</select>
+          </div>
+
+          <div class="form-field">
+            <label for="dealAreaInput">Area, sqft</label>
+            <input id="dealAreaInput" type="text" value="${pct(c.area)}" readonly />
+          </div>
+
+          <div class="form-field">
+            <label for="dealAnnualRentInput">Estimated annual rent, AED/year</label>
+            <select id="dealAnnualRentInput">${getAnnualRentOptions(c.annualRent)}</select>
+          </div>
+
+          <div class="form-field">
+            <label for="dealServiceChargeInput">Service charge, AED/sqft/year</label>
+            <select id="dealServiceChargeInput">${getServiceChargeOptions(c.serviceCharge)}</select>
+          </div>
+
+          <div class="form-field">
+            <label for="dealPurchaseCostPercentInput">Purchase-cost assumption, %</label>
+            <input id="dealPurchaseCostPercentInput" type="number" min="0" step="0.1" value="${c.costPct}" />
+          </div>
+
+          <div class="form-field">
+            <label for="dealRequiredYieldInput">Required net yield, %</label>
+            <select id="dealRequiredYieldInput">${getRequiredYieldOptions(c.requiredYield)}</select>
+          </div>
+        </div>
+
+        <div class="grid-four">
+          <div class="metric">
+            <div class="metric-label">Selected model row</div>
+            <div class="metric-value">${escapeHtml(rowName(selected))}</div>
+            <div class="metric-small">Pre-filled from DB view</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Annual service charge</div>
+            <div class="metric-value">AED ${money(c.annualServiceCharge)}</div>
+            <div class="metric-small">Area × service charge</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Estimated net rent</div>
+            <div class="metric-value">AED ${money(c.netRent)}</div>
+            <div class="metric-small">Annual rent − service charge</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Expected net yield</div>
+            <div class="metric-value">${pct(c.yieldPct)}%</div>
+            <div class="metric-small">Net rent ÷ asking price</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Target buy price</div>
+            <div class="metric-value">AED ${money(c.targetPrice)}</div>
+            <div class="metric-small">Net rent ÷ required yield</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Required cut</div>
+            <div class="metric-value">AED ${money(c.cut)}</div>
+            <div class="metric-small">${pct(c.cutPct)}% vs owner ask</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">Purchase fees</div>
+            <div class="metric-value">AED ${money(c.fees)}</div>
+            <div class="metric-small">${pct(c.costPct)}% of owner ask</div>
+          </div>
+
+          <div class="metric">
+            <div class="metric-label">All-in cash need</div>
+            <div class="metric-value">AED ${money(c.allIn)}</div>
+            <div class="metric-small">Ask + purchase fees</div>
+          </div>
+        </div>
+
+        <details class="inline-detail">
+          <summary>Linked calculation logic</summary>
+          <div class="details-box">When tower changes:
+All inputs reset from the DB view.
+
+Owner asking price:
+Dropdown from AED 500k to AED 2.0m in AED 50k steps. If the model value is not on the step, the exact model value is also included.
+
+Area:
+Read-only. Comes only from selected tower/unit.
+
+Annual rent:
+Dropdown from AED 60k to AED 140k in AED 5k steps. If the model value is not on the step, the exact model value is also included.
+
+Service charge:
+Dropdown from AED 12 to AED 20/sqft/year in AED 0.5 steps. If the model value is not on the step, the exact model value is also included.
+
+Required yield:
+Dropdown from 5.00% to 8.00% in 0.25% steps. If the model value is not on the step, the exact model value is also included.
+
+Purchase-cost %:
+Editable because actual transaction fees may vary.
+
+Owner asking price is not overwritten by required yield. Target buy price is recalculated instead, because seller ask and target entry price are different things.</div>
+        </details>
+      `;
+    }
+
+    function renderEvidenceMap() {
+      const nonDealRows = state.rows.filter(r => derivedReadiness(r) !== "DEAL_TEST");
+
+      const order = {
+        "DECISION_READY": 1,
+        "INTERIM_SCREENED": 2,
+        "NEEDS_EVIDENCE": 3,
+        "REVIEW_REQUIRED": 4,
+        "BUDGET_MONITOR": 5,
+        "BELOW_RANGE": 6
+      };
+
+      const sorted = [...nonDealRows].sort((a, b) => {
+        const oa = order[derivedReadiness(a)] || 99;
+        const ob = order[derivedReadiness(b)] || 99;
+        if (oa !== ob) return oa - ob;
+        return String(a.tower).localeCompare(String(b.tower));
+      });
+
+      return `
+        <div class="note">
+          QA section. Use it to see what is missing, what needs review, or why an item is outside the active cash range.
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th>Readiness</th>
+                <th>Issue / Basis</th>
+                <th>Why It Matters</th>
+                <th>Next Data Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sorted.map(r => `
+                <tr>
+                  <td><span class="candidate-title">${escapeHtml(safe(r.tower))}</span><br><span class="small-text">${escapeHtml(safe(r.unit_type))}</span></td>
+                  <td>${pill(readinessLabel(derivedReadiness(r)))}</td>
+                  <td>${escapeHtml(displayEvidenceIssue(r))}</td>
+                  <td>${escapeHtml(whyItMatters(r))}</td>
+                  <td>${escapeHtml(displayNextAction(r))}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function displayEvidenceIssue(row) {
+      const dr = derivedReadiness(row);
+
+      if (dr === "INTERIM_SCREENED") {
+        return "Sale, rent and service-charge evidence available. Suitable for current screen and deal/no-deal discipline.";
+      }
+
+      if (dr === "REVIEW_REQUIRED") {
+        return "Review-required row. Not promoted to screened evidence status.";
+      }
+
+      if (dr === "BUDGET_MONITOR") {
+        return `Above selected max cash range of AED ${money(state.settings.maxBudget)}, or normal market evidence is above budget.`;
+      }
+
+      if (dr === "BELOW_RANGE") {
+        return `Below selected min cash range of AED ${money(state.settings.minBudget)}.`;
+      }
+
+      return safe(row.evidence_gap_reason, "Evidence issue not specified.");
+    }
+
+    function displayNextAction(row) {
+      const dr = derivedReadiness(row);
+
+      if (dr === "INTERIM_SCREENED") {
+        return "Track only if owner asking price approaches the risk target price.";
+      }
+
+      if (dr === "REVIEW_REQUIRED") {
+        return "Review source evidence and rerun/register through cleaned evidence workflow.";
+      }
+
+      if (dr === "BUDGET_MONITOR") {
+        return "Monitor only for below-budget / distressed opportunity.";
+      }
+
+      if (dr === "BELOW_RANGE") {
+        return "Review only if intentionally targeting this lower ticket size.";
+      }
+
+      return safe(row.next_data_action, "Add evidence before valuation.");
+    }
+
+    function renderTechnicalAudit() {
+      return `
+        <details class="inline-detail">
+          <summary>Readiness rules</summary>
+          <div class="details-box">Decision-ready = strict / high-confidence direct evidence.
+
+Screened = Property Finder DLD-derived transaction/rent evidence plus DLD Service Charge Index input. Good enough for dashboard screen and deal/no-deal discipline.
+
+Needs evidence = missing sale or rent evidence.
+
+Review required = row exists but is not promoted as screened evidence.
+
+Budget monitor = selected candidate is above active max cash range or normal market evidence is above budget.
+
+Below range = selected candidate is below active min cash range.
+
+Deal test = scenario only.</div>
+        </details>
+
+        <details class="inline-detail">
+          <summary>Raw watchlist view rows</summary>
+          <div class="details-box">${escapeHtml(JSON.stringify(state.rows, null, 2))}</div>
+        </details>
+
+        <details class="inline-detail">
+          <summary>Raw macro context</summary>
+          <div class="details-box">${escapeHtml(JSON.stringify(state.contextRows[0] || {}, null, 2))}</div>
+        </details>
+
+        <details class="inline-detail">
+          <summary>Raw bank context</summary>
+          <div class="details-box">${escapeHtml(JSON.stringify(state.bankRows[0] || {}, null, 2))}</div>
+        </details>
+      `;
+    }
+
+    function renderSection(title, html, open = true) {
+      return `
+        <details class="section" ${open ? "open" : ""}>
+          <summary><h2>${escapeHtml(title)}</h2></summary>
+          <div class="section-body">${html}</div>
+        </details>
+      `;
+    }
+
+    function renderDashboard() {
+      document.getElementById("app").innerHTML = `
+        ${renderSection("Active Investment Limits", renderBudgetControl(), true)}
+        ${renderSection("Executive Decision", renderExecutiveDecision(), true)}
+        ${renderSection("Market / Macro Overlay + Bank Benchmark", renderMacroAndBank(), true)}
+        ${renderSection("Price Target Watchlist", renderWatchlist(), true)}
+        ${renderSection("Manual Deal Test Calculator", renderDealTestCalculator(), true)}
+        ${renderSection("Evidence Coverage & Data Actions", renderEvidenceMap(), false)}
+        ${renderSection("Technical Audit", renderTechnicalAudit(), false)}
+      `;
+
+      attachEvents();
+    }
+
+    function attachEvents() {
+      const minBudgetSelect = document.getElementById("minBudgetSelect");
+      const maxBudgetSelect = document.getElementById("maxBudgetSelect");
+      const applySettingsButton = document.getElementById("applySettingsButton");
+
+      if (applySettingsButton) {
+        applySettingsButton.addEventListener("click", () => {
+          let minBudget = num(minBudgetSelect.value, DEFAULT_MIN_BUDGET_AED);
+          let maxBudget = num(maxBudgetSelect.value, DEFAULT_MAX_BUDGET_AED);
+
+          if (minBudget > maxBudget) {
+            const temp = minBudget;
+            minBudget = maxBudget;
+            maxBudget = temp;
+          }
+
+          state.settings.minBudget = minBudget;
+          state.settings.maxBudget = maxBudget;
+          renderDashboard();
+        });
+      }
+
+      const searchInput = document.getElementById("searchInput");
+      const readinessSelect = document.getElementById("readinessSelect");
+      const realismSelect = document.getElementById("realismSelect");
+
+      if (searchInput) {
+        searchInput.addEventListener("input", (e) => {
+          state.filters.search = e.target.value;
+          renderDashboard();
+        });
+      }
+
+      if (readinessSelect) {
+        readinessSelect.value = state.filters.readiness;
+        readinessSelect.addEventListener("change", (e) => {
+          state.filters.readiness = e.target.value;
+          renderDashboard();
+        });
+      }
+
+      if (realismSelect) {
+        realismSelect.value = state.filters.realism;
+        realismSelect.addEventListener("change", (e) => {
+          state.filters.realism = e.target.value;
+          renderDashboard();
+        });
+      }
+
+      const dealTowerSelect = document.getElementById("dealTowerSelect");
+      const dealOwnerAskInput = document.getElementById("dealOwnerAskInput");
+      const dealPurchaseCostPercentInput = document.getElementById("dealPurchaseCostPercentInput");
+      const dealServiceChargeInput = document.getElementById("dealServiceChargeInput");
+      const dealAnnualRentInput = document.getElementById("dealAnnualRentInput");
+      const dealRequiredYieldInput = document.getElementById("dealRequiredYieldInput");
+
+      if (dealTowerSelect) {
+        dealTowerSelect.addEventListener("change", (e) => {
+          applyDealRowDefaults(Number(e.target.value));
+          renderDashboard();
+        });
+      }
+
+      if (dealOwnerAskInput) {
+        dealOwnerAskInput.addEventListener("change", (e) => {
+          state.dealTest.ownerAsk = e.target.value;
+          renderDashboard();
+        });
+      }
+
+      if (dealPurchaseCostPercentInput) {
+        dealPurchaseCostPercentInput.addEventListener("input", (e) => {
+          state.dealTest.purchaseCostPercent = e.target.value;
+          renderDashboard();
+        });
+      }
+
+      if (dealServiceChargeInput) {
+        dealServiceChargeInput.addEventListener("change", (e) => {
+          state.dealTest.serviceChargeAedSqftYear = e.target.value;
+          renderDashboard();
+        });
+      }
+
+      if (dealAnnualRentInput) {
+        dealAnnualRentInput.addEventListener("change", (e) => {
+          state.dealTest.annualRentAed = e.target.value;
+          renderDashboard();
+        });
+      }
+
+      if (dealRequiredYieldInput) {
+        dealRequiredYieldInput.addEventListener("change", (e) => {
+          state.dealTest.requiredNetYield = e.target.value;
+          renderDashboard();
+        });
+      }
+    }
+
+    async function loadDashboard() {
+      const app = document.getElementById("app");
+
+      try {
+        const watchlistRows = await restGet(VIEW_WATCHLIST, "select=*&order=created_at.desc");
+
+        if (!Array.isArray(watchlistRows) || watchlistRows.length === 0) {
+          app.innerHTML = `
+            <section class="card">
+              <h2>No Data</h2>
+              <div class="banner warn">
+                No rows returned from <code>${VIEW_WATCHLIST}</code>.
+                Run the full n8n workflow and verify the Supabase view.
+              </div>
+            </section>
+          `;
+          return;
+        }
+
+        const latestRunId = watchlistRows[0].run_id;
+
+        let contextRows = [];
+        let bankRows = [];
+
+        try {
+          contextRows = await restGet(TABLE_AGENT_CONTEXT, `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=created_at.desc&limit=1`);
+        } catch { contextRows = []; }
+
+        try {
+          bankRows = await restGet(TABLE_BANK_CONTEXT, `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=created_at.desc&limit=1`);
+        } catch { bankRows = []; }
+
+        if (!contextRows.length) {
+          try { contextRows = await restGet(TABLE_AGENT_CONTEXT, "select=*&order=created_at.desc&limit=1"); } catch { contextRows = []; }
+        }
+
+        if (!bankRows.length) {
+          try { bankRows = await restGet(TABLE_BANK_CONTEXT, "select=*&order=created_at.desc&limit=1"); } catch { bankRows = []; }
+        }
+
+        state.rows = watchlistRows;
+        state.contextRows = contextRows;
+        state.bankRows = bankRows;
+
+        const calcRows = sortByNetYield(getCalculatorRows(state.rows));
+        if (calcRows.length) {
+          applyDealRowDefaults(0);
+        }
+
+        renderDashboard();
+
+      } catch (error) {
+        app.innerHTML = `
+          <section class="card">
+            <h2>Load Error</h2>
+            <div class="banner bad">${escapeHtml(error.message || "Unknown JavaScript or REST error.")}</div>
+            <div class="note">
+              Check that <code>${VIEW_WATCHLIST}</code> exists, is exposed via REST,
+              and that anon/publishable-key SELECT access is allowed.
+            </div>
+          </section>
+        `;
+      }
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>
