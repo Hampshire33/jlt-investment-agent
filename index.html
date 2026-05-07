@@ -710,16 +710,43 @@
       return requiredCutPercent(row.asking_price_aed, target);
     }
 
+    function hasScreenableEconomics(row) {
+      return (
+        num(row.asking_price_aed) > 0 &&
+        num(row.area_sqft) > 0 &&
+        num(row.estimated_annual_rent_aed) > 0 &&
+        num(row.service_charge_aed_sqft_year) >= 0
+      );
+    }
+
+    function hasUsableEvidenceConfidence(row) {
+      const confidence = String(row.input_data_confidence || row.pf_evidence_confidence || row.data_confidence || "").toUpperCase();
+      const sourceType = String(row.input_source_type || row.source_type || "").toLowerCase();
+
+      return (
+        confidence.includes("MEDIUM") ||
+        confidence.includes("HIGH") ||
+        sourceType.includes("propertyfinder") ||
+        sourceType.includes("evidence")
+      );
+    }
+
     function derivedReadiness(row) {
       const base = String(row.readiness_status || "");
       if (base === "DEAL_TEST") return "DEAL_TEST";
 
       const price = num(row.asking_price_aed);
-      if (price <= 0) return base;
+      if (price <= 0) return base || "NEEDS_EVIDENCE";
       if (price < state.settings.minBudget) return "BELOW_RANGE";
       if (price > state.settings.maxBudget) return "BUDGET_MONITOR";
 
-      return base;
+      if (base === "DECISION_READY" || base === "INTERIM_SCREENED") return base;
+
+      // Safety fallback: keep rows such as Madina visible when the SQL view has valid
+      // economics/evidence but readiness_status is missing, stale, or too conservative.
+      if (hasScreenableEconomics(row) && hasUsableEvidenceConfidence(row)) return "INTERIM_SCREENED";
+
+      return base || "REVIEW_REQUIRED";
     }
 
     function classifyRows(rows) {
@@ -737,6 +764,7 @@
     function getEvidenceRows(rows) {
       return rows.filter(r =>
         ["DECISION_READY", "INTERIM_SCREENED"].includes(derivedReadiness(r)) &&
+        hasScreenableEconomics(r) &&
         num(r.asking_price_aed) >= state.settings.minBudget &&
         num(r.asking_price_aed) <= state.settings.maxBudget
       );
@@ -2119,6 +2147,10 @@ ${escapeHtml(JSON.stringify(state.evidenceRows, null, 2))}</div>
 
         const latestRunId = watchlistRows[0].run_id;
 
+        // Keep dashboard internally consistent: show the latest run only.
+        // Without this, a newer partial run can mix with older rows and make candidates appear/disappear unpredictably.
+        const latestWatchlistRows = watchlistRows.filter(row => row.run_id === latestRunId);
+
         let contextRows = [];
         let bankRows = [];
         let evidenceRows = [];
@@ -2163,7 +2195,7 @@ ${escapeHtml(JSON.stringify(state.evidenceRows, null, 2))}</div>
           try { bankRows = await restGet(TABLE_BANK_CONTEXT, "select=*&order=created_at.desc&limit=1"); } catch { bankRows = []; }
         }
 
-        state.rows = watchlistRows;
+        state.rows = latestWatchlistRows;
         state.contextRows = contextRows;
         state.bankRows = bankRows;
         state.evidenceRows = evidenceRows;
