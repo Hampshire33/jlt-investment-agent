@@ -948,6 +948,33 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
       return `<a class="candidate-title" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${name}</a>`;
     }
 
+    function hasRepresentativeEvidence(row) {
+      const allCases = [
+        ...evidenceCasesFor(row, "sale"),
+        ...evidenceCasesFor(row, "rent")
+      ];
+
+      return allCases.some(c => String(c.basis_note || "").toLowerCase().includes("representative"));
+    }
+
+    function renderEvidenceQualityNote(row) {
+      if (hasRepresentativeEvidence(row)) {
+        return `
+          <div class="banner warn">
+            <strong>Evidence note:</strong>
+            Some case rows are representative median/sample evidence rows. Exact individual transaction rows should be added where available.
+          </div>
+        `;
+      }
+
+      return `
+        <div class="banner good">
+          <strong>Evidence note:</strong>
+          Case rows shown below are actual transaction-level evidence from the evidence seed table, filtered to the dashboard evidence run.
+        </div>
+      `;
+    }
+
     function renderEvidenceCases(row) {
       const saleCases = evidenceCasesFor(row, "sale");
       const rentCases = evidenceCasesFor(row, "rent");
@@ -964,10 +991,7 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
       return `
         <details class="inline-detail">
           <summary>View evidence cases</summary>
-          <div class="banner warn">
-            <strong>Evidence note:</strong>
-            Current case rows are representative median/sample evidence rows. Exact individual transaction rows will be added when automated extraction is available.
-          </div>
+          ${renderEvidenceQualityNote(row)}
           ${renderCaseSummary(row, saleCases, "sale")}
           ${renderCaseSummary(row, rentCases, "rent")}
         </details>
