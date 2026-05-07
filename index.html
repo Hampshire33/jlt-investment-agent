@@ -201,20 +201,9 @@
       overflow: hidden;
     }
 
-    .metric.good {
-      background: var(--soft-green);
-      border-color: #b7e5c7;
-    }
-
-    .metric.warn {
-      background: var(--soft-amber);
-      border-color: #ffd38a;
-    }
-
-    .metric.bad {
-      background: var(--soft-red);
-      border-color: #ffb4b4;
-    }
+    .metric.good { background: var(--soft-green); border-color: #b7e5c7; }
+    .metric.warn { background: var(--soft-amber); border-color: #ffd38a; }
+    .metric.bad { background: var(--soft-red); border-color: #ffb4b4; }
 
     .metric-label {
       color: var(--muted);
@@ -269,20 +258,9 @@
       background: var(--soft);
     }
 
-    .banner.good {
-      background: var(--soft-green);
-      border-color: #b7e5c7;
-    }
-
-    .banner.warn {
-      background: var(--soft-amber);
-      border-color: #ffd38a;
-    }
-
-    .banner.bad {
-      background: var(--soft-red);
-      border-color: #ffb4b4;
-    }
+    .banner.good { background: var(--soft-green); border-color: #b7e5c7; }
+    .banner.warn { background: var(--soft-amber); border-color: #ffd38a; }
+    .banner.bad { background: var(--soft-red); border-color: #ffb4b4; }
 
     .pill {
       display: inline-block;
@@ -295,29 +273,10 @@
       white-space: nowrap;
     }
 
-    .pill.good {
-      color: var(--green);
-      background: var(--soft-green);
-      border-color: #b7e5c7;
-    }
-
-    .pill.warn {
-      color: var(--amber);
-      background: var(--soft-amber);
-      border-color: #ffd38a;
-    }
-
-    .pill.bad {
-      color: var(--red);
-      background: var(--soft-red);
-      border-color: #ffb4b4;
-    }
-
-    .pill.blue {
-      color: var(--blue);
-      background: var(--soft-blue);
-      border-color: #bdd3ff;
-    }
+    .pill.good { color: var(--green); background: var(--soft-green); border-color: #b7e5c7; }
+    .pill.warn { color: var(--amber); background: var(--soft-amber); border-color: #ffd38a; }
+    .pill.bad { color: var(--red); background: var(--soft-red); border-color: #ffb4b4; }
+    .pill.blue { color: var(--blue); background: var(--soft-blue); border-color: #bdd3ff; }
 
     .toolbar {
       display: flex;
@@ -374,10 +333,7 @@
 
     tr:last-child td { border-bottom: none; }
 
-    .num {
-      text-align: right;
-      white-space: nowrap;
-    }
+    .num { text-align: right; white-space: nowrap; }
 
     details.inline-detail {
       margin-top: 8px;
@@ -408,6 +364,13 @@
     }
 
     .candidate-title {
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .evidence-pack-title {
+      margin-top: 12px;
+      font-size: 15px;
       font-weight: 800;
       color: var(--text);
     }
@@ -469,12 +432,8 @@
     const VIEW_WATCHLIST = "dashboard_decision_watchlist_v";
     const TABLE_AGENT_CONTEXT = "agent_run_context";
     const TABLE_BANK_CONTEXT = "bank_benchmark_context";
-
-    // FIXED: this must match the table your latest n8n workflow writes to.
-    // Previous code queried property_transaction_evidence and ordered by evidence_case_no,
-    // but your active workflow upserts approved case rows into jlt_transaction_evidence
-    // and that payload does not contain evidence_case_no.
-    const TABLE_EVIDENCE_CASES = "jlt_transaction_evidence";
+    const TABLE_TRANSACTION_EVIDENCE = "property_transaction_evidence";
+    const TABLE_CURRENT_ASKING_EVIDENCE = "jlt_current_asking_evidence";
 
     const DEFAULT_MIN_BUDGET_AED = 500000;
     const DEFAULT_MAX_BUDGET_AED = 1600000;
@@ -488,8 +447,11 @@
       contextRows: [],
       bankRows: [],
       evidenceRows: [],
+      askingRows: [],
       evidenceRunId: null,
       evidenceRunMatch: true,
+      askingRunId: null,
+      askingRunMatch: true,
       filters: { search: "", readiness: "ALL", realism: "ALL" },
       settings: {
         minBudget: DEFAULT_MIN_BUDGET_AED,
@@ -543,7 +505,11 @@
       return s || "No text available.";
     }
 
-    function normKey(value) {
+    function rowName(row) {
+      return `${safe(row.tower)} ${safe(row.unit_type)}`.trim();
+    }
+
+    function normalizeComparableText(value) {
       return String(value || "")
         .trim()
         .toLowerCase()
@@ -553,8 +519,31 @@
         .trim();
     }
 
-    function rowName(row) {
-      return `${safe(row.tower)} ${safe(row.unit_type)}`.trim();
+    function canonicalTowerName(value) {
+      const s = normalizeComparableText(value);
+      if (["green lakes s1", "green lakes tower 1", "green lakes towers 1"].includes(s)) return "green lakes s1";
+      if (["green lakes s2", "green lakes tower 2", "green lakes towers 2"].includes(s)) return "green lakes s2";
+      if (["green lakes s3", "green lakes tower 3", "green lakes towers 3"].includes(s)) return "green lakes s3";
+      if (["icon tower 1", "icon 1"].includes(s)) return "icon tower 1";
+      if (["icon tower 2", "icon 2"].includes(s)) return "icon tower 2";
+      if (["goldcrest views 2", "goldcrest view 2"].includes(s)) return "goldcrest views 2";
+      if (["madina tower", "madina"].includes(s)) return "madina tower";
+      return s;
+    }
+
+    function normalizeUnitType(value) {
+      const s = String(value || "").toLowerCase();
+      if (s.includes("studio")) return "Studio";
+      if (s.includes("1")) return "1BR";
+      if (s.includes("2")) return "2BR";
+      if (s.includes("3")) return "3BR";
+      if (s.includes("4")) return "4BR";
+      return String(value || "").trim();
+    }
+
+    function sameCandidate(a, b) {
+      return canonicalTowerName(a.tower) === canonicalTowerName(b.tower) &&
+        normalizeUnitType(a.unit_type) === normalizeUnitType(b.unit_type);
     }
 
     function pill(text, tone = null) {
@@ -683,70 +672,35 @@
     function rowTargetPrice(row) {
       const dbValue = num(row.risk_adjusted_target_price_aed);
       if (dbValue > 0) return dbValue;
-
       const yieldTarget = num(row.risk_adjusted_target_yield_percent, 6.5);
       const netRent = netRentFromRow(row);
-
       return targetBuyPrice(netRent, yieldTarget);
     }
 
     function rowRequiredCut(row) {
       const dbValue = num(row.risk_adjusted_required_cut_aed);
       if (dbValue !== 0) return dbValue;
-
       const target = rowTargetPrice(row);
       if (target <= 0) return 0;
-
       return requiredCut(row.asking_price_aed, target);
     }
 
     function rowRequiredCutPercent(row) {
       const dbValue = num(row.risk_adjusted_required_cut_percent);
       if (dbValue !== 0) return dbValue;
-
       const target = rowTargetPrice(row);
       if (target <= 0) return 0;
-
       return requiredCutPercent(row.asking_price_aed, target);
-    }
-
-    function hasScreenableEconomics(row) {
-      return (
-        num(row.asking_price_aed) > 0 &&
-        num(row.area_sqft) > 0 &&
-        num(row.estimated_annual_rent_aed) > 0 &&
-        num(row.service_charge_aed_sqft_year) >= 0
-      );
-    }
-
-    function hasUsableEvidenceConfidence(row) {
-      const confidence = String(row.input_data_confidence || row.pf_evidence_confidence || row.data_confidence || "").toUpperCase();
-      const sourceType = String(row.input_source_type || row.source_type || "").toLowerCase();
-
-      return (
-        confidence.includes("MEDIUM") ||
-        confidence.includes("HIGH") ||
-        sourceType.includes("propertyfinder") ||
-        sourceType.includes("evidence")
-      );
     }
 
     function derivedReadiness(row) {
       const base = String(row.readiness_status || "");
       if (base === "DEAL_TEST") return "DEAL_TEST";
-
       const price = num(row.asking_price_aed);
-      if (price <= 0) return base || "NEEDS_EVIDENCE";
+      if (price <= 0) return base;
       if (price < state.settings.minBudget) return "BELOW_RANGE";
       if (price > state.settings.maxBudget) return "BUDGET_MONITOR";
-
-      if (base === "DECISION_READY" || base === "INTERIM_SCREENED") return base;
-
-      // Safety fallback: keep rows such as Madina visible when the SQL view has valid
-      // economics/evidence but readiness_status is missing, stale, or too conservative.
-      if (hasScreenableEconomics(row) && hasUsableEvidenceConfidence(row)) return "INTERIM_SCREENED";
-
-      return base || "REVIEW_REQUIRED";
+      return base;
     }
 
     function classifyRows(rows) {
@@ -764,7 +718,6 @@
     function getEvidenceRows(rows) {
       return rows.filter(r =>
         ["DECISION_READY", "INTERIM_SCREENED"].includes(derivedReadiness(r)) &&
-        hasScreenableEconomics(r) &&
         num(r.asking_price_aed) >= state.settings.minBudget &&
         num(r.asking_price_aed) <= state.settings.maxBudget
       );
@@ -772,8 +725,10 @@
 
     function getCalculatorRows(rows) {
       return rows.filter(r =>
-        ["DECISION_READY", "INTERIM_SCREENED"].includes(derivedReadiness(r)) &&
-        hasScreenableEconomics(r)
+        ["DECISION_READY", "INTERIM_SCREENED"].includes(String(r.readiness_status || "")) &&
+        num(r.asking_price_aed) > 0 &&
+        num(r.area_sqft) > 0 &&
+        num(r.estimated_annual_rent_aed) > 0
       );
     }
 
@@ -799,19 +754,16 @@
 
     function scoreLabel(value, type) {
       const v = num(value, 0);
-
       if (type === "FS") {
         if (v > 0) return "supportive / stable";
         if (v < 0) return "soft / risk-on-hold";
         return "mixed / neutral";
       }
-
       if (type === "LEI") {
         if (v > 0) return "improving forward signal";
         if (v < 0) return "weakening forward signal";
         return "mixed / neutral forward signal";
       }
-
       return "mixed";
     }
 
@@ -859,23 +811,19 @@ Applied hurdle = ${best ? pct(best.risk_adjusted_target_yield_percent) : "N/A"}%
     function negotiationExplanation(row) {
       const p = rowRequiredCutPercent(row);
       const realism = String(row.negotiation_realism || "NOT_APPLICABLE").toUpperCase();
-
       const base = `Current evidence price: AED ${money(row.asking_price_aed)}.
 Risk-adjusted target price: AED ${money(rowTargetPrice(row))}.
 Required cut: AED ${money(rowRequiredCut(row))} / ${pct(p)}%.`;
-
       if (realism === "REALISTIC") return `${base}\n\nWithin normal negotiation band.`;
       if (realism === "POSSIBLE") return `${base}\n\nRequires seller motivation or negotiation leverage.`;
       if (realism === "DIFFICULT") return `${base}\n\nAbove normal negotiation range. Requires motivated seller, stale listing or unit-specific weakness.`;
       if (realism === "UNLIKELY") return `${base}\n\nLikely unrealistic unless distress or abnormal listing appears.`;
-
       return base;
     }
 
     function compactSourceNote(row) {
       const dr = derivedReadiness(row);
       const confidence = String(row.input_data_confidence || "");
-
       if (dr === "INTERIM_SCREENED") {
         return `Status: Screened
 Basis: Property Finder DLD-derived sale/rent + 2026 DLD service charge input.
@@ -884,32 +832,27 @@ Main issue: price/yield, not data availability.
 Confidence: ${confidence}
 Next action: Track only if owner price moves close to target.`;
       }
-
       if (dr === "NEEDS_EVIDENCE") {
         return `Status: Needs evidence
 Issue: ${safe(row.evidence_gap_reason, "Sale/rent evidence incomplete.")}
 Why it matters: ${whyItMatters(row)}
 Next action: ${safe(row.next_data_action, "Add evidence before valuation.")}`;
       }
-
       if (dr === "BUDGET_MONITOR") {
         return `Status: Budget monitor
 Issue: Price is above selected max cash range of AED ${money(state.settings.maxBudget)}.
 Next action: Monitor only for below-budget or distressed opportunity.`;
       }
-
       if (dr === "BELOW_RANGE") {
         return `Status: Below selected range
 Issue: Price is below selected min cash range of AED ${money(state.settings.minBudget)}.
 Next action: Review only if intentionally targeting lower ticket size.`;
       }
-
       if (dr === "REVIEW_REQUIRED") {
         return `Status: Review required
 Issue: This row is not promoted to screened evidence status.
 Next action: Review source evidence and rerun/register through the cleaned evidence workflow.`;
       }
-
       return `Status: ${readinessLabel(dr)}
 Next action: ${safe(row.next_data_action, "Review.")}`;
     }
@@ -927,59 +870,61 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
     }
 
     function evidenceCasesFor(row, transactionType) {
-      const targetTower = normKey(row.tower);
-      const targetUnit = normKey(row.unit_type);
-      const targetType = normKey(transactionType);
-
       return state.evidenceRows.filter(e =>
-        normKey(e.tower) === targetTower &&
-        normKey(e.unit_type) === targetUnit &&
-        normKey(e.transaction_type) === targetType
+        sameCandidate(e, row) &&
+        String(e.transaction_type || "").trim().toLowerCase() === transactionType
       );
     }
 
-    function shortUrlLabel(url) {
-      if (!url) return "No link";
-      try {
-        const u = new URL(url);
-        return u.hostname.replace("www.", "");
-      } catch {
-        return "Source";
-      }
+    function askingCasesFor(row) {
+      return state.askingRows.filter(e =>
+        sameCandidate(e, row) &&
+        (e.included_in_current_asking === true || e.included_in_current_asking === "true")
+      );
     }
 
-    function evidenceMedian(cases, field) {
-      const vals = cases
-        .filter(e => e.included_in_median === true || e.included_in_median === "true")
-        .map(e => num(e[field]))
-        .filter(v => v > 0)
-        .sort((a, b) => a - b);
-
-      if (!vals.length) return 0;
-
-      const mid = Math.floor(vals.length / 2);
-      if (vals.length % 2) return vals[mid];
-      return (vals[mid - 1] + vals[mid]) / 2;
+    function askingStats(row) {
+      const cases = askingCasesFor(row);
+      const prices = cases.map(c => num(c.asking_price_aed)).filter(v => v > 0).sort((a, b) => a - b);
+      const target = rowTargetPrice(row);
+      const saleMedian = evidenceMedian(evidenceCasesFor(row, "sale"), "price_aed");
+      const lowest = prices[0] || 0;
+      const median = prices.length ? medianValue(prices) : 0;
+      return {
+        count: cases.length,
+        lowest,
+        median,
+        highest: prices[prices.length - 1] || 0,
+        target,
+        saleMedian,
+        lowestVsTargetAed: lowest && target ? lowest - target : 0,
+        lowestVsTargetPercent: lowest && target ? (lowest - target) / target * 100 : 0,
+        lowestVsSaleMedianPercent: lowest && saleMedian ? (lowest - saleMedian) / saleMedian * 100 : 0
+      };
     }
 
-    function evidenceAreaRange(cases) {
-      const vals = cases
-        .map(e => num(e.area_sqft))
-        .filter(v => v > 0)
-        .sort((a, b) => a - b);
+    function medianValue(vals) {
+      const clean = vals.map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+      if (!clean.length) return 0;
+      const mid = Math.floor(clean.length / 2);
+      return clean.length % 2 ? clean[mid] : (clean[mid - 1] + clean[mid]) / 2;
+    }
 
-      if (!vals.length) return "N/A";
-      if (vals.length === 1) return `${pct(vals[0])} sqft`;
-      return `${pct(vals[0])}–${pct(vals[vals.length - 1])} sqft`;
+    function currentAskingSignal(row) {
+      const s = askingStats(row);
+      if (!s.count) return { label: "No live asking", tone: "blue", text: "No current asking evidence loaded for this candidate." };
+      if (s.lowest <= s.target) return { label: "Contact / investigate", tone: "good", text: "Lowest current asking is at or below target buy price." };
+      if (s.saleMedian && s.lowest <= s.saleMedian) return { label: "Negotiate hard", tone: "warn", text: "Lowest current asking is near/below transaction benchmark but still above target price." };
+      return { label: "Watch only", tone: "bad", text: "Current asking market remains above target entry price." };
     }
 
     function primaryEvidenceUrl(row) {
+      const asking = askingCasesFor(row).find(e => e.listing_url);
+      if (asking && asking.listing_url) return asking.listing_url;
       const sale = evidenceCasesFor(row, "sale").find(e => e.source_url);
       if (sale && sale.source_url) return sale.source_url;
-
       const rent = evidenceCasesFor(row, "rent").find(e => e.source_url);
       if (rent && rent.source_url) return rent.source_url;
-
       const sourceText = `${safe(row.price_source_note)} ${safe(row.rent_source_note)}`;
       const match = sourceText.match(new RegExp("https?://[^ ,]+"));
       return match ? match[0] : null;
@@ -988,188 +933,138 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
     function candidateNameHtml(row) {
       const name = escapeHtml(safe(row.tower));
       const url = primaryEvidenceUrl(row);
-
       if (!url) return `<span class="candidate-title">${name}</span>`;
-
       return `<a class="candidate-title" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${name}</a>`;
     }
 
     function hasRepresentativeEvidence(row) {
-      const allCases = [
-        ...evidenceCasesFor(row, "sale"),
-        ...evidenceCasesFor(row, "rent")
-      ];
-
+      const allCases = [...evidenceCasesFor(row, "sale"), ...evidenceCasesFor(row, "rent")];
       return allCases.some(c => String(c.basis_note || "").toLowerCase().includes("representative"));
     }
 
     function renderEvidenceQualityNote(row) {
+      const hasAsking = askingCasesFor(row).length > 0;
       if (hasRepresentativeEvidence(row)) {
-        return `
-          <div class="banner warn">
-            <strong>Evidence note:</strong>
-            Some case rows are representative median/sample evidence rows. Exact individual transaction rows should be added where available.
-          </div>
-        `;
+        return `<div class="banner warn"><strong>Evidence note:</strong> Some transaction rows are representative median/sample evidence rows. Exact individual transaction rows should be added where available. Current askings are live-market context only.</div>`;
       }
-
-      return `
-        <div class="banner good">
-          <strong>Evidence note:</strong>
-          Case rows shown below are transaction-level rows loaded from <code>${TABLE_EVIDENCE_CASES}</code>. They are matched by tower, unit type and transaction type.
-        </div>
-      `;
+      return `<div class="banner ${hasAsking ? "good" : "warn"}"><strong>Evidence note:</strong> Transaction evidence shows cleared sale/rent benchmarks. Current asking evidence shows seller expectations only and must not overwrite fair-value evidence.</div>`;
     }
 
-    function renderEvidenceCases(row) {
+    function renderEvidencePack(row) {
       const saleCases = evidenceCasesFor(row, "sale");
       const rentCases = evidenceCasesFor(row, "rent");
+      const askingCases = askingCasesFor(row);
+      const signal = currentAskingSignal(row);
 
-      if (!saleCases.length && !rentCases.length) {
-        return `
-          <details class="inline-detail">
-            <summary>View evidence cases</summary>
-            <div class="details-box">No case-level transaction evidence found for this dashboard row.
-
-Checked table: ${TABLE_EVIDENCE_CASES}
-Dashboard row run_id: ${safe(row.run_id, "N/A")}
-Loaded evidence run_id: ${safe(state.evidenceRunId, "N/A")}
-Run match: ${state.evidenceRunMatch ? "yes" : "no / fallback evidence run used"}
-Tower/unit checked: ${safe(row.tower)} / ${safe(row.unit_type)}</div>
-          </details>
-        `;
+      if (!saleCases.length && !rentCases.length && !askingCases.length) {
+        return `<details class="inline-detail"><summary>View evidence pack</summary><div class="details-box">No transaction or current asking evidence found for this run_id / tower / unit type.</div></details>`;
       }
 
       return `
         <details class="inline-detail">
-          <summary>View evidence cases</summary>
+          <summary>View evidence pack</summary>
           ${renderEvidenceQualityNote(row)}
+          ${renderEvidenceSummaryStrip(row)}
+          <div class="banner ${signal.tone}"><strong>Buyer read:</strong> ${escapeHtml(signal.text)}</div>
           ${renderCaseSummary(row, saleCases, "sale")}
           ${renderCaseSummary(row, rentCases, "rent")}
+          ${renderCurrentAskingSummary(row, askingCases)}
         </details>
       `;
     }
 
+    function renderEvidenceSummaryStrip(row) {
+      const saleMedian = evidenceMedian(evidenceCasesFor(row, "sale"), "price_aed");
+      const rentMedian = evidenceMedian(evidenceCasesFor(row, "rent"), "annual_rent_aed");
+      const s = askingStats(row);
+      const signal = currentAskingSignal(row);
+
+      return `
+        <div class="grid-four">
+          <div class="metric"><div class="metric-label">Sale median</div><div class="metric-value">AED ${money(saleMedian)}</div><div class="metric-small">Cleared transaction benchmark</div></div>
+          <div class="metric"><div class="metric-label">Rent median</div><div class="metric-value">AED ${money(rentMedian)}</div><div class="metric-small">Annual rent evidence</div></div>
+          <div class="metric"><div class="metric-label">Lowest current asking</div><div class="metric-value">${s.lowest ? `AED ${money(s.lowest)}` : "N/A"}</div><div class="metric-small">${s.count} current asking row(s)</div></div>
+          <div class="metric ${signal.tone}"><div class="metric-label">Asking vs target</div><div class="metric-value">${s.lowest ? `${pct(s.lowestVsTargetPercent)}%` : "N/A"}</div><div class="metric-small">${escapeHtml(signal.label)}</div></div>
+        </div>
+      `;
+    }
+
+    function evidenceMedian(cases, field) {
+      const vals = cases
+        .filter(e => e.included_in_median === true || e.included_in_median === "true")
+        .map(e => num(e[field]))
+        .filter(v => v > 0)
+        .sort((a, b) => a - b);
+      return medianValue(vals);
+    }
+
+    function evidenceAreaRange(cases) {
+      const vals = cases.map(e => num(e.area_sqft)).filter(v => v > 0).sort((a, b) => a - b);
+      if (!vals.length) return "N/A";
+      if (vals.length === 1) return `${pct(vals[0])} sqft`;
+      return `${pct(vals[0])}–${pct(vals[vals.length - 1])} sqft`;
+    }
+
     function renderCaseSummary(row, cases, type) {
-      if (!cases.length) {
-        return `<div class="compact-detail"><strong>${type.toUpperCase()} evidence:</strong> none found.</div>`;
-      }
+      if (!cases.length) return `<div class="compact-detail"><strong>${type.toUpperCase()} evidence:</strong> none found.</div>`;
 
       const included = cases.filter(c => c.included_in_median === true || c.included_in_median === "true");
-      const medianValue = type === "sale"
-        ? evidenceMedian(cases, "price_aed")
-        : evidenceMedian(cases, "annual_rent_aed");
+      const medianValueUsed = type === "sale" ? evidenceMedian(cases, "price_aed") : evidenceMedian(cases, "annual_rent_aed");
+      const modelValue = type === "sale" ? row.asking_price_aed : row.estimated_annual_rent_aed;
+      const title = type === "sale" ? "Sale transaction evidence" : "Rent transaction evidence";
+      const modelLabel = type === "sale" ? "Dashboard evidence price" : "Dashboard rent";
 
-      const modelValue = type === "sale"
-        ? row.asking_price_aed
-        : row.estimated_annual_rent_aed;
-
-      const title = type === "sale"
-        ? "Sale evidence behind evidence price"
-        : "Rent evidence behind model rent";
-
-      const modelLabel = type === "sale"
-        ? "Dashboard evidence price"
-        : "Dashboard rent";
-
-      const summaryHtml = `
-        <div class="compact-detail"><strong>${title}</strong><br>Included cases: ${included.length} / ${cases.length} | Median: AED ${money(medianValue)}${type === "rent" ? "/yr" : ""} | ${modelLabel}: AED ${money(modelValue)}${type === "rent" ? "/yr" : ""} | Area range: ${evidenceAreaRange(cases)}</div>
-      `;
+      const summaryHtml = `<div class="evidence-pack-title">${title}</div><div class="compact-detail">Included cases: ${included.length} / ${cases.length} | Median: AED ${money(medianValueUsed)}${type === "rent" ? "/yr" : ""} | ${modelLabel}: AED ${money(modelValue)}${type === "rent" ? "/yr" : ""} | Area range: ${evidenceAreaRange(cases)}</div>`;
 
       if (type === "sale") {
         const saleLines = cases.map(c => {
-          const location = `${safe(c.location || c.tower, row.tower)}${safe(c.unit_type || c.bedrooms || row.unit_type) ? `, ${safe(c.unit_type || c.bedrooms || row.unit_type)}` : ""}`;
-          const link = c.source_url
-            ? `<a href="${escapeHtml(c.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(location)}</a>`
-            : escapeHtml(location);
-
-          return `
-            <tr>
-              <td>${link}</td>
-              <td class="num">AED ${money(c.price_aed)}</td>
-              <td class="num">AED ${money(c.price_aed_per_sqft)}</td>
-              <td>${escapeHtml(safe(c.transaction_date, "N/A"))}</td>
-              <td>${escapeHtml(safe(c.completion_status, "Ready"))}</td>
-              <td>${escapeHtml(safe(c.property_type, "Apartment"))}</td>
-              <td>${escapeHtml(safe(c.bedrooms, row.unit_type))}</td>
-              <td class="num">${pct(c.area_sqft)}</td>
-            </tr>
-          `;
+          const location = `${safe(c.tower, row.tower)}${safe(c.unit_type || c.bedrooms || row.unit_type) ? `, ${safe(c.unit_type || c.bedrooms || row.unit_type)}` : ""}`;
+          const link = c.source_url ? `<a href="${escapeHtml(c.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(location)}</a>` : escapeHtml(location);
+          return `<tr><td>${link}</td><td class="num">AED ${money(c.price_aed)}</td><td class="num">AED ${money(c.price_aed_per_sqft)}</td><td>${escapeHtml(safe(c.transaction_date, "N/A"))}</td><td>${escapeHtml(safe(c.completion_status, "Ready"))}</td><td>${escapeHtml(safe(c.property_type, "Apartment"))}</td><td>${escapeHtml(safe(c.bedrooms, row.unit_type))}</td><td class="num">${pct(c.area_sqft)}</td></tr>`;
         }).join("");
-
-        return `
-          ${summaryHtml}
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Location</th>
-                  <th class="num">Sold for (AED)</th>
-                  <th class="num">Sold for (AED per sqft)</th>
-                  <th>Date</th>
-                  <th>Completion Status</th>
-                  <th>Property Type</th>
-                  <th>Bedrooms</th>
-                  <th class="num">Size (sqft)</th>
-                </tr>
-              </thead>
-              <tbody>${saleLines}</tbody>
-            </table>
-          </div>
-        `;
+        return `${summaryHtml}<div class="table-wrap"><table><thead><tr><th>Location</th><th class="num">Sold for</th><th class="num">AED/sqft</th><th>Date</th><th>Status</th><th>Type</th><th>Bedrooms</th><th class="num">Size</th></tr></thead><tbody>${saleLines}</tbody></table></div>`;
       }
 
       const rentLines = cases.map(c => {
-        const location = `${safe(c.location || c.tower, row.tower)}${safe(c.unit_type || c.bedrooms || row.unit_type) ? `, ${safe(c.unit_type || c.bedrooms || row.unit_type)}` : ""}`;
-        const link = c.source_url
-          ? `<a href="${escapeHtml(c.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(location)}</a>`
-          : escapeHtml(location);
+        const location = `${safe(c.tower, row.tower)}${safe(c.unit_type || c.bedrooms || row.unit_type) ? `, ${safe(c.unit_type || c.bedrooms || row.unit_type)}` : ""}`;
+        const link = c.source_url ? `<a href="${escapeHtml(c.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(location)}</a>` : escapeHtml(location);
+        const rentPsf = num(c.annual_rent_aed) && num(c.area_sqft) ? num(c.annual_rent_aed) / num(c.area_sqft) : 0;
+        return `<tr><td>${link}</td><td class="num">AED ${money(c.annual_rent_aed)}</td><td class="num">AED ${pct(rentPsf)}</td><td>${escapeHtml(safe(c.transaction_date, "N/A"))}</td><td>${escapeHtml(safe(c.contract_status, "Annual"))}</td><td>${escapeHtml(safe(c.property_type, "Apartment"))}</td><td>${escapeHtml(safe(c.bedrooms, row.unit_type))}</td><td class="num">${pct(c.area_sqft)}</td></tr>`;
+      }).join("");
+      return `${summaryHtml}<div class="table-wrap"><table><thead><tr><th>Location</th><th class="num">Annual rent</th><th class="num">AED/sqft/yr</th><th>Date</th><th>Contract</th><th>Type</th><th>Bedrooms</th><th class="num">Size</th></tr></thead><tbody>${rentLines}</tbody></table></div>`;
+    }
 
-        return `
-          <tr>
-            <td>${link}</td>
-            <td class="num">AED ${money(c.annual_rent_aed)}</td>
-            <td>${escapeHtml(safe(c.transaction_date, "N/A"))}</td>
-            <td>${escapeHtml(safe(c.contract_status, "Annual"))}</td>
-            <td>${escapeHtml(safe(c.property_type, "Apartment"))}</td>
-            <td>${escapeHtml(safe(c.bedrooms, row.unit_type))}</td>
-            <td class="num">${pct(c.area_sqft)}</td>
-          </tr>
-        `;
+    function renderCurrentAskingSummary(row, cases) {
+      const s = askingStats(row);
+      const signal = currentAskingSignal(row);
+      const title = "Current asking evidence";
+
+      if (!cases.length) {
+        return `<div class="evidence-pack-title">${title}</div><div class="compact-detail"><strong>Current askings:</strong> none found for this run/tower/unit. This means no live seller-price context was loaded; it does not mean there are no listings in the market.</div>`;
+      }
+
+      const summaryHtml = `<div class="evidence-pack-title">${title}</div><div class="compact-detail">Active asking rows: ${s.count} | Lowest: AED ${money(s.lowest)} | Median: AED ${money(s.median)} | Range: AED ${money(s.lowest)}–${money(s.highest)} | Lowest vs target: ${pct(s.lowestVsTargetPercent)}% | Signal: ${signal.label}</div>`;
+
+      const lines = cases.map(c => {
+        const gap = num(c.asking_price_aed) - rowTargetPrice(row);
+        const gapPct = rowTargetPrice(row) > 0 ? gap / rowTargetPrice(row) * 100 : 0;
+        const listingName = safe(c.listing_title, `${rowName(row)} listing`);
+        const link = c.listing_url ? `<a href="${escapeHtml(c.listing_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(listingName)}</a>` : escapeHtml(listingName);
+        return `<tr><td>${link}</td><td class="num">AED ${money(c.asking_price_aed)}</td><td class="num">${pct(c.area_sqft)}</td><td class="num">AED ${money(c.asking_price_aed_per_sqft)}</td><td>${escapeHtml(safe(c.furnishing_status, "N/A"))}</td><td>${escapeHtml(safe(c.broker_name || c.agent_name, "N/A"))}</td><td class="num">AED ${money(gap)}<br><span class="small-text">${pct(gapPct)}%</span></td></tr>`;
       }).join("");
 
-      return `
-        ${summaryHtml}
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Location</th>
-                <th class="num">Rented Price (AED/Year)</th>
-                <th>Date</th>
-                <th>Contract Status</th>
-                <th>Property Type</th>
-                <th>Bedrooms</th>
-                <th class="num">Size (sqft)</th>
-              </tr>
-            </thead>
-            <tbody>${rentLines}</tbody>
-          </table>
-        </div>
-      `;
+      return `${summaryHtml}<div class="table-wrap"><table><thead><tr><th>Listing</th><th class="num">Asking price</th><th class="num">Size</th><th class="num">AED/sqft</th><th>Furnishing</th><th>Broker / Agent</th><th class="num">Gap vs target</th></tr></thead><tbody>${lines}</tbody></table></div>`;
     }
 
     function whyItMatters(row) {
       const reason = String(row.evidence_gap_reason || "").toLowerCase();
       const dr = derivedReadiness(row);
-
       if (dr === "INTERIM_SCREENED") return "Evidence is sufficient for current screening; commercial issue is whether price reaches target.";
       if (dr === "BUDGET_MONITOR") return "Price is above the active max cash range.";
       if (dr === "BELOW_RANGE") return "Price is below the active min cash range.";
       if (dr === "REVIEW_REQUIRED") return "Review-required rows should not be treated as investment-ready until promoted by the evidence workflow.";
       if (reason.includes("rent")) return "Without rent evidence, net yield and IRR cannot be trusted.";
       if (reason.includes("sale")) return "Without sale evidence, fair entry price and required discount cannot be trusted.";
-
       return "Weak evidence can distort yield, IRR, fair price and negotiation target.";
     }
 
@@ -1177,14 +1072,12 @@ Tower/unit checked: ${safe(row.tower)} / ${safe(row.unit_type)}</div>
       const search = state.filters.search.trim().toLowerCase();
       const readiness = state.filters.readiness;
       const realism = state.filters.realism;
-
       return rows.filter(row => {
         const dr = derivedReadiness(row);
         const haystack = [row.tower, row.unit_type, dr, row.negotiation_realism, row.daily_action_category].join(" ").toLowerCase();
-
-        return (!search || haystack.includes(search))
-          && (readiness === "ALL" || dr === readiness)
-          && (realism === "ALL" || row.negotiation_realism === realism);
+        return (!search || haystack.includes(search)) &&
+          (readiness === "ALL" || dr === readiness) &&
+          (realism === "ALL" || row.negotiation_realism === realism);
       });
     }
 
@@ -1211,55 +1104,18 @@ Tower/unit checked: ${safe(row.tower)} / ${safe(row.unit_type)}</div>
           "Accept": "application/json"
         }
       });
-
       const text = await response.text();
       if (!response.ok) throw new Error(`REST ${path} failed: ${response.status} ${text}`);
-
       try { return JSON.parse(text); }
       catch { throw new Error(`REST ${path} returned non-JSON response: ${text}`); }
     }
 
     function renderKpiMetric(label, value, small, explanation) {
-      return `
-        <div class="metric">
-          <div class="metric-label">${escapeHtml(label)}</div>
-          <div class="metric-value">${value}</div>
-          <div class="metric-small">${escapeHtml(small)}</div>
-          <details class="inline-detail">
-            <summary>Why?</summary>
-            <div class="details-box">${escapeHtml(explanation)}</div>
-          </details>
-        </div>
-      `;
+      return `<div class="metric"><div class="metric-label">${escapeHtml(label)}</div><div class="metric-value">${value}</div><div class="metric-small">${escapeHtml(small)}</div><details class="inline-detail"><summary>Why?</summary><div class="details-box">${escapeHtml(explanation)}</div></details></div>`;
     }
 
     function renderBudgetControl() {
-      return `
-        <div class="note">
-          Express how much cash you are willing to deploy. Rows outside the range are monitored separately, not rejected.
-        </div>
-
-        <div class="form-grid">
-          <div class="form-field">
-            <label for="minBudgetSelect">Minimum cash budget</label>
-            <select id="minBudgetSelect">${getBudgetOptions(state.settings.minBudget)}</select>
-          </div>
-
-          <div class="form-field">
-            <label for="maxBudgetSelect">Maximum cash budget</label>
-            <select id="maxBudgetSelect">${getBudgetOptions(state.settings.maxBudget)}</select>
-          </div>
-
-          <div class="form-field">
-            <button id="applySettingsButton">Apply Budget Range</button>
-          </div>
-        </div>
-
-        <div class="note">
-          Active cash range:
-          <strong>AED ${money(state.settings.minBudget)} – AED ${money(state.settings.maxBudget)}</strong>.
-        </div>
-      `;
+      return `<div class="note">Express how much cash you are willing to deploy. Rows outside the range are monitored separately, not rejected.</div><div class="form-grid"><div class="form-field"><label for="minBudgetSelect">Minimum cash budget</label><select id="minBudgetSelect">${getBudgetOptions(state.settings.minBudget)}</select></div><div class="form-field"><label for="maxBudgetSelect">Maximum cash budget</label><select id="maxBudgetSelect">${getBudgetOptions(state.settings.maxBudget)}</select></div><div class="form-field"><button id="applySettingsButton">Apply Budget Range</button></div></div><div class="note">Active cash range: <strong>AED ${money(state.settings.minBudget)} – AED ${money(state.settings.maxBudget)}</strong>.</div>`;
     }
 
     function renderExecutiveDecision() {
@@ -1268,183 +1124,41 @@ Tower/unit checked: ${safe(row.tower)} / ${safe(row.unit_type)}</div>
       const best = getBestWatch(rows);
       const context = getLatestContext();
       const bank = getLatestBank();
-
       const latestRun = rows[0]?.run_id || "N/A";
       const latestTime = rows[0]?.created_at || null;
-
       const bankRate = bank.benchmark_rate_percent || best?.bank_yield_percent || 3.5;
       const bankQuality = bank.source_quality || best?.bank_source_quality || "HIGH";
-
       const fs = safe(context.financial_stability_score ?? best?.financial_stability_score, "N/A");
       const lei = safe(context.proxy_lei_score ?? best?.proxy_lei_score, "N/A");
       const macroConfidence = safe(context.confidence_level ?? best?.macro_confidence, "MEDIUM");
-
       const netRent = best ? netRentFromRow(best) : 0;
       const allIn = best ? allInCost(best.asking_price_aed) : 0;
+      const asking = best ? askingStats(best) : null;
 
-      return `
-        <div class="decision-body">
-          <div class="decision-title">Do not buy now</div>
-          <div class="decision-subtitle">
-            ${best
-              ? `Best watch item is <strong>${escapeHtml(rowName(best))}</strong>, but it still requires AED ${money(rowRequiredCut(best))} / ${pct(rowRequiredCutPercent(best))}% lower entry price.`
-              : `No screened candidate is currently available within the selected cash range.`
-            }
-          </div>
-
-          <div class="grid">
-            ${renderKpiMetric(
-              "Best Watch Item",
-              best ? escapeHtml(rowName(best)) : "None",
-              best ? readinessLabel(derivedReadiness(best)) : "N/A",
-              best
-                ? `Selected because it has the highest current net yield among screened candidates inside the selected cash range.
-
-Cash range: AED ${money(state.settings.minBudget)} – AED ${money(state.settings.maxBudget)}.
-Current ranking yield: ${pct(best.net_yield_percent)}%.
-Current price: AED ${money(best.asking_price_aed)}.
-Estimated net rent: AED ${money(netRent)} per year.`
-                : "No screened candidate is available within the selected cash range."
-            )}
-
-            ${renderKpiMetric(
-              "Current Net Yield",
-              best ? `${pct(best.net_yield_percent)}%` : "N/A",
-              "Current economics",
-              best
-                ? `Formula: net rent ÷ current evidence price.
-
-Estimated net rent: AED ${money(netRent)}.
-Current evidence price: AED ${money(best.asking_price_aed)}.
-Net yield: ${pct(best.net_yield_percent)}%.
-
-All-in cost estimate: AED ${money(allIn)} including ${pct(DEFAULT_PURCHASE_COST_PERCENT)}% purchase costs.`
-                : "No current yield available."
-            )}
-
-            ${renderKpiMetric(
-              "Risk-Adjusted Hurdle",
-              best ? `${pct(best.risk_adjusted_target_yield_percent)}%` : "N/A",
-              "Macro-adjusted trigger",
-              best ? hurdleLogic(best, fs, lei) : "No risk-adjusted hurdle available."
-            )}
-
-            ${renderKpiMetric(
-              "Risk-Adjusted Price",
-              `AED ${best ? money(rowTargetPrice(best)) : "N/A"}`,
-              "Target entry",
-              best
-                ? `Formula: estimated net rent ÷ risk-adjusted target yield.
-
-Estimated net rent: AED ${money(netRent)}.
-Target yield: ${pct(best.risk_adjusted_target_yield_percent)}%.
-Target price: AED ${money(rowTargetPrice(best))}.`
-                : "No target price available."
-            )}
-
-            ${renderKpiMetric(
-              "Required Cut",
-              `AED ${best ? money(rowRequiredCut(best)) : "N/A"}`,
-              best ? `${pct(rowRequiredCutPercent(best))}% — ${safe(best.negotiation_realism)}` : "N/A",
-              best ? negotiationExplanation(best) : "No required cut available."
-            )}
-
-            ${renderKpiMetric(
-              "Macro / Bank",
-              `FS ${escapeHtml(fs)} / LEI ${escapeHtml(lei)}`,
-              `Bank ${pct(bankRate)}% / ${escapeHtml(bankQuality)} / ${escapeHtml(macroConfidence)}`,
-              `Current macro scoring:
-FS = ${fs} (${scoreLabel(fs, "FS")}).
-LEI = ${lei} (${scoreLabel(lei, "LEI")}).
-
-FS basis:
-${fsScoringLogic(fs)}
-
-LEI basis:
-${leiScoringLogic(lei)}
-
-Bank benchmark:
-Current bank benchmark = ${pct(bankRate)}%.
-Property should offer enough spread above this low-risk AED alternative.`
-            )}
-          </div>
-
-          <div class="banner warn">
-            <strong>Advisor read:</strong>
-            Median-market pricing is not cheap enough. Track only, keep budget discipline, and wait for motivated-seller pricing near the risk-adjusted target.
-          </div>
-
-          <div class="note">
-            Latest dashboard run <strong>${escapeHtml(latestRun)}</strong> at ${dateTime(latestTime)}.<br>
-            Evidence table: <strong>${escapeHtml(TABLE_EVIDENCE_CASES)}</strong>.
-            Evidence run: <strong>${escapeHtml(state.evidenceRunId || "N/A")}</strong>.
-            Same run: <strong>${state.evidenceRunMatch ? "yes" : "no / latest evidence fallback used"}</strong>.<br>
-            Decision-ready: <strong>${groups.decisionReady.length}</strong>.
-            Screened: <strong>${groups.screened.length}</strong>.
-            Needs evidence: <strong>${groups.needsEvidence.length}</strong>.
-            Review-required: <strong>${groups.reviewRequired.length}</strong>.
-            Budget monitor: <strong>${groups.budgetMonitor.length}</strong>.
-            Below range: <strong>${groups.belowRange.length}</strong>.
-            Deal test: <strong>${groups.dealTest.length}</strong>.
-          </div>
-        </div>
-      `;
+      return `<div class="decision-body"><div class="decision-title">Do not buy now</div><div class="decision-subtitle">${best ? `Best watch item is <strong>${escapeHtml(rowName(best))}</strong>, but it still requires AED ${money(rowRequiredCut(best))} / ${pct(rowRequiredCutPercent(best))}% lower entry price.` : `No screened candidate is currently available within the selected cash range.`}</div><div class="grid">
+        ${renderKpiMetric("Best Watch Item", best ? escapeHtml(rowName(best)) : "None", best ? readinessLabel(derivedReadiness(best)) : "N/A", best ? `Selected because it has the highest current net yield among screened candidates inside the selected cash range.\n\nCash range: AED ${money(state.settings.minBudget)} – AED ${money(state.settings.maxBudget)}.\nCurrent ranking yield: ${pct(best.net_yield_percent)}%.\nCurrent price: AED ${money(best.asking_price_aed)}.\nEstimated net rent: AED ${money(netRent)} per year.` : "No screened candidate is available within the selected cash range.")}
+        ${renderKpiMetric("Current Net Yield", best ? `${pct(best.net_yield_percent)}%` : "N/A", "Current economics", best ? `Formula: net rent ÷ current evidence price.\n\nEstimated net rent: AED ${money(netRent)}.\nCurrent evidence price: AED ${money(best.asking_price_aed)}.\nNet yield: ${pct(best.net_yield_percent)}%.\n\nAll-in cost estimate: AED ${money(allIn)} including ${pct(DEFAULT_PURCHASE_COST_PERCENT)}% purchase costs.` : "No current yield available.")}
+        ${renderKpiMetric("Risk-Adjusted Hurdle", best ? `${pct(best.risk_adjusted_target_yield_percent)}%` : "N/A", "Macro-adjusted trigger", best ? hurdleLogic(best, fs, lei) : "No risk-adjusted hurdle available.")}
+        ${renderKpiMetric("Risk-Adjusted Price", `AED ${best ? money(rowTargetPrice(best)) : "N/A"}`, "Target entry", best ? `Formula: estimated net rent ÷ risk-adjusted target yield.\n\nEstimated net rent: AED ${money(netRent)}.\nTarget yield: ${pct(best.risk_adjusted_target_yield_percent)}%.\nTarget price: AED ${money(rowTargetPrice(best))}.` : "No target price available.")}
+        ${renderKpiMetric("Lowest Current Asking", best && asking && asking.lowest ? `AED ${money(asking.lowest)}` : "N/A", best && asking ? `${asking.count} listing row(s)` : "No asking evidence", best && asking && asking.lowest ? `Lowest current asking loaded from jlt_current_asking_evidence.\n\nLowest asking: AED ${money(asking.lowest)}.\nTarget price: AED ${money(rowTargetPrice(best))}.\nGap vs target: AED ${money(asking.lowestVsTargetAed)} / ${pct(asking.lowestVsTargetPercent)}%.` : "No current asking rows loaded for the best watch item.")}
+        ${renderKpiMetric("Macro / Bank", `FS ${escapeHtml(fs)} / LEI ${escapeHtml(lei)}`, `Bank ${pct(bankRate)}% / ${escapeHtml(bankQuality)} / ${escapeHtml(macroConfidence)}`, `Current macro scoring:\nFS = ${fs} (${scoreLabel(fs, "FS")}).\nLEI = ${lei} (${scoreLabel(lei, "LEI")}).\n\nFS basis:\n${fsScoringLogic(fs)}\n\nLEI basis:\n${leiScoringLogic(lei)}\n\nBank benchmark:\nCurrent bank benchmark = ${pct(bankRate)}%.\nProperty should offer enough spread above this low-risk AED alternative.`)}
+      </div><div class="banner warn"><strong>Advisor read:</strong> Median-market pricing is not cheap enough. Track only, keep budget discipline, and wait for motivated-seller pricing near the risk-adjusted target.</div><div class="note">Latest run <strong>${escapeHtml(latestRun)}</strong> at ${dateTime(latestTime)}. Decision-ready: <strong>${groups.decisionReady.length}</strong>. Screened: <strong>${groups.screened.length}</strong>. Needs evidence: <strong>${groups.needsEvidence.length}</strong>. Review-required: <strong>${groups.reviewRequired.length}</strong>. Budget monitor: <strong>${groups.budgetMonitor.length}</strong>. Below range: <strong>${groups.belowRange.length}</strong>. Deal test: <strong>${groups.dealTest.length}</strong>.</div></div>`;
     }
 
     function renderMacroAndBank() {
-      return `
-        <div class="layout-two">
-          ${renderMacroPanel()}
-          ${renderBankPanel()}
-        </div>
-      `;
+      return `<div class="layout-two">${renderMacroPanel()}${renderBankPanel()}</div>`;
     }
 
     function renderMacroPanel() {
       const context = getLatestContext();
       const best = getBestWatch(state.rows);
-
       const fs = safe(context.financial_stability_score ?? best?.financial_stability_score, "N/A");
       const lei = safe(context.proxy_lei_score ?? best?.proxy_lei_score, "N/A");
       const confidence = safe(context.confidence_level ?? best?.macro_confidence, "MEDIUM");
       const quality = safe(context.data_quality_score ?? best?.macro_data_quality, "MEDIUM");
       const riskYield = best?.risk_adjusted_target_yield_percent || 6.75;
       const negative = num(fs) < 0 || num(lei) < 0;
-
-      return `
-        <div class="card">
-          <h2>Market / Macro Overlay</h2>
-          <div class="note">Macro changes entry discipline. It does not rescue weak property economics.</div>
-
-          <div class="grid-two">
-            ${renderKpiMetric("Financial Stability", escapeHtml(fs), "Score scale: +1 / 0 / -1", fsScoringLogic(fs))}
-            ${renderKpiMetric("Proxy LEI", escapeHtml(lei), "Forward signal", leiScoringLogic(lei))}
-            ${renderKpiMetric("Risk Yield", `${pct(riskYield)}%`, "Current hurdle", best ? hurdleLogic(best, fs, lei) : "Risk yield applies the macro-adjusted hurdle.")}
-            ${renderKpiMetric(
-              "Source Quality",
-              escapeHtml(quality),
-              `${escapeHtml(confidence)} confidence`,
-              `Current quality = ${quality}.
-Current confidence = ${confidence}.
-
-Used as an overlay only. It controls entry strictness, not direct buy/sell.`
-            )}
-          </div>
-
-          <div class="banner ${negative ? "warn" : "good"}">
-            <strong>Macro read:</strong>
-            ${negative
-              ? "Soft/negative. Require wider entry margin and do not chase median prices."
-              : "Not negative. Still require property-level yield and evidence support."
-            }
-          </div>
-
-          <details class="inline-detail">
-            <summary>View market pulse evidence</summary>
-            <div class="details-box">${escapeHtml(normalizeTextBlock(context.market_pulse_preview || context.market_pulse || context.macro_regime))}</div>
-          </details>
-        </div>
-      `;
+      return `<div class="card"><h2>Market / Macro Overlay</h2><div class="note">Macro changes entry discipline. It does not rescue weak property economics.</div><div class="grid-two">${renderKpiMetric("Financial Stability", escapeHtml(fs), "Score scale: +1 / 0 / -1", fsScoringLogic(fs))}${renderKpiMetric("Proxy LEI", escapeHtml(lei), "Forward signal", leiScoringLogic(lei))}${renderKpiMetric("Risk Yield", `${pct(riskYield)}%`, "Current hurdle", best ? hurdleLogic(best, fs, lei) : "Risk yield applies the macro-adjusted hurdle.")}${renderKpiMetric("Source Quality", escapeHtml(quality), `${escapeHtml(confidence)} confidence`, `Current quality = ${quality}.\nCurrent confidence = ${confidence}.\n\nUsed as an overlay only. It controls entry strictness, not direct buy/sell.`)}</div><div class="banner ${negative ? "warn" : "good"}"><strong>Macro read:</strong> ${negative ? "Soft/negative. Require wider entry margin and do not chase median prices." : "Not negative. Still require property-level yield and evidence support."}</div><details class="inline-detail"><summary>View market pulse evidence</summary><div class="details-box">${escapeHtml(normalizeTextBlock(context.market_pulse_preview || context.market_pulse || context.macro_regime))}</div></details></div>`;
     }
 
     function renderBankPanel() {
@@ -1452,200 +1166,49 @@ Used as an overlay only. It controls entry strictness, not direct buy/sell.`
       const best = getBestWatch(state.rows);
       const rate = bank.benchmark_rate_percent || best?.bank_yield_percent || 3.5;
       const quality = bank.source_quality || best?.bank_source_quality || "HIGH";
-
-      return `
-        <div class="card">
-          <h2>Bank Benchmark</h2>
-          <div class="note">Low-risk AED cash alternative used to test property IRR spread.</div>
-
-          <div class="grid-two">
-            ${renderKpiMetric(
-              "Rate Used",
-              `${pct(rate)}%`,
-              "AED term-deposit benchmark",
-              `Current rate used: ${pct(rate)}%.
-
-Property risk should be compensated versus this low-risk cash return.`
-            )}
-
-            ${renderKpiMetric(
-              "Source Quality",
-              escapeHtml(quality),
-              escapeHtml(safe(bank.confidence_level, quality)),
-              `Current source quality = ${quality}.
-Current confidence = ${safe(bank.confidence_level, quality)}.`
-            )}
-
-            ${renderKpiMetric(
-              "Target Spread",
-              "3.00%",
-              "Property IRR above bank",
-              `Target spread = 3.00 percentage points above bank.
-
-Bank = ${pct(rate)}%.
-Preferred property IRR should be about ${pct(num(rate) + 3)}% or higher.`
-            )}
-
-            ${renderKpiMetric(
-              "Purchase Cost",
-              `${pct(DEFAULT_PURCHASE_COST_PERCENT)}%`,
-              "Screening assumption",
-              `Indicative breakdown:
-DLD transfer fee: ~4.0%.
-Agency fee: ~2.0% + VAT, about 2.1%.
-Trustee/conveyancing/admin/NOC allowance: ~0.5%.
-
-Current screening assumption: ${pct(DEFAULT_PURCHASE_COST_PERCENT)}%.`
-            )}
-          </div>
-
-          <details class="inline-detail">
-            <summary>View bank source details</summary>
-            <div class="details-box">Bank name: ${escapeHtml(safe(bank.bank_name, "HSBC UAE / UAE bank benchmark"))}
+      return `<div class="card"><h2>Bank Benchmark</h2><div class="note">Low-risk AED cash alternative used to test property IRR spread.</div><div class="grid-two">${renderKpiMetric("Rate Used", `${pct(rate)}%`, "AED term-deposit benchmark", `Current rate used: ${pct(rate)}%.\n\nProperty risk should be compensated versus this low-risk cash return.`)}${renderKpiMetric("Source Quality", escapeHtml(quality), escapeHtml(safe(bank.confidence_level, quality)), `Current source quality = ${quality}.\nCurrent confidence = ${safe(bank.confidence_level, quality)}.`)}${renderKpiMetric("Target Spread", "3.00%", "Property IRR above bank", `Target spread = 3.00 percentage points above bank.\n\nBank = ${pct(rate)}%.\nPreferred property IRR should be about ${pct(num(rate) + 3)}% or higher.`)}${renderKpiMetric("Purchase Cost", `${pct(DEFAULT_PURCHASE_COST_PERCENT)}%`, "Screening assumption", `Indicative breakdown:\nDLD transfer fee: ~4.0%.\nAgency fee: ~2.0% + VAT, about 2.1%.\nTrustee/conveyancing/admin/NOC allowance: ~0.5%.\n\nCurrent screening assumption: ${pct(DEFAULT_PURCHASE_COST_PERCENT)}%.`)}</div><details class="inline-detail"><summary>View bank source details</summary><div class="details-box">Bank name: ${escapeHtml(safe(bank.bank_name, "HSBC UAE / UAE bank benchmark"))}
 Rate used: ${pct(rate)}
 Status: ${escapeHtml(safe(bank.benchmark_rate_status, "N/A"))}
 Usage: ${escapeHtml(safe(bank.calculation_usage_status, "N/A"))}
-Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "N/A"))}</div>
-          </details>
-        </div>
-      `;
+Notes: ${escapeHtml(safe(bank.source_notes || bank.bank_benchmark_source_note, "N/A"))}</div></details></div>`;
     }
 
     function renderWatchlist() {
       const evidenceRows = sortByNetYield(getEvidenceRows(state.rows));
-
-      if (!evidenceRows.length) {
-        return `<div class="banner bad">No screened watchlist rows available within the selected cash range.</div>`;
-      }
-
-      return `
-        <div class="note">
-          Ranked by net yield. Includes estimated purchase costs and risk-adjusted target price.
-        </div>
-
-        ${renderEvidenceRunStatus()}
-
-        <div class="toolbar">
-          <input id="searchInput" type="text" placeholder="Search tower or unit..." value="${escapeHtml(state.filters.search)}" />
-          <select id="readinessSelect">
-            <option value="ALL">All readiness</option>
-            <option value="DECISION_READY">Decision-ready</option>
-            <option value="INTERIM_SCREENED">Screened</option>
-            <option value="NEEDS_EVIDENCE">Needs evidence</option>
-            <option value="REVIEW_REQUIRED">Review required</option>
-            <option value="BUDGET_MONITOR">Budget monitor</option>
-            <option value="BELOW_RANGE">Below range</option>
-          </select>
-          <select id="realismSelect">
-            <option value="ALL">All negotiation realism</option>
-            <option value="REALISTIC">Realistic</option>
-            <option value="POSSIBLE">Possible</option>
-            <option value="DIFFICULT">Difficult</option>
-            <option value="UNLIKELY">Unlikely</option>
-          </select>
-        </div>
-
-        ${renderWatchlistTable(filteredRows(evidenceRows))}
-
-        <details class="inline-detail">
-          <summary>All-in cost, net-yield and target-price assumptions</summary>
-          <div class="details-box">Column definitions:
+      if (!evidenceRows.length) return `<div class="banner bad">No screened watchlist rows available within the selected cash range.</div>`;
+      return `<div class="note">Ranked by net yield. Includes transaction evidence, current askings and risk-adjusted target price.</div>${renderEvidenceRunStatus()}${renderAskingRunStatus()}<div class="toolbar"><input id="searchInput" type="text" placeholder="Search tower or unit..." value="${escapeHtml(state.filters.search)}" /><select id="readinessSelect"><option value="ALL">All readiness</option><option value="DECISION_READY">Decision-ready</option><option value="INTERIM_SCREENED">Screened</option><option value="NEEDS_EVIDENCE">Needs evidence</option><option value="REVIEW_REQUIRED">Review required</option><option value="BUDGET_MONITOR">Budget monitor</option><option value="BELOW_RANGE">Below range</option></select><select id="realismSelect"><option value="ALL">All negotiation realism</option><option value="REALISTIC">Realistic</option><option value="POSSIBLE">Possible</option><option value="DIFFICULT">Difficult</option><option value="UNLIKELY">Unlikely</option></select></div>${renderWatchlistTable(filteredRows(evidenceRows))}<details class="inline-detail"><summary>All-in cost, net-yield, target-price and asking assumptions</summary><div class="details-box">Column definitions:
 - Candidate: tower and unit type.
 - Status: evidence/readiness classification. Only Screened or Decision-ready rows enter this table.
 - Evidence Price: sale-price assumption used by the model, normally from median DLD-derived transaction evidence. It is not necessarily a live owner asking price.
+- Lowest Current Asking: lowest live/current asking row loaded from jlt_current_asking_evidence. Used for opportunity and negotiation context only.
 - Est. Buy Costs: Evidence Price × 6.6% purchase-cost assumption.
 - All-in Cost: Evidence Price + estimated buy costs.
 - Rent: evidence/model annual rent assumption.
 - Net Yield: estimated net rent ÷ Evidence Price, after service charge deduction.
-- Evidence / Cases: source notes plus case-level sale/rent evidence rows with hyperlinks.
+- Evidence Pack: transaction evidence + current asking evidence.
 
-Owner Asking Price:
-A live seller/broker price should be tested separately in the Manual Deal Test Calculator.
-
-Purchase-cost assumption:
-The watchlist adds ${pct(DEFAULT_PURCHASE_COST_PERCENT)}% to estimate practical all-in capital required.
-
-Indicative acquisition-cost breakdown:
-- DLD transfer fee: ~4.0%
-- Agency fee: ~2.0% + VAT, approximately 2.1%
-- Trustee / conveyancing / admin / NOC allowance: ~0.5%
-
-Risk target price:
-Risk target price = estimated net annual rent ÷ risk-adjusted target yield.
-
-If the database returns zero target-price fields, the frontend calculates fallback target price from rent, area, service charge and target yield.</div>
-        </details>
-      `;
+Current askings do not overwrite transaction evidence. They only indicate whether a live seller opportunity may exist.</div></details>`;
     }
 
     function renderEvidenceRunStatus() {
-      if (!state.evidenceRows.length) {
-        return `<div class="banner warn"><strong>Evidence cases:</strong> no case-level evidence rows loaded from <code>${TABLE_EVIDENCE_CASES}</code>.</div>`;
-      }
+      if (!state.evidenceRows.length) return `<div class="banner warn"><strong>Transaction evidence:</strong> no case-level transaction rows loaded yet.</div>`;
+      if (state.evidenceRunMatch) return `<div class="banner good"><strong>Transaction evidence:</strong> loaded for the same dashboard run (${escapeHtml(state.evidenceRunId || "current run")}).</div>`;
+      return `<div class="banner warn"><strong>Transaction evidence:</strong> using latest available evidence run (${escapeHtml(state.evidenceRunId || "unknown")}) because no transaction cases were found for the current dashboard run.</div>`;
+    }
 
-      if (state.evidenceRunMatch) {
-        return `<div class="banner good"><strong>Evidence cases:</strong> loaded from <code>${TABLE_EVIDENCE_CASES}</code> for the same dashboard run (${escapeHtml(state.evidenceRunId || "current run")}).</div>`;
-      }
-
-      return `<div class="banner warn"><strong>Evidence cases:</strong> using latest available evidence run from <code>${TABLE_EVIDENCE_CASES}</code> (${escapeHtml(state.evidenceRunId || "unknown")}) because no evidence cases were found for the current dashboard run. Use as source transparency until n8n run IDs are synchronized.</div>`;
+    function renderAskingRunStatus() {
+      if (!state.askingRows.length) return `<div class="banner warn"><strong>Current askings:</strong> no current asking rows loaded. Dashboard will still show transaction evidence and target prices.</div>`;
+      if (state.askingRunMatch) return `<div class="banner good"><strong>Current askings:</strong> loaded for the same dashboard run (${escapeHtml(state.askingRunId || "current run")}).</div>`;
+      return `<div class="banner warn"><strong>Current askings:</strong> using latest available asking run (${escapeHtml(state.askingRunId || "unknown")}) because no asking rows were found for the current dashboard run.</div>`;
     }
 
     function renderWatchlistTable(rows) {
       if (!rows.length) return `<div class="banner warn">No rows match the selected filters.</div>`;
-
-      return `
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Candidate</th>
-                <th>Status</th>
-                <th class="num">Evidence Price</th>
-                <th class="num">Est. Buy Costs</th>
-                <th class="num">All-in Cost</th>
-                <th class="num">Rent</th>
-                <th class="num">Net Yield</th>
-                <th class="num">Risk Target Price</th>
-                <th class="num">Required Cut</th>
-                <th>Negotiation</th>
-                <th>Evidence / Cases</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows.map((r, i) => `
-                <tr>
-                  <td>${i + 1}</td>
-                  <td>
-                    ${candidateNameHtml(r)}<br>
-                    <span class="small-text">${escapeHtml(safe(r.unit_type))}</span>
-                    ${renderEvidenceCases(r)}
-                  </td>
-                  <td>${pill(readinessLabel(derivedReadiness(r)))}</td>
-                  <td class="num">AED ${money(r.asking_price_aed)}</td>
-                  <td class="num">AED ${money(estimatedPurchaseCosts(r.asking_price_aed, DEFAULT_PURCHASE_COST_PERCENT))}<br><span class="small-text">${pct(DEFAULT_PURCHASE_COST_PERCENT)}%</span></td>
-                  <td class="num">AED ${money(allInCost(r.asking_price_aed, DEFAULT_PURCHASE_COST_PERCENT))}</td>
-                  <td class="num">AED ${money(r.estimated_annual_rent_aed)}</td>
-                  <td class="num">${pct(r.net_yield_percent)}%</td>
-                  <td class="num">AED ${money(rowTargetPrice(r))}</td>
-                  <td class="num">AED ${money(rowRequiredCut(r))}<br><span class="small-text">${pct(rowRequiredCutPercent(r))}%</span></td>
-                  <td>${pill(safe(r.negotiation_realism), getNegotiationTone(r.negotiation_realism))}</td>
-                  <td>
-                    <details class="inline-detail">
-                      <summary>View</summary>
-                      <div class="compact-detail">${escapeHtml(compactSourceNote(r))}</div>
-                      <details class="inline-detail">
-                        <summary>Raw source details</summary>
-                        <div class="details-box">${escapeHtml(fullEvidenceDetails(r))}</div>
-                      </details>
-                    </details>
-                  </td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        </div>
-      `;
+      return `<div class="table-wrap"><table><thead><tr><th>Rank</th><th>Candidate</th><th>Status</th><th class="num">Evidence Price</th><th class="num">Lowest Current Asking</th><th class="num">Est. Buy Costs</th><th class="num">All-in Cost</th><th class="num">Rent</th><th class="num">Net Yield</th><th class="num">Risk Target Price</th><th class="num">Required Cut</th><th>Negotiation</th><th>Evidence Pack</th></tr></thead><tbody>${rows.map((r, i) => {
+        const s = askingStats(r);
+        const signal = currentAskingSignal(r);
+        return `<tr><td>${i + 1}</td><td>${candidateNameHtml(r)}<br><span class="small-text">${escapeHtml(safe(r.unit_type))}</span>${renderEvidencePack(r)}</td><td>${pill(readinessLabel(derivedReadiness(r)))}</td><td class="num">AED ${money(r.asking_price_aed)}</td><td class="num">${s.lowest ? `AED ${money(s.lowest)}<br><span class="small-text">${pct(s.lowestVsTargetPercent)}% vs target</span>` : `<span class="small-text">No asking rows</span>`}</td><td class="num">AED ${money(estimatedPurchaseCosts(r.asking_price_aed, DEFAULT_PURCHASE_COST_PERCENT))}<br><span class="small-text">${pct(DEFAULT_PURCHASE_COST_PERCENT)}%</span></td><td class="num">AED ${money(allInCost(r.asking_price_aed, DEFAULT_PURCHASE_COST_PERCENT))}</td><td class="num">AED ${money(r.estimated_annual_rent_aed)}</td><td class="num">${pct(r.net_yield_percent)}%</td><td class="num">AED ${money(rowTargetPrice(r))}</td><td class="num">AED ${money(rowRequiredCut(r))}<br><span class="small-text">${pct(rowRequiredCutPercent(r))}%</span></td><td>${pill(safe(r.negotiation_realism), getNegotiationTone(r.negotiation_realism))}<br>${pill(signal.label, signal.tone)}</td><td><details class="inline-detail"><summary>View notes</summary><div class="compact-detail">${escapeHtml(compactSourceNote(r))}</div><details class="inline-detail"><summary>Raw source details</summary><div class="details-box">${escapeHtml(fullEvidenceDetails(r))}</div></details></details></td></tr>`;
+      }).join("")}</tbody></table></div>`;
     }
 
     function selectedDealRow() {
@@ -1656,9 +1219,7 @@ If the database returns zero target-price fields, the frontend calculates fallba
     function applyDealRowDefaults(index) {
       const rows = sortByNetYield(getCalculatorRows(state.rows));
       const row = rows[index] || rows[0];
-
       if (!row) return;
-
       state.dealTest.selectedIndex = index;
       state.dealTest.ownerAsk = num(row.asking_price_aed);
       state.dealTest.areaSqft = num(row.area_sqft);
@@ -1675,7 +1236,6 @@ If the database returns zero target-price fields, the frontend calculates fallba
       const serviceCharge = num(state.dealTest.serviceChargeAedSqftYear);
       const annualRent = num(state.dealTest.annualRentAed);
       const requiredYield = num(state.dealTest.requiredNetYield);
-
       const annualServiceCharge = serviceChargeCost(area, serviceCharge);
       const netRent = netRentFromInputs(annualRent, area, serviceCharge);
       const yieldPct = expectedNetYield(ask, annualRent, area, serviceCharge);
@@ -1685,24 +1245,7 @@ If the database returns zero target-price fields, the frontend calculates fallba
       const fees = estimatedPurchaseCosts(ask, costPct);
       const allIn = allInCost(ask, costPct);
       const signal = dealSignalClass(yieldPct, requiredYield);
-
-      return {
-        ask,
-        area,
-        costPct,
-        serviceCharge,
-        annualRent,
-        requiredYield,
-        annualServiceCharge,
-        netRent,
-        yieldPct,
-        targetPrice,
-        cut,
-        cutPct,
-        fees,
-        allIn,
-        signal
-      };
+      return { ask, area, costPct, serviceCharge, annualRent, requiredYield, annualServiceCharge, netRent, yieldPct, targetPrice, cut, cutPct, fees, allIn, signal };
     }
 
     function dealSignalClass(yieldPct, requiredYield) {
@@ -1713,237 +1256,44 @@ If the database returns zero target-price fields, the frontend calculates fallba
 
     function renderDealTestCalculator() {
       const rows = sortByNetYield(getCalculatorRows(state.rows));
-      if (!rows.length) {
-        return `<div class="banner warn">No screened rows are available for calculator setup.</div>`;
-      }
-
+      if (!rows.length) return `<div class="banner warn">No screened rows are available for calculator setup.</div>`;
       const selected = selectedDealRow();
       const c = getDealCalcValues();
-
-      return `
-        <div class="note">
-          Select a tower to pull real model values. Controlled dropdowns avoid random numbers while keeping quick deal testing.
-        </div>
-
-        <div class="form-grid">
-          <div class="form-field">
-            <label for="dealTowerSelect">Tower / unit</label>
-            <select id="dealTowerSelect">
-              ${rows.map((r, idx) => `
-                <option value="${idx}" ${idx === state.dealTest.selectedIndex ? "selected" : ""}>${escapeHtml(rowName(r))}</option>
-              `).join("")}
-            </select>
-          </div>
-
-          <div class="form-field">
-            <label for="dealOwnerAskInput">Owner asking price, AED</label>
-            <select id="dealOwnerAskInput">${getOwnerAskOptions(c.ask)}</select>
-          </div>
-
-          <div class="form-field">
-            <label for="dealAreaInput">Area, sqft</label>
-            <input id="dealAreaInput" type="text" value="${pct(c.area)}" readonly />
-          </div>
-
-          <div class="form-field">
-            <label for="dealAnnualRentInput">Estimated annual rent, AED/year</label>
-            <select id="dealAnnualRentInput">${getAnnualRentOptions(c.annualRent)}</select>
-          </div>
-
-          <div class="form-field">
-            <label for="dealServiceChargeInput">Service charge, AED/sqft/year</label>
-            <select id="dealServiceChargeInput">${getServiceChargeOptions(c.serviceCharge)}</select>
-          </div>
-
-          <div class="form-field">
-            <label for="dealPurchaseCostPercentInput">Purchase-cost assumption, %</label>
-            <select id="dealPurchaseCostPercentInput">${getPurchaseCostOptions(c.costPct)}</select>
-          </div>
-
-          <div class="form-field">
-            <label for="dealRequiredYieldInput">Required net yield, %</label>
-            <select id="dealRequiredYieldInput">${getRequiredYieldOptions(c.requiredYield)}</select>
-          </div>
-        </div>
-
-        <div class="grid-four">
-          <div class="metric">
-            <div class="metric-label">Selected model row</div>
-            <div class="metric-value">${escapeHtml(rowName(selected))}</div>
-            <div class="metric-small">Pre-filled from DB view</div>
-          </div>
-
-          <div class="metric">
-            <div class="metric-label">Annual service charge</div>
-            <div class="metric-value">AED ${money(c.annualServiceCharge)}</div>
-            <div class="metric-small">Area × service charge</div>
-          </div>
-
-          <div class="metric">
-            <div class="metric-label">Estimated net rent</div>
-            <div class="metric-value">AED ${money(c.netRent)}</div>
-            <div class="metric-small">Annual rent − service charge</div>
-          </div>
-
-          <div class="metric ${c.signal}">
-            <div class="metric-label">Expected net yield</div>
-            <div class="metric-value">${pct(c.yieldPct)}%</div>
-            <div class="metric-small">Net rent ÷ asking price</div>
-          </div>
-
-          <div class="metric ${c.signal}">
-            <div class="metric-label">Target buy price</div>
-            <div class="metric-value">AED ${money(c.targetPrice)}</div>
-            <div class="metric-small">Net rent ÷ required yield</div>
-          </div>
-
-          <div class="metric ${c.signal}">
-            <div class="metric-label">Required cut</div>
-            <div class="metric-value">AED ${money(c.cut)}</div>
-            <div class="metric-small">${pct(c.cutPct)}% vs owner ask</div>
-          </div>
-
-          <div class="metric">
-            <div class="metric-label">Purchase fees</div>
-            <div class="metric-value">AED ${money(c.fees)}</div>
-            <div class="metric-small">${pct(c.costPct)}% of owner ask</div>
-          </div>
-
-          <div class="metric">
-            <div class="metric-label">All-in cash need</div>
-            <div class="metric-value">AED ${money(c.allIn)}</div>
-            <div class="metric-small">Ask + purchase fees</div>
-          </div>
-        </div>
-
-        <details class="inline-detail">
-          <summary>Linked calculation logic</summary>
-          <div class="details-box">When tower changes:
-All inputs reset from the DB view.
-
-Owner asking price:
-Dropdown from AED 500k to AED 2.0m in AED 50k steps. If the model value is not on the step, the exact model value is also included.
-
-Area:
-Read-only. Comes only from selected tower/unit.
-
-Annual rent:
-Dropdown from AED 60k to AED 140k in AED 5k steps. If the model value is not on the step, the exact model value is also included.
-
-Service charge:
-Dropdown from AED 12 to AED 20/sqft/year in AED 0.5 steps. If the model value is not on the step, the exact model value is also included.
-
-Required yield:
-Dropdown from 5.00% to 8.00% in 0.25% steps. If the model value is not on the step, the exact model value is also included.
-
-Purchase-cost %:
-Editable because actual transaction fees may vary.
-
-Owner asking price is not overwritten by required yield. Target buy price is recalculated instead, because seller ask and target entry price are different things.</div>
-        </details>
-      `;
+      return `<div class="note">Select a tower to pull real model values. Controlled dropdowns avoid random numbers while keeping quick deal testing.</div><div class="form-grid"><div class="form-field"><label for="dealTowerSelect">Tower / unit</label><select id="dealTowerSelect">${rows.map((r, idx) => `<option value="${idx}" ${idx === state.dealTest.selectedIndex ? "selected" : ""}>${escapeHtml(rowName(r))}</option>`).join("")}</select></div><div class="form-field"><label for="dealOwnerAskInput">Owner asking price, AED</label><select id="dealOwnerAskInput">${getOwnerAskOptions(c.ask)}</select></div><div class="form-field"><label for="dealAreaInput">Area, sqft</label><input id="dealAreaInput" type="text" value="${pct(c.area)}" readonly /></div><div class="form-field"><label for="dealAnnualRentInput">Estimated annual rent, AED/year</label><select id="dealAnnualRentInput">${getAnnualRentOptions(c.annualRent)}</select></div><div class="form-field"><label for="dealServiceChargeInput">Service charge, AED/sqft/year</label><select id="dealServiceChargeInput">${getServiceChargeOptions(c.serviceCharge)}</select></div><div class="form-field"><label for="dealPurchaseCostPercentInput">Purchase-cost assumption, %</label><select id="dealPurchaseCostPercentInput">${getPurchaseCostOptions(c.costPct)}</select></div><div class="form-field"><label for="dealRequiredYieldInput">Required net yield, %</label><select id="dealRequiredYieldInput">${getRequiredYieldOptions(c.requiredYield)}</select></div></div><div class="grid-four"><div class="metric"><div class="metric-label">Selected model row</div><div class="metric-value">${escapeHtml(rowName(selected))}</div><div class="metric-small">Pre-filled from DB view</div></div><div class="metric"><div class="metric-label">Annual service charge</div><div class="metric-value">AED ${money(c.annualServiceCharge)}</div><div class="metric-small">Area × service charge</div></div><div class="metric"><div class="metric-label">Estimated net rent</div><div class="metric-value">AED ${money(c.netRent)}</div><div class="metric-small">Annual rent − service charge</div></div><div class="metric ${c.signal}"><div class="metric-label">Expected net yield</div><div class="metric-value">${pct(c.yieldPct)}%</div><div class="metric-small">Net rent ÷ asking price</div></div><div class="metric ${c.signal}"><div class="metric-label">Target buy price</div><div class="metric-value">AED ${money(c.targetPrice)}</div><div class="metric-small">Net rent ÷ required yield</div></div><div class="metric ${c.signal}"><div class="metric-label">Required cut</div><div class="metric-value">AED ${money(c.cut)}</div><div class="metric-small">${pct(c.cutPct)}% vs owner ask</div></div><div class="metric"><div class="metric-label">Purchase fees</div><div class="metric-value">AED ${money(c.fees)}</div><div class="metric-small">${pct(c.costPct)}% of owner ask</div></div><div class="metric"><div class="metric-label">All-in cash need</div><div class="metric-value">AED ${money(c.allIn)}</div><div class="metric-small">Ask + purchase fees</div></div></div>`;
     }
 
     function renderEvidenceMap() {
       const nonDealRows = state.rows.filter(r => derivedReadiness(r) !== "DEAL_TEST");
-
-      const order = {
-        "DECISION_READY": 1,
-        "INTERIM_SCREENED": 2,
-        "NEEDS_EVIDENCE": 3,
-        "REVIEW_REQUIRED": 4,
-        "BUDGET_MONITOR": 5,
-        "BELOW_RANGE": 6
-      };
-
+      const order = { "DECISION_READY": 1, "INTERIM_SCREENED": 2, "NEEDS_EVIDENCE": 3, "REVIEW_REQUIRED": 4, "BUDGET_MONITOR": 5, "BELOW_RANGE": 6 };
       const sorted = [...nonDealRows].sort((a, b) => {
         const oa = order[derivedReadiness(a)] || 99;
         const ob = order[derivedReadiness(b)] || 99;
         if (oa !== ob) return oa - ob;
         return String(a.tower).localeCompare(String(b.tower));
       });
-
-      return `
-        <div class="note">
-          QA section. Use it to see what is missing, what needs review, or why an item is outside the active cash range.
-        </div>
-
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Candidate</th>
-                <th>Readiness</th>
-                <th>Issue / Basis</th>
-                <th>Why It Matters</th>
-                <th>Next Data Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${sorted.map(r => `
-                <tr>
-                  <td><span class="candidate-title">${escapeHtml(safe(r.tower))}</span><br><span class="small-text">${escapeHtml(safe(r.unit_type))}</span></td>
-                  <td>${pill(readinessLabel(derivedReadiness(r)))}</td>
-                  <td>${escapeHtml(displayEvidenceIssue(r))}</td>
-                  <td>${escapeHtml(whyItMatters(r))}</td>
-                  <td>${escapeHtml(displayNextAction(r))}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        </div>
-      `;
+      return `<div class="note">QA section. Use it to see what is missing, what needs review, or why an item is outside the active cash range.</div><div class="table-wrap"><table><thead><tr><th>Candidate</th><th>Readiness</th><th>Issue / Basis</th><th>Why It Matters</th><th>Current Asking Rows</th><th>Next Data Action</th></tr></thead><tbody>${sorted.map(r => `<tr><td><span class="candidate-title">${escapeHtml(safe(r.tower))}</span><br><span class="small-text">${escapeHtml(safe(r.unit_type))}</span></td><td>${pill(readinessLabel(derivedReadiness(r)))}</td><td>${escapeHtml(displayEvidenceIssue(r))}</td><td>${escapeHtml(whyItMatters(r))}</td><td>${askingCasesFor(r).length}</td><td>${escapeHtml(displayNextAction(r))}</td></tr>`).join("")}</tbody></table></div>`;
     }
 
     function displayEvidenceIssue(row) {
       const dr = derivedReadiness(row);
-
-      if (dr === "INTERIM_SCREENED") {
-        return "Sale, rent and service-charge evidence available. Suitable for current screen and deal/no-deal discipline.";
-      }
-
-      if (dr === "REVIEW_REQUIRED") {
-        return "Review-required row. Not promoted to screened evidence status.";
-      }
-
-      if (dr === "BUDGET_MONITOR") {
-        return `Above selected max cash range of AED ${money(state.settings.maxBudget)}, or normal market evidence is above budget.`;
-      }
-
-      if (dr === "BELOW_RANGE") {
-        return `Below selected min cash range of AED ${money(state.settings.minBudget)}.`;
-      }
-
+      if (dr === "INTERIM_SCREENED") return "Sale, rent and service-charge evidence available. Suitable for current screen and deal/no-deal discipline.";
+      if (dr === "REVIEW_REQUIRED") return "Review-required row. Not promoted to screened evidence status.";
+      if (dr === "BUDGET_MONITOR") return `Above selected max cash range of AED ${money(state.settings.maxBudget)}, or normal market evidence is above budget.`;
+      if (dr === "BELOW_RANGE") return `Below selected min cash range of AED ${money(state.settings.minBudget)}.`;
       return safe(row.evidence_gap_reason, "Evidence issue not specified.");
     }
 
     function displayNextAction(row) {
       const dr = derivedReadiness(row);
-
-      if (dr === "INTERIM_SCREENED") {
-        return "Track only if owner asking price approaches the risk target price.";
-      }
-
-      if (dr === "REVIEW_REQUIRED") {
-        return "Review source evidence and rerun/register through cleaned evidence workflow.";
-      }
-
-      if (dr === "BUDGET_MONITOR") {
-        return "Monitor only for below-budget / distressed opportunity.";
-      }
-
-      if (dr === "BELOW_RANGE") {
-        return "Review only if intentionally targeting this lower ticket size.";
-      }
-
+      if (dr === "INTERIM_SCREENED") return "Track only if owner asking price approaches the risk target price.";
+      if (dr === "REVIEW_REQUIRED") return "Review source evidence and rerun/register through cleaned evidence workflow.";
+      if (dr === "BUDGET_MONITOR") return "Monitor only for below-budget / distressed opportunity.";
+      if (dr === "BELOW_RANGE") return "Review only if intentionally targeting this lower ticket size.";
       return safe(row.next_data_action, "Add evidence before valuation.");
     }
 
     function renderTechnicalAudit() {
-      return `
-        <details class="inline-detail">
-          <summary>Readiness rules</summary>
-          <div class="details-box">Decision-ready = strict / high-confidence direct evidence.
+      return `<details class="inline-detail"><summary>Readiness rules</summary><div class="details-box">Decision-ready = strict / high-confidence direct evidence.
 
 Screened = Property Finder DLD-derived transaction/rent evidence plus DLD Service Charge Index input. Good enough for dashboard screen and deal/no-deal discipline.
 
@@ -1955,55 +1305,15 @@ Budget monitor = selected candidate is above active max cash range or normal mar
 
 Below range = selected candidate is below active min cash range.
 
-Deal test = scenario only.</div>
-        </details>
-
-        <details class="inline-detail">
-          <summary>Raw watchlist view rows</summary>
-          <div class="details-box">${escapeHtml(JSON.stringify(state.rows, null, 2))}</div>
-        </details>
-
-        <details class="inline-detail">
-          <summary>Raw evidence case rows</summary>
-          <div class="details-box">Evidence table: ${escapeHtml(TABLE_EVIDENCE_CASES)}
-Evidence run id: ${escapeHtml(state.evidenceRunId || "N/A")}
-Same as dashboard run: ${state.evidenceRunMatch ? "yes" : "no"}
-
-${escapeHtml(JSON.stringify(state.evidenceRows, null, 2))}</div>
-        </details>
-
-        <details class="inline-detail">
-          <summary>Raw macro context</summary>
-          <div class="details-box">${escapeHtml(JSON.stringify(state.contextRows[0] || {}, null, 2))}</div>
-        </details>
-
-        <details class="inline-detail">
-          <summary>Raw bank context</summary>
-          <div class="details-box">${escapeHtml(JSON.stringify(state.bankRows[0] || {}, null, 2))}</div>
-        </details>
-      `;
+Deal test = scenario only.</div></details><details class="inline-detail"><summary>Raw watchlist view rows</summary><div class="details-box">${escapeHtml(JSON.stringify(state.rows, null, 2))}</div></details><details class="inline-detail"><summary>Raw transaction evidence rows</summary><div class="details-box">${escapeHtml(JSON.stringify(state.evidenceRows, null, 2))}</div></details><details class="inline-detail"><summary>Raw current asking rows</summary><div class="details-box">${escapeHtml(JSON.stringify(state.askingRows, null, 2))}</div></details><details class="inline-detail"><summary>Raw macro context</summary><div class="details-box">${escapeHtml(JSON.stringify(state.contextRows[0] || {}, null, 2))}</div></details><details class="inline-detail"><summary>Raw bank context</summary><div class="details-box">${escapeHtml(JSON.stringify(state.bankRows[0] || {}, null, 2))}</div></details>`;
     }
 
     function renderSection(title, html, open = true) {
-      return `
-        <details class="section" ${open ? "open" : ""}>
-          <summary><h2>${escapeHtml(title)}</h2></summary>
-          <div class="section-body">${html}</div>
-        </details>
-      `;
+      return `<details class="section" ${open ? "open" : ""}><summary><h2>${escapeHtml(title)}</h2></summary><div class="section-body">${html}</div></details>`;
     }
 
     function renderDashboard() {
-      document.getElementById("app").innerHTML = `
-        ${renderSection("Active Investment Limits", renderBudgetControl(), true)}
-        ${renderSection("Executive Decision", renderExecutiveDecision(), true)}
-        ${renderSection("Market / Macro Overlay + Bank Benchmark", renderMacroAndBank(), true)}
-        ${renderSection("Price Target Watchlist", renderWatchlist(), true)}
-        ${renderSection("Manual Deal Test Calculator", renderDealTestCalculator(), true)}
-        ${renderSection("Evidence Coverage & Data Actions", renderEvidenceMap(), false)}
-        ${renderSection("Technical Audit", renderTechnicalAudit(), false)}
-      `;
-
+      document.getElementById("app").innerHTML = `${renderSection("Active Investment Limits", renderBudgetControl(), true)}${renderSection("Executive Decision", renderExecutiveDecision(), true)}${renderSection("Market / Macro Overlay + Bank Benchmark", renderMacroAndBank(), true)}${renderSection("Price Target Watchlist", renderWatchlist(), true)}${renderSection("Manual Deal Test Calculator", renderDealTestCalculator(), true)}${renderSection("Evidence Coverage & Data Actions", renderEvidenceMap(), false)}${renderSection("Technical Audit", renderTechnicalAudit(), false)}`;
       attachEvents();
     }
 
@@ -2011,18 +1321,11 @@ ${escapeHtml(JSON.stringify(state.evidenceRows, null, 2))}</div>
       const minBudgetSelect = document.getElementById("minBudgetSelect");
       const maxBudgetSelect = document.getElementById("maxBudgetSelect");
       const applySettingsButton = document.getElementById("applySettingsButton");
-
       if (applySettingsButton) {
         applySettingsButton.addEventListener("click", () => {
           let minBudget = num(minBudgetSelect.value, DEFAULT_MIN_BUDGET_AED);
           let maxBudget = num(maxBudgetSelect.value, DEFAULT_MAX_BUDGET_AED);
-
-          if (minBudget > maxBudget) {
-            const temp = minBudget;
-            minBudget = maxBudget;
-            maxBudget = temp;
-          }
-
+          if (minBudget > maxBudget) [minBudget, maxBudget] = [maxBudget, minBudget];
           state.settings.minBudget = minBudget;
           state.settings.maxBudget = maxBudget;
           renderDashboard();
@@ -2032,29 +1335,9 @@ ${escapeHtml(JSON.stringify(state.evidenceRows, null, 2))}</div>
       const searchInput = document.getElementById("searchInput");
       const readinessSelect = document.getElementById("readinessSelect");
       const realismSelect = document.getElementById("realismSelect");
-
-      if (searchInput) {
-        searchInput.addEventListener("input", (e) => {
-          state.filters.search = e.target.value;
-          renderDashboard();
-        });
-      }
-
-      if (readinessSelect) {
-        readinessSelect.value = state.filters.readiness;
-        readinessSelect.addEventListener("change", (e) => {
-          state.filters.readiness = e.target.value;
-          renderDashboard();
-        });
-      }
-
-      if (realismSelect) {
-        realismSelect.value = state.filters.realism;
-        realismSelect.addEventListener("change", (e) => {
-          state.filters.realism = e.target.value;
-          renderDashboard();
-        });
-      }
+      if (searchInput) searchInput.addEventListener("input", e => { state.filters.search = e.target.value; renderDashboard(); });
+      if (readinessSelect) { readinessSelect.value = state.filters.readiness; readinessSelect.addEventListener("change", e => { state.filters.readiness = e.target.value; renderDashboard(); }); }
+      if (realismSelect) { realismSelect.value = state.filters.realism; realismSelect.addEventListener("change", e => { state.filters.realism = e.target.value; renderDashboard(); }); }
 
       const dealTowerSelect = document.getElementById("dealTowerSelect");
       const dealOwnerAskInput = document.getElementById("dealOwnerAskInput");
@@ -2062,162 +1345,78 @@ ${escapeHtml(JSON.stringify(state.evidenceRows, null, 2))}</div>
       const dealServiceChargeInput = document.getElementById("dealServiceChargeInput");
       const dealAnnualRentInput = document.getElementById("dealAnnualRentInput");
       const dealRequiredYieldInput = document.getElementById("dealRequiredYieldInput");
-
-      if (dealTowerSelect) {
-        dealTowerSelect.addEventListener("change", (e) => {
-          applyDealRowDefaults(Number(e.target.value));
-          renderDashboard();
-        });
-      }
-
-      if (dealOwnerAskInput) {
-        dealOwnerAskInput.addEventListener("change", (e) => {
-          state.dealTest.ownerAsk = e.target.value;
-          renderDashboard();
-        });
-      }
-
-      if (dealPurchaseCostPercentInput) {
-        dealPurchaseCostPercentInput.addEventListener("change", (e) => {
-          state.dealTest.purchaseCostPercent = e.target.value;
-          renderDashboard();
-        });
-      }
-
-      if (dealServiceChargeInput) {
-        dealServiceChargeInput.addEventListener("change", (e) => {
-          state.dealTest.serviceChargeAedSqftYear = e.target.value;
-          renderDashboard();
-        });
-      }
-
-      if (dealAnnualRentInput) {
-        dealAnnualRentInput.addEventListener("change", (e) => {
-          state.dealTest.annualRentAed = e.target.value;
-          renderDashboard();
-        });
-      }
-
-      if (dealRequiredYieldInput) {
-        dealRequiredYieldInput.addEventListener("change", (e) => {
-          state.dealTest.requiredNetYield = e.target.value;
-          renderDashboard();
-        });
-      }
+      if (dealTowerSelect) dealTowerSelect.addEventListener("change", e => { applyDealRowDefaults(Number(e.target.value)); renderDashboard(); });
+      if (dealOwnerAskInput) dealOwnerAskInput.addEventListener("change", e => { state.dealTest.ownerAsk = e.target.value; renderDashboard(); });
+      if (dealPurchaseCostPercentInput) dealPurchaseCostPercentInput.addEventListener("change", e => { state.dealTest.purchaseCostPercent = e.target.value; renderDashboard(); });
+      if (dealServiceChargeInput) dealServiceChargeInput.addEventListener("change", e => { state.dealTest.serviceChargeAedSqftYear = e.target.value; renderDashboard(); });
+      if (dealAnnualRentInput) dealAnnualRentInput.addEventListener("change", e => { state.dealTest.annualRentAed = e.target.value; renderDashboard(); });
+      if (dealRequiredYieldInput) dealRequiredYieldInput.addEventListener("change", e => { state.dealTest.requiredNetYield = e.target.value; renderDashboard(); });
     }
 
-    async function loadEvidenceRowsForRun(runId) {
-      if (!runId) return [];
+    async function fetchRowsByRunWithFallback(tableName, latestRunId, orderBy) {
+      let rows = [];
+      let runId = latestRunId;
+      let runMatch = true;
 
-      return restGet(
-        TABLE_EVIDENCE_CASES,
-        `select=*&run_id=eq.${encodeURIComponent(runId)}&is_active=eq.true&order=tower.asc,unit_type.asc,transaction_type.asc,transaction_date.desc`
-      );
-    }
+      try {
+        rows = await restGet(tableName, `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&${orderBy}`);
+      } catch { rows = []; }
 
-    async function loadLatestEvidenceRunId() {
-      const latestEvidence = await restGet(
-        TABLE_EVIDENCE_CASES,
-        "select=run_id&is_active=eq.true&order=run_id.desc&limit=1"
-      );
+      if (!rows.length) {
+        try {
+          const latestRows = await restGet(tableName, "select=run_id,created_at&order=created_at.desc&limit=1");
+          const fallbackRunId = latestRows?.[0]?.run_id;
+          if (fallbackRunId) {
+            rows = await restGet(tableName, `select=*&run_id=eq.${encodeURIComponent(fallbackRunId)}&${orderBy}`);
+            runId = fallbackRunId;
+            runMatch = fallbackRunId === latestRunId;
+          }
+        } catch {
+          rows = [];
+          runId = latestRunId;
+          runMatch = true;
+        }
+      }
 
-      return latestEvidence?.[0]?.run_id || null;
+      return { rows, runId, runMatch };
     }
 
     async function loadDashboard() {
       const app = document.getElementById("app");
-
       try {
         const watchlistRows = await restGet(VIEW_WATCHLIST, "select=*&order=created_at.desc");
-
         if (!Array.isArray(watchlistRows) || watchlistRows.length === 0) {
-          app.innerHTML = `
-            <section class="card">
-              <h2>No Data</h2>
-              <div class="banner warn">
-                No rows returned from <code>${VIEW_WATCHLIST}</code>.
-                Run the full n8n workflow and verify the Supabase view.
-              </div>
-            </section>
-          `;
+          app.innerHTML = `<section class="card"><h2>No Data</h2><div class="banner warn">No rows returned from <code>${VIEW_WATCHLIST}</code>. Run the full n8n workflow and verify the Supabase view.</div></section>`;
           return;
         }
 
         const latestRunId = watchlistRows[0].run_id;
-
-        // Keep dashboard internally consistent: show the latest run only.
-        // Without this, a newer partial run can mix with older rows and make candidates appear/disappear unpredictably.
-        const latestWatchlistRows = watchlistRows.filter(row => row.run_id === latestRunId);
-
         let contextRows = [];
         let bankRows = [];
-        let evidenceRows = [];
-        let evidenceRunId = latestRunId;
-        let evidenceRunMatch = true;
 
-        try {
-          evidenceRows = await loadEvidenceRowsForRun(latestRunId);
-        } catch (error) {
-          evidenceRows = [];
-        }
+        const transactionResult = await fetchRowsByRunWithFallback(TABLE_TRANSACTION_EVIDENCE, latestRunId, "order=tower.asc,unit_type.asc,transaction_type.asc,evidence_case_no.asc");
+        const askingResult = await fetchRowsByRunWithFallback(TABLE_CURRENT_ASKING_EVIDENCE, latestRunId, "order=tower.asc,unit_type.asc,asking_price_aed.asc");
 
-        if (!evidenceRows.length) {
-          try {
-            const fallbackRunId = await loadLatestEvidenceRunId();
+        try { contextRows = await restGet(TABLE_AGENT_CONTEXT, `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=created_at.desc&limit=1`); } catch { contextRows = []; }
+        try { bankRows = await restGet(TABLE_BANK_CONTEXT, `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=created_at.desc&limit=1`); } catch { bankRows = []; }
+        if (!contextRows.length) { try { contextRows = await restGet(TABLE_AGENT_CONTEXT, "select=*&order=created_at.desc&limit=1"); } catch { contextRows = []; } }
+        if (!bankRows.length) { try { bankRows = await restGet(TABLE_BANK_CONTEXT, "select=*&order=created_at.desc&limit=1"); } catch { bankRows = []; } }
 
-            if (fallbackRunId) {
-              evidenceRows = await loadEvidenceRowsForRun(fallbackRunId);
-              evidenceRunId = fallbackRunId;
-              evidenceRunMatch = fallbackRunId === latestRunId;
-            }
-          } catch (error) {
-            evidenceRows = [];
-            evidenceRunId = latestRunId;
-            evidenceRunMatch = true;
-          }
-        }
-
-        try {
-          contextRows = await restGet(TABLE_AGENT_CONTEXT, `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=created_at.desc&limit=1`);
-        } catch { contextRows = []; }
-
-        try {
-          bankRows = await restGet(TABLE_BANK_CONTEXT, `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=created_at.desc&limit=1`);
-        } catch { bankRows = []; }
-
-        if (!contextRows.length) {
-          try { contextRows = await restGet(TABLE_AGENT_CONTEXT, "select=*&order=created_at.desc&limit=1"); } catch { contextRows = []; }
-        }
-
-        if (!bankRows.length) {
-          try { bankRows = await restGet(TABLE_BANK_CONTEXT, "select=*&order=created_at.desc&limit=1"); } catch { bankRows = []; }
-        }
-
-        state.rows = latestWatchlistRows;
+        state.rows = watchlistRows;
         state.contextRows = contextRows;
         state.bankRows = bankRows;
-        state.evidenceRows = evidenceRows;
-        state.evidenceRunId = evidenceRunId;
-        state.evidenceRunMatch = evidenceRunMatch;
+        state.evidenceRows = transactionResult.rows;
+        state.evidenceRunId = transactionResult.runId;
+        state.evidenceRunMatch = transactionResult.runMatch;
+        state.askingRows = askingResult.rows;
+        state.askingRunId = askingResult.runId;
+        state.askingRunMatch = askingResult.runMatch;
 
         const calcRows = sortByNetYield(getCalculatorRows(state.rows));
-        if (calcRows.length) {
-          applyDealRowDefaults(0);
-        }
-
+        if (calcRows.length) applyDealRowDefaults(0);
         renderDashboard();
-
       } catch (error) {
-        app.innerHTML = `
-          <section class="card">
-            <h2>Load Error</h2>
-            <div class="banner bad">${escapeHtml(error.message || "Unknown JavaScript or REST error.")}</div>
-            <div class="note">
-              Check that <code>${VIEW_WATCHLIST}</code> exists, that <code>${TABLE_EVIDENCE_CASES}</code> is exposed via REST,
-              and that anon/publishable-key SELECT access is allowed.
-            </div>
-          </section>
-        `;
+        app.innerHTML = `<section class="card"><h2>Load Error</h2><div class="banner bad">${escapeHtml(error.message || "Unknown JavaScript or REST error.")}</div><div class="note">Check that <code>${VIEW_WATCHLIST}</code>, <code>${TABLE_TRANSACTION_EVIDENCE}</code> and <code>${TABLE_CURRENT_ASKING_EVIDENCE}</code> exist, are exposed via REST, and that anon/publishable-key SELECT access is allowed.</div></section>`;
       }
     }
 
