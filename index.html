@@ -470,6 +470,12 @@
     const TABLE_AGENT_CONTEXT = "agent_run_context";
     const TABLE_BANK_CONTEXT = "bank_benchmark_context";
 
+    // FIXED: this must match the table your latest n8n workflow writes to.
+    // Previous code queried property_transaction_evidence and ordered by evidence_case_no,
+    // but your active workflow upserts approved case rows into jlt_transaction_evidence
+    // and that payload does not contain evidence_case_no.
+    const TABLE_EVIDENCE_CASES = "jlt_transaction_evidence";
+
     const DEFAULT_MIN_BUDGET_AED = 500000;
     const DEFAULT_MAX_BUDGET_AED = 1600000;
     const DEFAULT_PURCHASE_COST_PERCENT = 6.6;
@@ -535,6 +541,16 @@
     function normalizeTextBlock(text) {
       const s = String(text || "").trim();
       return s || "No text available.";
+    }
+
+    function normKey(value) {
+      return String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/&/g, "and")
+        .replace(/[^a-z0-9]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
     }
 
     function rowName(row) {
@@ -885,10 +901,14 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
     }
 
     function evidenceCasesFor(row, transactionType) {
+      const targetTower = normKey(row.tower);
+      const targetUnit = normKey(row.unit_type);
+      const targetType = normKey(transactionType);
+
       return state.evidenceRows.filter(e =>
-        String(e.tower || "").trim() === String(row.tower || "").trim() &&
-        String(e.unit_type || "").trim() === String(row.unit_type || "").trim() &&
-        String(e.transaction_type || "").trim() === transactionType
+        normKey(e.tower) === targetTower &&
+        normKey(e.unit_type) === targetUnit &&
+        normKey(e.transaction_type) === targetType
       );
     }
 
@@ -970,7 +990,7 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
       return `
         <div class="banner good">
           <strong>Evidence note:</strong>
-          Case rows shown below are actual transaction-level evidence from the evidence seed table, filtered to the dashboard evidence run.
+          Case rows shown below are transaction-level rows loaded from <code>${TABLE_EVIDENCE_CASES}</code>. They are matched by tower, unit type and transaction type.
         </div>
       `;
     }
@@ -983,7 +1003,13 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
         return `
           <details class="inline-detail">
             <summary>View evidence cases</summary>
-            <div class="details-box">No case-level transaction evidence found for this run_id / tower / unit type.</div>
+            <div class="details-box">No case-level transaction evidence found for this dashboard row.
+
+Checked table: ${TABLE_EVIDENCE_CASES}
+Dashboard row run_id: ${safe(row.run_id, "N/A")}
+Loaded evidence run_id: ${safe(state.evidenceRunId, "N/A")}
+Run match: ${state.evidenceRunMatch ? "yes" : "no / fallback evidence run used"}
+Tower/unit checked: ${safe(row.tower)} / ${safe(row.unit_type)}</div>
           </details>
         `;
       }
@@ -1026,7 +1052,7 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
 
       if (type === "sale") {
         const saleLines = cases.map(c => {
-          const location = `${safe(c.tower, row.tower)}${safe(c.unit_type || c.bedrooms || row.unit_type) ? `, ${safe(c.unit_type || c.bedrooms || row.unit_type)}` : ""}`;
+          const location = `${safe(c.location || c.tower, row.tower)}${safe(c.unit_type || c.bedrooms || row.unit_type) ? `, ${safe(c.unit_type || c.bedrooms || row.unit_type)}` : ""}`;
           const link = c.source_url
             ? `<a href="${escapeHtml(c.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(location)}</a>`
             : escapeHtml(location);
@@ -1068,7 +1094,7 @@ Decision reason: ${safe(row.decision_reason, "N/A")}`;
       }
 
       const rentLines = cases.map(c => {
-        const location = `${safe(c.tower, row.tower)}${safe(c.unit_type || c.bedrooms || row.unit_type) ? `, ${safe(c.unit_type || c.bedrooms || row.unit_type)}` : ""}`;
+        const location = `${safe(c.location || c.tower, row.tower)}${safe(c.unit_type || c.bedrooms || row.unit_type) ? `, ${safe(c.unit_type || c.bedrooms || row.unit_type)}` : ""}`;
         const link = c.source_url
           ? `<a href="${escapeHtml(c.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(location)}</a>`
           : escapeHtml(location);
@@ -1323,7 +1349,10 @@ Property should offer enough spread above this low-risk AED alternative.`
           </div>
 
           <div class="note">
-            Latest run <strong>${escapeHtml(latestRun)}</strong> at ${dateTime(latestTime)}.
+            Latest dashboard run <strong>${escapeHtml(latestRun)}</strong> at ${dateTime(latestTime)}.<br>
+            Evidence table: <strong>${escapeHtml(TABLE_EVIDENCE_CASES)}</strong>.
+            Evidence run: <strong>${escapeHtml(state.evidenceRunId || "N/A")}</strong>.
+            Same run: <strong>${state.evidenceRunMatch ? "yes" : "no / latest evidence fallback used"}</strong>.<br>
             Decision-ready: <strong>${groups.decisionReady.length}</strong>.
             Screened: <strong>${groups.screened.length}</strong>.
             Needs evidence: <strong>${groups.needsEvidence.length}</strong>.
@@ -1525,14 +1554,14 @@ If the database returns zero target-price fields, the frontend calculates fallba
 
     function renderEvidenceRunStatus() {
       if (!state.evidenceRows.length) {
-        return `<div class="banner warn"><strong>Evidence cases:</strong> no case-level evidence rows loaded yet.</div>`;
+        return `<div class="banner warn"><strong>Evidence cases:</strong> no case-level evidence rows loaded from <code>${TABLE_EVIDENCE_CASES}</code>.</div>`;
       }
 
       if (state.evidenceRunMatch) {
-        return `<div class="banner good"><strong>Evidence cases:</strong> loaded for the same dashboard run (${escapeHtml(state.evidenceRunId || "current run")}).</div>`;
+        return `<div class="banner good"><strong>Evidence cases:</strong> loaded from <code>${TABLE_EVIDENCE_CASES}</code> for the same dashboard run (${escapeHtml(state.evidenceRunId || "current run")}).</div>`;
       }
 
-      return `<div class="banner warn"><strong>Evidence cases:</strong> using latest available evidence run (${escapeHtml(state.evidenceRunId || "unknown")}) because no evidence cases were found for the current dashboard run. Use as source transparency only until n8n run IDs are synchronized.</div>`;
+      return `<div class="banner warn"><strong>Evidence cases:</strong> using latest available evidence run from <code>${TABLE_EVIDENCE_CASES}</code> (${escapeHtml(state.evidenceRunId || "unknown")}) because no evidence cases were found for the current dashboard run. Use as source transparency until n8n run IDs are synchronized.</div>`;
     }
 
     function renderWatchlistTable(rows) {
@@ -1909,6 +1938,15 @@ Deal test = scenario only.</div>
         </details>
 
         <details class="inline-detail">
+          <summary>Raw evidence case rows</summary>
+          <div class="details-box">Evidence table: ${escapeHtml(TABLE_EVIDENCE_CASES)}
+Evidence run id: ${escapeHtml(state.evidenceRunId || "N/A")}
+Same as dashboard run: ${state.evidenceRunMatch ? "yes" : "no"}
+
+${escapeHtml(JSON.stringify(state.evidenceRows, null, 2))}</div>
+        </details>
+
+        <details class="inline-detail">
           <summary>Raw macro context</summary>
           <div class="details-box">${escapeHtml(JSON.stringify(state.contextRows[0] || {}, null, 2))}</div>
         </details>
@@ -2042,6 +2080,24 @@ Deal test = scenario only.</div>
       }
     }
 
+    async function loadEvidenceRowsForRun(runId) {
+      if (!runId) return [];
+
+      return restGet(
+        TABLE_EVIDENCE_CASES,
+        `select=*&run_id=eq.${encodeURIComponent(runId)}&is_active=eq.true&order=tower.asc,unit_type.asc,transaction_type.asc,transaction_date.desc`
+      );
+    }
+
+    async function loadLatestEvidenceRunId() {
+      const latestEvidence = await restGet(
+        TABLE_EVIDENCE_CASES,
+        "select=run_id&is_active=eq.true&order=run_id.desc&limit=1"
+      );
+
+      return latestEvidence?.[0]?.run_id || null;
+    }
+
     async function loadDashboard() {
       const app = document.getElementById("app");
 
@@ -2070,30 +2126,21 @@ Deal test = scenario only.</div>
         let evidenceRunMatch = true;
 
         try {
-          evidenceRows = await restGet(
-            "property_transaction_evidence",
-            `select=*&run_id=eq.${encodeURIComponent(latestRunId)}&order=tower.asc,unit_type.asc,transaction_type.asc,evidence_case_no.asc`
-          );
-        } catch { evidenceRows = []; }
+          evidenceRows = await loadEvidenceRowsForRun(latestRunId);
+        } catch (error) {
+          evidenceRows = [];
+        }
 
         if (!evidenceRows.length) {
           try {
-            const latestEvidence = await restGet(
-              "property_transaction_evidence",
-              "select=*&order=created_at.desc&limit=1"
-            );
-
-            const fallbackRunId = latestEvidence?.[0]?.run_id;
+            const fallbackRunId = await loadLatestEvidenceRunId();
 
             if (fallbackRunId) {
-              evidenceRows = await restGet(
-                "property_transaction_evidence",
-                `select=*&run_id=eq.${encodeURIComponent(fallbackRunId)}&order=tower.asc,unit_type.asc,transaction_type.asc,evidence_case_no.asc`
-              );
+              evidenceRows = await loadEvidenceRowsForRun(fallbackRunId);
               evidenceRunId = fallbackRunId;
               evidenceRunMatch = fallbackRunId === latestRunId;
             }
-          } catch {
+          } catch (error) {
             evidenceRows = [];
             evidenceRunId = latestRunId;
             evidenceRunMatch = true;
@@ -2136,7 +2183,7 @@ Deal test = scenario only.</div>
             <h2>Load Error</h2>
             <div class="banner bad">${escapeHtml(error.message || "Unknown JavaScript or REST error.")}</div>
             <div class="note">
-              Check that <code>${VIEW_WATCHLIST}</code> exists, is exposed via REST,
+              Check that <code>${VIEW_WATCHLIST}</code> exists, that <code>${TABLE_EVIDENCE_CASES}</code> is exposed via REST,
               and that anon/publishable-key SELECT access is allowed.
             </div>
           </section>
